@@ -6,13 +6,15 @@ use crate::processor::{Processor, SerializedBatchMessage};
 use crate::quorum_waiter::QuorumWaiter;
 use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
+use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
-use crypto::{Digest, PublicKey, Transaction};
+use crypto::{Digest, PublicKey, Transaction, check_range_proofs};
 use futures::sink::SinkExt as _;
 use log::{error, info, warn};
 use network::{MessageHandler, Receiver, Writer};
 use primary::PrimaryWorkerMessage;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use store::Store;
@@ -249,9 +251,12 @@ struct TxReceiverHandler {
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
         // Send the transaction to the batch maker.
-        let message: Transaction = bincode::deserialize(&message).unwrap();
+        let tx: Transaction = bincode::deserialize(&message).unwrap();
+        let generators = PedersenGens::default();
+        check_range_proofs(&RangeProof::from_bytes(&tx.range_proof[..]).unwrap(), &[tx.balance.c2], &generators, &mut rand::rngs::OsRng).unwrap();
+        
         self.tx_batch_maker
-            .send(message)
+            .send(tx)
             .await
             .expect("Failed to send transaction");
 

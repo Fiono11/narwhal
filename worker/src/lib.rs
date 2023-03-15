@@ -11,4 +11,4 @@ mod worker;
 #[path = "tests/common.rs"]
 mod common;
 
-pub use crate::worker::{Worker, ClientMessage};
+pub use crate::worker::Worker;

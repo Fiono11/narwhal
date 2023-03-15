@@ -344,7 +344,7 @@ impl TwistedElGamal {
     pub fn new(public_key: &RistrettoPoint, message: &Scalar, random: &Scalar) -> Self {
         let generators = PedersenGens::default();
         let c1 = (random * public_key).compress();
-        let c2 = (random * generators.B + message * generators.B_blinding).compress();
+        let c2 = (random * generators.B_blinding + message * generators.B).compress();
 
         TwistedElGamal {
             c1,
@@ -465,7 +465,6 @@ impl ElGamalProof {
 pub struct Transaction {
     id: u128,
     pub balance: TwistedElGamal,
-    //pub amount: TwistedElGamal,
     pub range_proof: Vec<u8>, // balance > 0
     pub signature: Signature,
     pub representative: CompressedRistretto,

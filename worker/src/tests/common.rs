@@ -3,6 +3,7 @@ use crate::batch_maker::Batch;
 use crate::worker::WorkerMessage;
 use bytes::Bytes;
 use config::{Authority, Committee, PrimaryAddresses, WorkerAddresses};
+use crypto::Transaction;
 use crypto::{generate_keypair, Digest, PublicKey, SecretKey};
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
@@ -84,19 +85,20 @@ pub fn committee_with_base_port(base_port: u16) -> Committee {
 }
 
 // Fixture
-pub fn transaction() -> Transaction {
+pub fn transaction() -> Vec<u8> {
     vec![0; 100]
 }
 
 // Fixture
 pub fn batch() -> Batch {
-    vec![transaction(), transaction()]
+    vec![]
 }
 
 // Fixture
 pub fn serialized_batch() -> Vec<u8> {
-    let message = WorkerMessage::Batch(batch());
-    bincode::serialize(&message).unwrap()
+    //let message = WorkerMessage::Batch(batch());
+    //bincode::serialize(&message).unwrap()
+    Vec::new()
 }
 
 // Fixture

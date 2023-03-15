@@ -198,7 +198,8 @@ fn range_proof() {
     let random = Scalar::random(&mut rng);
     let sk = SecretKey::new(&mut rng);
     let pk = PublicKey::from(&sk);
-    let twisted_elgamal = pk.encrypt_twisted(&Scalar::from(balance), &random);
+    //let twisted_elgamal = pk.encrypt_twisted(&Scalar::from(balance), &random);
+    let twisted_elgamal = TwistedElGamal::new(&CompressedRistretto(pk.0).decompress().unwrap(), &Scalar::from(balance), &random);
     let generators = PedersenGens::default();
     let (rp, c) = generate_range_proofs(
         &vec![balance],
@@ -209,7 +210,7 @@ fn range_proof() {
     .unwrap();
     check_range_proofs(
         &rp,
-        &vec![twisted_elgamal.c2],
+        &[twisted_elgamal.c2],
         &generators,
         &mut rng,
     )
