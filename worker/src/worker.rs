@@ -249,31 +249,16 @@ struct TxReceiverHandler {
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
         // Send the transaction to the batch maker.
-        //self.tx_batch_maker
-            //.send(message.to_vec())
-            //.await
-            //.expect("Failed to send transaction");
-
-        match bincode::deserialize(&message)? {
-            ClientMessage::Transaction(txs) => {
-                for tx in txs {
-                    self.tx_batch_maker
-                        .send(tx)
-                        .await
-                        .expect("Failed to send transaction")
-                }
-            }
-        }
+        let message: Transaction = bincode::deserialize(&message).unwrap();
+        self.tx_batch_maker
+            .send(message)
+            .await
+            .expect("Failed to send transaction");
 
         // Give the change to schedule other tasks.
         tokio::task::yield_now().await;
         Ok(())
     }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ClientMessage {
-    Transaction(Vec<Transaction>),
 }
 
 /// Defines how the network receiver handles incoming workers messages.

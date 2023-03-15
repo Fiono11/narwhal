@@ -23,6 +23,10 @@ primary = { path = "../primary" }
 worker = { path = "../worker" }
 consensus = { path = "../consensus" }
 
+bulletproofs = "3"
+curve25519-dalek-ng = "3"
+rand_core = "0.6.4"
+
 [features]
 benchmark = ["worker/benchmark", "primary/benchmark", "consensus/benchmark"]
 

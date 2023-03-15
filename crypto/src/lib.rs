@@ -10,7 +10,6 @@ use ed25519_dalek as dalek;
 use ed25519_dalek::ed25519;
 use ed25519_dalek::Signer as _;
 use num_integer::Roots;
-use rand::Rng;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::{de, ser, Deserialize, Serialize};
@@ -464,6 +463,7 @@ impl ElGamalProof {
 
 #[derive(Default, Clone, Deserialize, Serialize, Debug)]
 pub struct Transaction {
+    id: u128,
     pub balance: TwistedElGamal,
     //pub amount: TwistedElGamal,
     pub range_proof: Vec<u8>, // balance > 0
@@ -472,8 +472,8 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn random() -> Self {
-        let mut rng = OsRng;
+    pub fn random(id: u128, balance: TwistedElGamal, range_proof: Vec<u8>, representative: CompressedRistretto) -> Self {
+        /*let mut rng = OsRng;
         let representative = RistrettoPoint::random(&mut rng);
         let balance = rand::thread_rng().gen_range(0, u64::MAX);
         let amount = rand::thread_rng().gen_range(0, balance);
@@ -489,13 +489,14 @@ impl Transaction {
         )
         .unwrap();
     
-        let range_proof = range_proof.to_bytes().to_vec();
+        let range_proof = range_proof.to_bytes().to_vec();*/
     
         Self {
-            balance: TwistedElGamal::new(&representative, &Scalar::from(balance), &random),
+            id,
+            balance,
             signature: Signature::default(),
             range_proof,
-            representative: representative.compress(),
+            representative,
         }
     }
 

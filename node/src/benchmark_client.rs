@@ -1,9 +1,14 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use anyhow::{Context, Result};
+use bulletproofs::PedersenGens;
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
 use crypto::Transaction;
+use crypto::TwistedElGamal;
+use crypto::generate_range_proofs;
+use curve25519_dalek_ng::ristretto::RistrettoPoint;
+use curve25519_dalek_ng::scalar::Scalar;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
@@ -15,6 +20,7 @@ use tokio::time::{interval, sleep, Duration, Instant};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use worker::ClientMessage;
 use bytes::Bytes;
+use rand::thread_rng;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -110,33 +116,54 @@ impl Client {
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
 
-        let mut txs = Vec::new();
+        //let mut txs = Vec::new();
 
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
 
-        for i in 0..10 {
+        /*for i in 0..500 {
             let mut tx = Transaction::random();
             txs.push(tx.clone());
-        }
+        }*/
 
-        let now = Instant::now();
-        for x in txs.as_slice().chunks(burst as usize) {
+        let mut rng = rand::rngs::OsRng;
+        let representative = RistrettoPoint::random(&mut rng);
+        let balance = rand::thread_rng().gen_range(0, u64::MAX);
+        let amount = rand::thread_rng().gen_range(0, balance);
+        let random = Scalar::random(&mut rng);
+        let random1 = Scalar::random(&mut rng);
+        let generators = PedersenGens::default();
+        
+        let (range_proof, _commitment) = generate_range_proofs(
+            &vec![balance - amount],
+            &vec![random - &random1],
+            &generators,
+            &mut rng,
+        )
+        .unwrap();
+    
+        let range_proof = range_proof.to_bytes().to_vec();
+
+        let balance = TwistedElGamal::new(&representative, &Scalar::from(balance), &random);
+
+        'main: loop {
             interval.as_mut().tick().await;
-            for i in 0..x.len() {
-                info!("Sending sample transaction {}", i);
-            }
-            let message = bincode::serialize(&ClientMessage::Transaction(x.to_vec())).unwrap();
-            let bytes = Bytes::from(message);
-            if let Err(e) = transport.send(bytes).await {
-                warn!("Failed to send transaction: {}", e);
-                //break 'main;
-            }
+            let now = Instant::now();
 
+            for x in 0..burst {
+                let id = thread_rng().gen_range(0, u128::MAX);
+                let message = bincode::serialize(&Transaction::random(id, balance.clone(), range_proof.clone(), representative.compress())).unwrap();
+                let bytes = Bytes::from(message);
+                if let Err(e) = transport.send(bytes).await {
+                    warn!("Failed to send transaction: {}", e);
+                    break 'main;
+                }
+            }
             if now.elapsed().as_millis() > BURST_DURATION as u128 {
                 // NOTE: This log entry is used to compute performance.
                 warn!("Transaction rate too high for this client");
             }
+            counter += 1;
         }
         Ok(())
     }
