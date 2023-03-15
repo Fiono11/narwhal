@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
+use crypto::Transaction;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
@@ -12,6 +13,8 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use worker::ClientMessage;
+use bytes::Bytes;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -100,45 +103,40 @@ impl Client {
 
         // Submit all transactions.
         let burst = self.rate / PRECISION;
-        let mut tx = BytesMut::with_capacity(self.size);
+        //let mut tx = BytesMut::with_capacity(self.size);
         let mut counter = 0;
-        let mut r = rand::thread_rng().gen();
+        //let mut r = rand::thread_rng().gen();
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
 
+        let mut txs = Vec::new();
+
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
 
-        'main: loop {
+        for i in 0..10 {
+            let mut tx = Transaction::random();
+            txs.push(tx.clone());
+        }
+
+        let now = Instant::now();
+        for x in txs.as_slice().chunks(burst as usize) {
             interval.as_mut().tick().await;
-            let now = Instant::now();
-
-            for x in 0..burst {
-                if x == counter % burst {
-                    // NOTE: This log entry is used to compute performance.
-                    info!("Sending sample transaction {}", counter);
-
-                    tx.put_u8(0u8); // Sample txs start with 0.
-                    tx.put_u64(counter); // This counter identifies the tx.
-                } else {
-                    r += 1;
-                    tx.put_u8(1u8); // Standard txs start with 1.
-                    tx.put_u64(r); // Ensures all clients send different txs.
-                };
-
-                tx.resize(self.size, 0u8);
-                let bytes = tx.split().freeze();
-                if let Err(e) = transport.send(bytes).await {
-                    warn!("Failed to send transaction: {}", e);
-                    break 'main;
-                }
+            for i in 0..x.len() {
+                info!("Sending sample transaction {}", i);
             }
+            let message = bincode::serialize(&ClientMessage::Transaction(x.to_vec())).unwrap();
+            let bytes = Bytes::from(message);
+            if let Err(e) = transport.send(bytes).await {
+                warn!("Failed to send transaction: {}", e);
+                //break 'main;
+            }
+
             if now.elapsed().as_millis() > BURST_DURATION as u128 {
                 // NOTE: This log entry is used to compute performance.
                 warn!("Transaction rate too high for this client");
             }
-            counter += 1;
         }
         Ok(())
     }

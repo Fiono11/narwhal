@@ -2,7 +2,6 @@ use bulletproofs::BulletproofGens;
 use bulletproofs::PedersenGens;
 use bulletproofs::ProofError;
 use bulletproofs::RangeProof;
-use curve25519_dalek_ng::constants::RISTRETTO_BASEPOINT_COMPRESSED;
 use curve25519_dalek_ng::ristretto::CompressedRistretto;
 use curve25519_dalek_ng::ristretto::RistrettoPoint;
 use curve25519_dalek_ng::scalar::Scalar;
@@ -17,7 +16,6 @@ use rand::{CryptoRng, RngCore};
 use serde::{de, ser, Deserialize, Serialize};
 use zkp::CompactProof;
 use zkp::Transcript;
-use zkp::curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use std::array::TryFromSliceError;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -337,6 +335,7 @@ impl SignatureService {
     }
 }
 
+#[derive(Default, Clone, Deserialize, Serialize, Debug)]
 pub struct TwistedElGamal {
     pub c1: CompressedRistretto,
     pub c2: CompressedRistretto,
@@ -463,7 +462,8 @@ impl ElGamalProof {
     }
 }
 
-pub struct SpendTransaction {
+#[derive(Default, Clone, Deserialize, Serialize, Debug)]
+pub struct Transaction {
     pub balance: TwistedElGamal,
     //pub amount: TwistedElGamal,
     pub range_proof: Vec<u8>, // balance > 0
@@ -471,8 +471,8 @@ pub struct SpendTransaction {
     pub representative: CompressedRistretto,
 }
 
-impl SpendTransaction {
-    pub fn random(id: u64) -> Self {
+impl Transaction {
+    pub fn random() -> Self {
         let mut rng = OsRng;
         let representative = RistrettoPoint::random(&mut rng);
         let balance = rand::thread_rng().gen_range(0, u64::MAX);
@@ -497,6 +497,11 @@ impl SpendTransaction {
             range_proof,
             representative: representative.compress(),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        let bytes = bincode::serialize(&self).unwrap();
+        bytes.len()
     }
 }
 

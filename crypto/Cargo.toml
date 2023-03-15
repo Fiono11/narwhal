@@ -18,4 +18,5 @@ rand_core = "0.6.4"
 num-integer = "0.1.45"
 sha2 = { version = "0.10", default-features = false }
 zkp = "0.8.0"
+bincode = "1.3.1"
 

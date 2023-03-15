@@ -1,5 +1,5 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::batch_maker::{Batch, BatchMaker, Transaction};
+use crate::batch_maker::{Batch, BatchMaker};
 use crate::helper::Helper;
 use crate::primary_connector::PrimaryConnector;
 use crate::processor::{Processor, SerializedBatchMessage};
@@ -8,7 +8,7 @@ use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
-use crypto::{Digest, PublicKey};
+use crypto::{Digest, PublicKey, Transaction};
 use futures::sink::SinkExt as _;
 use log::{error, info, warn};
 use network::{MessageHandler, Receiver, Writer};
@@ -249,15 +249,31 @@ struct TxReceiverHandler {
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
         // Send the transaction to the batch maker.
-        self.tx_batch_maker
-            .send(message.to_vec())
-            .await
-            .expect("Failed to send transaction");
+        //self.tx_batch_maker
+            //.send(message.to_vec())
+            //.await
+            //.expect("Failed to send transaction");
+
+        match bincode::deserialize(&message)? {
+            ClientMessage::Transaction(txs) => {
+                for tx in txs {
+                    self.tx_batch_maker
+                        .send(tx)
+                        .await
+                        .expect("Failed to send transaction")
+                }
+            }
+        }
 
         // Give the change to schedule other tasks.
         tokio::task::yield_now().await;
         Ok(())
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ClientMessage {
+    Transaction(Vec<Transaction>),
 }
 
 /// Defines how the network receiver handles incoming workers messages.

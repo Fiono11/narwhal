@@ -15,12 +15,13 @@ use std::convert::TryInto as _;
 use std::net::SocketAddr;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, Duration, Instant};
+use crypto::Transaction;
 
 #[cfg(test)]
 #[path = "tests/batch_maker_tests.rs"]
 pub mod batch_maker_tests;
 
-pub type Transaction = Vec<u8>;
+//pub type Transaction = Vec<u8>;
 pub type Batch = Vec<Transaction>;
 
 /// Assemble clients transactions into batches.
@@ -104,13 +105,13 @@ impl BatchMaker {
         let size = self.current_batch_size;
 
         // Look for sample txs (they all start with 0) and gather their txs id (the next 8 bytes).
-        #[cfg(feature = "benchmark")]
+        /*#[cfg(feature = "benchmark")]
         let tx_ids: Vec<_> = self
             .current_batch
             .iter()
             .filter(|tx| tx[0] == 0u8 && tx.len() > 8)
             .filter_map(|tx| tx[1..9].try_into().ok())
-            .collect();
+            .collect();*/
 
         // Serialize the batch.
         self.current_batch_size = 0;
@@ -127,17 +128,13 @@ impl BatchMaker {
                     .unwrap(),
             );
 
-            for id in tx_ids {
-                // NOTE: This log entry is used to compute performance.
-                info!(
-                    "Batch {:?} contains sample tx {}",
-                    digest,
-                    u64::from_be_bytes(id)
-                );
-            }
+            //for id in tx_ids {
+            // NOTE: This log entry is used to compute performance.
+            //info!("Batch {:?} contains sample tx {:#?}", digest, id,);
+            //}
 
             // NOTE: This log entry is used to compute performance.
-            info!("Batch {:?} contains {} B", digest, size);
+            info!("Batch {:?} contains {} B", digest, size,);
         }
 
         // Broadcast the batch through the network.
