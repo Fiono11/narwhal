@@ -1,4 +1,7 @@
+use bulletproofs::BulletproofGens;
 use bulletproofs::PedersenGens;
+use bulletproofs::ProofError;
+use bulletproofs::RangeProof;
 use curve25519_dalek_ng::constants::RISTRETTO_BASEPOINT_COMPRESSED;
 use curve25519_dalek_ng::ristretto::CompressedRistretto;
 use curve25519_dalek_ng::ristretto::RistrettoPoint;
@@ -8,6 +11,7 @@ use ed25519_dalek as dalek;
 use ed25519_dalek::ed25519;
 use ed25519_dalek::Signer as _;
 use num_integer::Roots;
+use rand::Rng;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::{de, ser, Deserialize, Serialize};
@@ -338,6 +342,19 @@ pub struct TwistedElGamal {
     pub c2: CompressedRistretto,
 }
 
+impl TwistedElGamal {
+    pub fn new(public_key: &RistrettoPoint, message: &Scalar, random: &Scalar) -> Self {
+        let generators = PedersenGens::default();
+        let c1 = (random * public_key).compress();
+        let c2 = (random * generators.B + message * generators.B_blinding).compress();
+
+        TwistedElGamal {
+            c1,
+            c2,
+        }
+    }
+}
+
 pub struct BSGSTable(pub HashMap<CompressedRistretto, u32>);
 
 impl BSGSTable {
@@ -444,6 +461,76 @@ impl ElGamalProof {
             Ok(())
         }
     }
+}
+
+pub struct SpendTransaction {
+    pub balance: TwistedElGamal,
+    //pub amount: TwistedElGamal,
+    pub range_proof: Vec<u8>, // balance > 0
+    pub signature: Signature,
+    pub representative: CompressedRistretto,
+}
+
+impl SpendTransaction {
+    pub fn random(id: u64) -> Self {
+        let mut rng = OsRng;
+        let representative = RistrettoPoint::random(&mut rng);
+        let balance = rand::thread_rng().gen_range(0, u64::MAX);
+        let amount = rand::thread_rng().gen_range(0, balance);
+        let random = Scalar::random(&mut rng);
+        let random1 = Scalar::random(&mut rng);
+        
+        let (range_proof, _commitment) = generate_range_proof(
+            balance - amount,
+            &(&random - &random1),
+            &mut rng,
+        )
+        .unwrap();
+    
+        let range_proof = range_proof.to_bytes().to_vec();
+    
+        Self {
+            balance: TwistedElGamal::new(&representative, &Scalar::from(balance), &random),
+            signature: Signature::default(),
+            range_proof,
+            representative: representative.compress(),
+        }
+    }
+}
+
+pub fn generate_range_proof<T: RngCore + CryptoRng>(
+    value: u64,
+    blinding: &Scalar,
+    rng: &mut T,
+) -> Result<(RangeProof, CompressedRistretto), ProofError> {
+    // Most of this comes directly from the example at
+    // https://doc-internal.dalek.rs/bulletproofs/struct.RangeProof.html#example-1
+
+    // Create a 64-bit RangeProof and corresponding commitments.
+    RangeProof::prove_single_with_rng(
+        &BulletproofGens::new(64, 64),
+        &PedersenGens::default(),
+        &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
+        value,
+        &blinding,
+        64,
+        rng,
+    )
+}
+
+pub fn check_range_proof<T: RngCore + CryptoRng>(
+    range_proof: &RangeProof,
+    commitment: CompressedRistretto,
+    rng: &mut T,
+) -> Result<(), ProofError> {
+    range_proof.verify_single_with_rng(
+        &BulletproofGens::new(64, 64),
+        &PedersenGens::default(),
+        &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
+        &commitment,
+        64,
+        rng,
+    )
 }
 
 

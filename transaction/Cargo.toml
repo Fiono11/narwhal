@@ -1,9 +1,0 @@
-[package]
-name = "transaction"
-version = "0.1.0"
-authors = ["Libra <oncall+libra@xmail.facebook.com>"]
-publish = false
-edition = "2018"
-
-[dependencies]
-crypto = { path = "../crypto" }

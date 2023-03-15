@@ -191,3 +191,25 @@ fn prove_correct_decryption_twisted() {
     assert!(pk.verify_correct_decryption_twisted(&proof, &ciphertext, &decryption));
 }
 
+#[test]
+fn range_proof() {
+    let mut rng = OsRng;
+    let balance = rand::thread_rng().gen_range(0, u64::MAX);
+    let random = Scalar::random(&mut rng);
+    let sk = SecretKey::new(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let twisted_elgamal = pk.encrypt_twisted(&Scalar::from(balance), &random);
+    let (rp, c) = generate_range_proof(
+        balance,
+        &random,
+        &mut rng,
+    )
+    .unwrap();
+    check_range_proof(
+        &rp,
+        twisted_elgamal.c2,
+        &mut rng,
+    )
+    .unwrap();
+}
+
