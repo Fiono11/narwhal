@@ -479,10 +479,12 @@ impl SpendTransaction {
         let amount = rand::thread_rng().gen_range(0, balance);
         let random = Scalar::random(&mut rng);
         let random1 = Scalar::random(&mut rng);
+        let generators = PedersenGens::default();
         
-        let (range_proof, _commitment) = generate_range_proof(
-            balance - amount,
-            &(&random - &random1),
+        let (range_proof, _commitment) = generate_range_proofs(
+            &vec![balance - amount],
+            &vec![random - &random1],
+            &generators,
             &mut rng,
         )
         .unwrap();
@@ -498,39 +500,69 @@ impl SpendTransaction {
     }
 }
 
-pub fn generate_range_proof<T: RngCore + CryptoRng>(
-    value: u64,
-    blinding: &Scalar,
+pub fn generate_range_proofs<T: RngCore + CryptoRng>(
+    values: &[u64],
+    blindings: &[Scalar],
+    pedersen_generators: &PedersenGens,
     rng: &mut T,
-) -> Result<(RangeProof, CompressedRistretto), ProofError> {
+) -> Result<(RangeProof, Vec<CompressedRistretto>), ProofError> {
     // Most of this comes directly from the example at
     // https://doc-internal.dalek.rs/bulletproofs/struct.RangeProof.html#example-1
 
+    // Aggregated rangeproofs operate on sets of `m` values, where `m` must be a
+    // power of 2. If the number of inputs is not a power of 2, pad them.
+    let values_padded: Vec<u64> = resize_slice_to_pow2::<u64>(values).unwrap();
+    let blindings_padded: Vec<Scalar> = resize_slice_to_pow2::<Scalar>(blindings).unwrap();
+
     // Create a 64-bit RangeProof and corresponding commitments.
-    RangeProof::prove_single_with_rng(
+    RangeProof::prove_multiple_with_rng(
         &BulletproofGens::new(64, 64),
-        &PedersenGens::default(),
+        pedersen_generators,
         &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
-        value,
-        &blinding,
+        &values_padded,
+        &blindings_padded,
         64,
         rng,
     )
 }
 
-pub fn check_range_proof<T: RngCore + CryptoRng>(
+pub fn check_range_proofs<T: RngCore + CryptoRng>(
     range_proof: &RangeProof,
-    commitment: CompressedRistretto,
+    commitments: &[CompressedRistretto],
+    pedersen_generators: &PedersenGens,
     rng: &mut T,
 ) -> Result<(), ProofError> {
-    range_proof.verify_single_with_rng(
-        &BulletproofGens::new(64, 64),
-        &PedersenGens::default(),
-        &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
-        &commitment,
-        64,
-        rng,
-    )
+    // The length of `commitments` must be a power of 2. If not, resize it.
+    let resized_commitments = resize_slice_to_pow2::<CompressedRistretto>(commitments).unwrap();
+    range_proof
+        .verify_multiple_with_rng(
+            &BulletproofGens::new(64, 64),
+            pedersen_generators,
+            &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
+            &resized_commitments,
+            64,
+            rng,
+        )
+}
+
+fn resize_slice_to_pow2<T: Clone>(slice: &[T]) -> Result<Vec<T>, Error> {
+    let len: usize = slice.len();
+    if let Some(next_power_of_two) = len.checked_next_power_of_two() {
+        let diff = next_power_of_two - len;
+        let mut pow2_slice: Vec<T> = Vec::with_capacity(next_power_of_two);
+        pow2_slice.extend_from_slice(slice);
+        pow2_slice.resize(slice.len() + diff, slice[slice.len() - 1].clone());
+        Ok(pow2_slice)
+    } else {
+        // The next power of two would exceed the maximum value of usize.
+        Err(Error::ResizeError)
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    /// Resize error
+    ResizeError,
 }
 
 

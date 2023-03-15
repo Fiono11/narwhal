@@ -199,17 +199,35 @@ fn range_proof() {
     let sk = SecretKey::new(&mut rng);
     let pk = PublicKey::from(&sk);
     let twisted_elgamal = pk.encrypt_twisted(&Scalar::from(balance), &random);
-    let (rp, c) = generate_range_proof(
-        balance,
-        &random,
+    let generators = PedersenGens::default();
+    let (rp, c) = generate_range_proofs(
+        &vec![balance],
+        &vec![random],
+        &generators,
         &mut rng,
     )
     .unwrap();
-    check_range_proof(
+    check_range_proofs(
         &rp,
-        twisted_elgamal.c2,
+        &vec![twisted_elgamal.c2],
+        &generators,
         &mut rng,
     )
     .unwrap();
+}
+
+#[test]
+fn generate_and_check() {
+    let mut rng = rand::rngs::OsRng;
+    let values: Vec<u64> = vec![rand::thread_rng().gen_range(0, u64::MAX)];
+    let blindings: Vec<Scalar> = vec![Scalar::random(&mut rng)];
+    let generators = PedersenGens::default();
+    let (proof, commitments) =
+        generate_range_proofs(&values, &blindings, &generators, &mut rng).unwrap();
+
+    match check_range_proofs(&proof, &commitments, &generators, &mut rng) {
+        Ok(_) => {} // This is expected.
+        Err(e) => panic!("{:?}", e),
+    }
 }
 
