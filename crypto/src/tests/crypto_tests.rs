@@ -145,7 +145,7 @@ fn decrypt_twisted() {
 
     let decryption = sk.decrypt_twisted(&ciphertext);
 
-    assert_eq!(decryption, message * PedersenGens::default().B_blinding);
+    assert_eq!(decryption, message * PedersenGens::default().B);
 }
 
 #[test]

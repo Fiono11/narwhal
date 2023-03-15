@@ -100,7 +100,7 @@ impl PublicKey {
     pub fn encrypt_twisted(self, message: &Scalar, random: &Scalar) -> TwistedElGamal {
         let generators = PedersenGens::default();
         let c1 = (CompressedRistretto(self.0).decompress().unwrap() * random).compress();
-        let c2 = (random * generators.B + message * generators.B_blinding).compress();
+        let c2 = (random * generators.B_blinding + message * generators.B).compress();
 
         TwistedElGamal {
             c1,
@@ -122,7 +122,7 @@ impl PublicKey {
                 A: &(ciphertext.c1),
                 B: &(ciphertext.c2.decompress().unwrap() - plaintext).compress(),
                 H: &CompressedRistretto(self.0),
-                G: &RISTRETTO_BASEPOINT_COMPRESSED,
+                G: &PedersenGens::default().B_blinding.compress(),
             },
         )
         .is_ok()
@@ -208,8 +208,8 @@ impl SecretKey {
                 x: &&scalar,
                 A: &(ciphertext.c1.decompress().unwrap()), // C1
                 B: &(ciphertext.c2.decompress().unwrap() - message), // C2-M
-                H: &(&scalar * generators.B),       // xG
-                G: &RISTRETTO_BASEPOINT_POINT,
+                H: &(&scalar * &generators.B_blinding),       // xG
+                G: &&generators.B_blinding,
             },
         );
         proof
@@ -244,7 +244,7 @@ impl Drop for SecretKey {
 
 impl<'a> From<&'a SecretKey> for PublicKey {
     fn from(secret: &'a SecretKey) -> PublicKey {
-        PublicKey(*(PedersenGens::default().B * Scalar::from_bytes_mod_order_wide(&secret.0)).compress().as_bytes())
+        PublicKey(*(PedersenGens::default().B_blinding * Scalar::from_bytes_mod_order_wide(&secret.0)).compress().as_bytes())
     }
 }
 
