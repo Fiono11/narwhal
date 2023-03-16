@@ -465,13 +465,13 @@ impl ElGamalProof {
 pub struct Transaction {
     id: u128,
     pub balance: TwistedElGamal,
-    pub range_proof: Vec<u8>, // balance > 0
+    //pub range_proof: Vec<u8>, // balance > 0
     pub signature: Signature,
     pub representative: CompressedRistretto,
 }
 
 impl Transaction {
-    pub fn random(id: u128, balance: TwistedElGamal, range_proof: Vec<u8>, representative: CompressedRistretto) -> Self {
+    pub fn random(id: u128, balance: TwistedElGamal, representative: CompressedRistretto) -> Self {
         /*let mut rng = OsRng;
         let representative = RistrettoPoint::random(&mut rng);
         let balance = rand::thread_rng().gen_range(0, u64::MAX);
@@ -494,7 +494,7 @@ impl Transaction {
             id,
             balance,
             signature: Signature::default(),
-            range_proof,
+            //range_proof,
             representative,
         }
     }
@@ -521,7 +521,7 @@ pub fn generate_range_proofs<T: RngCore + CryptoRng>(
 
     // Create a 64-bit RangeProof and corresponding commitments.
     RangeProof::prove_multiple_with_rng(
-        &BulletproofGens::new(64, 64),
+        &BulletproofGens::new(64, 512),
         pedersen_generators,
         &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
         &values_padded,
@@ -529,6 +529,22 @@ pub fn generate_range_proofs<T: RngCore + CryptoRng>(
         64,
         rng,
     )
+}
+
+pub fn check_range_proof<T: RngCore + CryptoRng>(
+    range_proof: &RangeProof,
+    commitment: &CompressedRistretto,
+    pedersen_generators: &PedersenGens,
+    rng: &mut T,
+) -> Result<(), ProofError> {
+    range_proof
+        .verify_single(
+            &BulletproofGens::new(64, 64),
+            pedersen_generators,
+            &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
+            &commitment,
+            64,
+        )
 }
 
 pub fn check_range_proofs<T: RngCore + CryptoRng>(
@@ -541,7 +557,7 @@ pub fn check_range_proofs<T: RngCore + CryptoRng>(
     let resized_commitments = resize_slice_to_pow2::<CompressedRistretto>(commitments).unwrap();
     range_proof
         .verify_multiple_with_rng(
-            &BulletproofGens::new(64, 64),
+            &BulletproofGens::new(64, 512),
             pedersen_generators,
             &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
             &resized_commitments,

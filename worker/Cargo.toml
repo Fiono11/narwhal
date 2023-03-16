@@ -23,6 +23,7 @@ primary = { path = "../primary" }
 
 bulletproofs = "3"
 rand = "0.7.3"
+curve25519-dalek-ng = "3"
 
 [dev-dependencies]
 rand = "0.7.3"

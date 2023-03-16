@@ -14,8 +14,10 @@ use curve25519_dalek_ng::scalar::Scalar;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
+use log::debug;
 use log::{info, warn};
 use rand::Rng;
+use worker::Block;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
@@ -109,15 +111,15 @@ impl Client {
             .context(format!("failed to connect to {}", self.target))?;
 
         // Submit all transactions.
-        let burst = self.rate / PRECISION;
+        //let burst = self.rate / PRECISION;
+        let burst = 512;
+        info!("BURST: {}", burst);
         //let mut tx = BytesMut::with_capacity(self.size);
         let mut counter = 0;
         //let mut r = rand::thread_rng().gen();
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
-
-        //let mut txs = Vec::new();
 
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
@@ -134,8 +136,8 @@ impl Client {
         let generators = PedersenGens::default();
         
         let (range_proof, _commitment) = generate_range_proofs(
-            &vec![balance],
-            &vec![random],
+            &vec![balance; burst as usize],
+            &vec![random; burst as usize],
             &generators,
             &mut rng,
         )
@@ -146,19 +148,26 @@ impl Client {
         let balance = TwistedElGamal::new(&representative, &Scalar::from(balance), &random);
 
         'main: loop {
+            let mut txs = Vec::new();
+
             interval.as_mut().tick().await;
             let now = Instant::now();
 
             for x in 0..burst {
                 let id = thread_rng().gen_range(0, u128::MAX);
-                let tx = Transaction::random(id, balance.clone(), range_proof_bytes.clone(), representative.compress());
-                let message = bincode::serialize(&tx).unwrap();
+                let tx = Transaction::random(id, balance.clone(), representative.compress());
+                txs.push(tx);
+            }
+    
+            let block = Block {
+                txs, range_proof_bytes: range_proof_bytes.clone(),
+            };
+            let message = bincode::serialize(&block).unwrap();
 
-                let bytes = Bytes::from(message);
-                if let Err(e) = transport.send(bytes).await {
-                    warn!("Failed to send transaction: {}", e);
-                    break 'main;
-                }
+            let bytes = Bytes::from(message);
+            if let Err(e) = transport.send(bytes).await {
+                warn!("Failed to send transaction: {}", e);
+                break 'main;
             }
             if now.elapsed().as_millis() > BURST_DURATION as u128 {
                 // NOTE: This log entry is used to compute performance.

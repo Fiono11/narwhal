@@ -9,9 +9,10 @@ use async_trait::async_trait;
 use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
-use crypto::{Digest, PublicKey, Transaction, check_range_proofs};
+use crypto::{Digest, PublicKey, Transaction, check_range_proofs, check_range_proof};
+use curve25519_dalek_ng::ristretto::CompressedRistretto;
 use futures::sink::SinkExt as _;
-use log::{error, info, warn};
+use log::{error, info, warn, debug};
 use network::{MessageHandler, Receiver, Writer};
 use primary::PrimaryWorkerMessage;
 use rand::rngs::OsRng;
@@ -247,18 +248,28 @@ struct TxReceiverHandler {
     tx_batch_maker: Sender<Transaction>,
 }
 
+#[derive(Default, Clone, Deserialize, Serialize, Debug)]
+pub struct Block {
+    pub txs: Vec<Transaction>,
+    pub range_proof_bytes: Vec<u8>,
+}
+
 #[async_trait]
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
         // Send the transaction to the batch maker.
-        let tx: Transaction = bincode::deserialize(&message).unwrap();
+        let block: Block = bincode::deserialize(&message).unwrap();
         let generators = PedersenGens::default();
-        check_range_proofs(&RangeProof::from_bytes(&tx.range_proof[..]).unwrap(), &[tx.balance.c2], &generators, &mut rand::rngs::OsRng).unwrap();
-        
-        self.tx_batch_maker
+        let commitments: Vec<CompressedRistretto> = block.txs.iter(). map(|x| x.balance.c2).collect();
+        debug!("Received!");
+        check_range_proofs(&RangeProof::from_bytes(&&block.range_proof_bytes[..]).unwrap(), &commitments, &generators, &mut rand::rngs::OsRng).unwrap();
+        debug!("Checked!");
+        for tx in block.txs {
+            self.tx_batch_maker
             .send(tx)
             .await
             .expect("Failed to send transaction");
+        }
 
         // Give the change to schedule other tasks.
         tokio::task::yield_now().await;
