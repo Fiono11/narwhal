@@ -95,7 +95,7 @@ struct Client {
 
 impl Client {
     pub async fn send(&self) -> Result<()> {
-        const PRECISION: u64 = 20; // Sample precision.
+        const PRECISION: u64 = 1; // Sample precision.
         const BURST_DURATION: u64 = 1000 / PRECISION;
 
         // The transaction size must be at least 16 bytes to ensure all txs are different.
@@ -113,7 +113,7 @@ impl Client {
         // Submit all transactions.
         //let burst = self.rate / PRECISION;
         let burst = 512;
-        info!("BURST: {}", burst);
+        info!("BURST: {}", self.rate / PRECISION);
         //let mut tx = BytesMut::with_capacity(self.size);
         let mut counter = 0;
         //let mut r = rand::thread_rng().gen();
