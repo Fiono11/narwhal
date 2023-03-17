@@ -1,10 +1,16 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use super::*;
+use chacha20poly1305::Key;
+use curve25519_dalek_ng::constants::RISTRETTO_BASEPOINT_POINT;
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
 use rand::Rng;
 use rand::rngs::StdRng;
 use rand::SeedableRng as _;
+use chacha20poly1305::{
+    aead::{Aead, AeadCore, KeyInit, OsRng},
+    ChaCha20Poly1305, Nonce
+};
 
 impl Hash for &[u8] {
     fn digest(&self) -> Digest {
@@ -178,7 +184,7 @@ fn test_baby_step_giant_step_elgamal() {
 
 #[test]
 fn prove_correct_decryption_twisted() {
-    let mut csprng = OsRng;
+    let mut csprng = rand::rngs::OsRng;
     let sk = SecretKey::new(&mut csprng);
     let pk = PublicKey::from(&sk);
 
@@ -193,7 +199,7 @@ fn prove_correct_decryption_twisted() {
 
 #[test]
 fn range_proof() {
-    let mut rng = OsRng;
+    let mut rng = rand::rngs::OsRng;
     let balance = rand::thread_rng().gen_range(0, u64::MAX);
     let random = Scalar::random(&mut rng);
     let sk = SecretKey::new(&mut rng);
@@ -232,3 +238,42 @@ fn generate_and_check() {
     }
 }
 
+#[test]
+fn test_create_shared_secret_is_symmetric() {
+    let mut rng = rand::rngs::OsRng;
+    let a = Scalar::random(&mut rng);
+    let A = a * RISTRETTO_BASEPOINT_POINT;
+
+    let b = Scalar::random(&mut rng);
+    let B = b * RISTRETTO_BASEPOINT_POINT;
+
+    let c = Scalar::random(&mut rng);
+    let C = c * RISTRETTO_BASEPOINT_POINT;
+
+    let aB = create_shared_secret(&B, &a);
+    let aC = create_shared_secret(&C, &a);
+
+    let bA = create_shared_secret(&A, &b);
+    let cA = create_shared_secret(&A, &c);
+
+    assert_eq!(aB, bA);
+    assert_eq!(aC, cA);
+
+    let shared_secret = Scalar::random(&mut rng);
+
+    let aB_bytes = bA.compress();
+    let key1 = Key::from_slice(aB_bytes.as_bytes());
+    let cipher1 = ChaCha20Poly1305::new(&key1);
+    let nonce1 = ChaCha20Poly1305::generate_nonce(&mut OsRng); // 96-bits; unique per message
+    let ciphertext1 = cipher1.encrypt(&nonce1, shared_secret.as_bytes().as_ref()).unwrap();
+    let plaintext1 = cipher1.decrypt(&nonce1, ciphertext1.as_ref()).unwrap();
+    assert_eq!(&plaintext1, shared_secret.as_bytes().as_ref());
+
+    let aC_bytes = cA.compress();
+    let key2 = Key::from_slice(aC_bytes.as_bytes());
+    let cipher2 = ChaCha20Poly1305::new(&key2);
+    let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); // 96-bits; unique per message
+    let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();
+    let plaintext2 = cipher2.decrypt(&nonce2, ciphertext2.as_ref()).unwrap();
+    assert_eq!(&plaintext2, shared_secret.as_bytes().as_ref());
+}

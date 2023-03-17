@@ -2,6 +2,7 @@ use bulletproofs::BulletproofGens;
 use bulletproofs::PedersenGens;
 use bulletproofs::ProofError;
 use bulletproofs::RangeProof;
+use curve25519_dalek_ng::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek_ng::ristretto::CompressedRistretto;
 use curve25519_dalek_ng::ristretto::RistrettoPoint;
 use curve25519_dalek_ng::scalar::Scalar;
@@ -586,6 +587,13 @@ fn resize_slice_to_pow2<T: Clone>(slice: &[T]) -> Result<Vec<T>, Error> {
 pub enum Error {
     /// Resize error
     ResizeError,
+}
+
+pub fn create_shared_secret(
+    public_key: &RistrettoPoint,
+    private_key: &Scalar,
+) -> RistrettoPoint {
+    private_key * public_key
 }
 
 
