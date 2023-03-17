@@ -5,18 +5,26 @@ use bulletproofs::RangeProof;
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
+use crypto::Digest;
+use crypto::Hash;
+use crypto::PublicKey;
+use crypto::Signature;
 use crypto::Transaction;
 use crypto::TwistedElGamal;
 use crypto::check_range_proofs;
+use crypto::generate_keypair;
 use crypto::generate_range_proofs;
 use curve25519_dalek_ng::ristretto::RistrettoPoint;
 use curve25519_dalek_ng::scalar::Scalar;
+use ed25519_dalek::{Sha512, Digest as _};
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
 use log::debug;
 use log::{info, warn};
 use rand::Rng;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use worker::Block;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -24,6 +32,7 @@ use tokio::time::{interval, sleep, Duration, Instant};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use bytes::Bytes;
 use rand::thread_rng;
+use std::convert::TryInto;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -147,6 +156,12 @@ impl Client {
 
         let balance = TwistedElGamal::new(&representative, &Scalar::from(balance), &random);
 
+        let mut rng = StdRng::from_seed([0; 32]);
+        let (public_key, secret_key) = generate_keypair(&mut rng);
+        let message: &[u8] = b"Hello, world!";
+        let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
+        let signature = Signature::new(&digest, &secret_key);
+            
         'main: loop {
             let mut txs = Vec::new();
 
@@ -155,7 +170,7 @@ impl Client {
 
             for x in 0..burst {
                 let id = thread_rng().gen_range(0, u128::MAX);
-                let tx = Transaction::random(id, balance.clone(), representative.compress());
+                let tx = Transaction::random(id, balance.clone(), representative.compress(), public_key.clone(), signature.clone());
                 txs.push(tx);
             }
     
@@ -191,3 +206,4 @@ impl Client {
         .await;
     }
 }
+

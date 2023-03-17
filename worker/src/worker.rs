@@ -9,14 +9,16 @@ use async_trait::async_trait;
 use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
-use crypto::{Digest, PublicKey, Transaction, check_range_proofs, check_range_proof};
+use crypto::{Digest, PublicKey, Transaction, check_range_proofs, check_range_proof, Signature, Hash};
 use curve25519_dalek_ng::ristretto::CompressedRistretto;
 use futures::sink::SinkExt as _;
 use log::{error, info, warn, debug};
 use network::{MessageHandler, Receiver, Writer};
 use primary::PrimaryWorkerMessage;
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use ed25519_dalek::Digest as _;
+use ed25519_dalek::Sha512;
+use std::convert::TryInto;
 use std::error::Error;
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
@@ -263,6 +265,10 @@ impl MessageHandler for TxReceiverHandler {
         let commitments: Vec<CompressedRistretto> = block.txs.iter(). map(|x| x.balance.c2).collect();
         debug!("Received!");
         check_range_proofs(&RangeProof::from_bytes(&&block.range_proof_bytes[..]).unwrap(), &commitments, &generators, &mut rand::rngs::OsRng).unwrap();
+        let message: &[u8] = b"Hello, world!";
+        let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
+        let signatures: Vec<(PublicKey, Signature)> = block.txs.iter(). map(|x| (x.public_key, x.signature.clone())).collect();
+        Signature::verify_batch(&digest, &signatures).unwrap();
         debug!("Checked!");
         for tx in block.txs {
             self.tx_batch_maker

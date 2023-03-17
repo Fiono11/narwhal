@@ -468,10 +468,11 @@ pub struct Transaction {
     //pub range_proof: Vec<u8>, // balance > 0
     pub signature: Signature,
     pub representative: CompressedRistretto,
+    pub public_key: PublicKey,
 }
 
 impl Transaction {
-    pub fn random(id: u128, balance: TwistedElGamal, representative: CompressedRistretto) -> Self {
+    pub fn random(id: u128, balance: TwistedElGamal, representative: CompressedRistretto, public_key: PublicKey, signature: Signature) -> Self {
         /*let mut rng = OsRng;
         let representative = RistrettoPoint::random(&mut rng);
         let balance = rand::thread_rng().gen_range(0, u64::MAX);
@@ -493,9 +494,10 @@ impl Transaction {
         Self {
             id,
             balance,
-            signature: Signature::default(),
+            signature,
             //range_proof,
             representative,
+            public_key,
         }
     }
 

@@ -26,6 +26,7 @@ consensus = { path = "../consensus" }
 bulletproofs = "3"
 curve25519-dalek-ng = "3"
 rand_core = "0.6.4"
+ed25519-dalek = { version = "1.0.1", features = ["batch"] }
 
 [features]
 benchmark = ["worker/benchmark", "primary/benchmark", "consensus/benchmark"]
