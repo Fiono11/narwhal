@@ -596,52 +596,6 @@ pub fn create_shared_secret(
     private_key * public_key
 }
 
-pub struct Pedersen {
-    point: RistrettoPoint,
-    z1: Scalar,
-    z2: Scalar,
-}
-
-impl Pedersen {
-    pub fn new(v: Scalar, r: Scalar) -> Self {
-        let mut rng = OsRng;
-        let a = Scalar::random(&mut rng);
-        let b = Scalar::random(&mut rng);
-        let generators = PedersenGens::default();
-        let point = a * generators.B + b * generators.B_blinding;
-        let e = Scalar::from(1u8);
-        let z1 = a + e * r;
-        let z2 = b + e * v;
-        Self {
-            point,
-            //e: e.into(),
-            z1,
-            z2,
-        }
-    }
-
-    pub fn verify(
-        &self,
-        commitment: RistrettoPoint,
-    ) -> Result<(), ()> {
-        let e = Scalar::from(1u8);
-        let generators = PedersenGens::default();
-        // (a + e * r) * B + (b + e * v) * B_blinding 
-        // a * B + (e * r) * B + b * B_blinding + (e * v) * B_blinding
-        // aB + erB + bBlinding + evBlinding
-
-        // (r * B + v * B_blinding) * e + a * B + b * B_blinding
-        // reB + veB_blinding + aB + bBlinding
-        if
-			 self.z1 * generators.B + self.z2 * generators.B_blinding != commitment * e + self.point
-            //|| self.z2 * generators.B + self.z3 * generators.B_blinding != self.b2.decompress().unwrap() + y2 * e
-        {
-            Err(())
-        } else {
-            Ok(())
-        }
-    }
-}
 
 
 

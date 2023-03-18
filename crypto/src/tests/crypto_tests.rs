@@ -2,6 +2,7 @@
 use super::*;
 use chacha20poly1305::Key;
 use curve25519_dalek_ng::constants::RISTRETTO_BASEPOINT_POINT;
+use dalek::ed25519::signature::Keypair;
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
 use rand::Rng;
@@ -175,8 +176,16 @@ fn pedersen_proof() {
     let sk = Scalar::random(&mut rng);
     let v = Scalar::from(10u64);
     let r = Scalar::random(&mut rng);
-    let proof = Pedersen::new(v, r);
-    proof.verify(r * generators.B + v * generators.B_blinding).unwrap();
+    let a = Scalar::from(10u64);
+    let b = Scalar::random(&mut rng);
+    let secret = ed25519_dalek::SecretKey::from_bytes((r-b).as_bytes()).unwrap();
+    let public = ed25519_dalek::PublicKey::from(&secret);
+    let keypair = ed25519_dalek::Keypair {
+        secret,
+        public,
+    };
+    let signature = keypair.sign(b"msg");
+    keypair.verify(b"msg", &signature).unwrap();
 }
 
 #[test]
