@@ -169,6 +169,17 @@ fn equal_proof() {
 }
 
 #[test]
+fn pedersen_proof() {
+    let mut rng = rand::rngs::OsRng;
+    let generators = PedersenGens::default();
+    let sk = Scalar::random(&mut rng);
+    let v = Scalar::from(10u64);
+    let r = Scalar::random(&mut rng);
+    let proof = Pedersen::new(v, r);
+    proof.verify(r * generators.B + v * generators.B_blinding).unwrap();
+}
+
+#[test]
 fn test_baby_step_giant_step_elgamal() {
     let generators = PedersenGens::default();
     let mut rng = rand::thread_rng();
@@ -275,5 +286,8 @@ fn test_create_shared_secret_is_symmetric() {
     let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); // 96-bits; unique per message
     let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();
     let plaintext2 = cipher2.decrypt(&nonce2, ciphertext2.as_ref()).unwrap();
+    let mut bytes = [0; 64];
+    bytes.copy_from_slice(&ciphertext1[..]);
+    RistrettoPoint::from_uniform_bytes(&bytes);
     assert_eq!(&plaintext2, shared_secret.as_bytes().as_ref());
 }
