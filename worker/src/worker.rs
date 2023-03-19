@@ -273,7 +273,7 @@ impl MessageHandler for TxReceiverHandler {
         //let signatures: Vec<(PublicKey, Signature)> = block.txs.iter(). map(|x| (x.public_key, x.signature.clone())).collect();
         //Signature::verify_batch(&digest, &signatures).unwrap();
         
-        let size = 4;
+        let size = 64;
         let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
         let mut x: Scalar = Scalar::one();
         let index = 0;
@@ -289,9 +289,10 @@ impl MessageHandler for TxReceiverHandler {
         let M = "This is a triptych signature test, lets see if it works or not";
         debug!("Checked!");
         for tx in block.txs {
-            //debug!("sig: {:?}", tx.signature);
-
-            //Verify(&tx.signature, &M, &R).unwrap();
+            debug!("sig: {:?}", tx.signature);
+            debug!("M: {:?}", &M);
+            debug!("R: {:?}", &R);
+            Verify(&tx.signature, &M, &R).unwrap();
             self.tx_batch_maker
                 .send(tx)
                 .await

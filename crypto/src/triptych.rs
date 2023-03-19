@@ -356,7 +356,8 @@ pub fn base_verify(
 
 pub fn KeyGen() -> (Scalar, RistrettoPoint) {
     let mut rng = rand::thread_rng();
-    let r = Scalar::random(&mut rng);
+    //let r = Scalar::random(&mut rng);
+    let r = Scalar::one();
     //let G = util::hash_to_point("G");
 
     return (r, r * RISTRETTO_BASEPOINT_POINT);

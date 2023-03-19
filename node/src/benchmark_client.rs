@@ -167,7 +167,7 @@ impl Client {
         let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
         //let signature = Signature::new(&digest, &secret_key);
         
-        let size = 4;
+        let size = 64;
         let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
         let mut x: Scalar = Scalar::one();
         let index = 0;
@@ -184,9 +184,12 @@ impl Client {
 
         let signature = Sign(&x, &M, &R);
 
-        debug!("sig: {:?}", signature);
+        info!("sig: {:?}", signature);
 
-        Verify(&signature, &M, &R).unwrap();
+        info!("M: {:?}", &M);
+        info!("R: {:?}", &R);
+
+        //Verify(&signature, &M, &R).unwrap();
             
         'main: loop {
             let mut txs = Vec::new();
