@@ -32,6 +32,15 @@ define_proof! {dleq, "DLEQ Proof", (x), (A, B), (H, G) : A = (x * B), H = (x * G
 #[path = "tests/crypto_tests.rs"]
 pub mod crypto_tests;
 
+pub mod triptych;
+pub mod compressed_commitment;
+pub mod commitment;
+pub mod error;
+pub mod curve_scalar;
+pub mod key_image;
+pub mod ristretto;
+pub mod util;
+
 pub type CryptoError = ed25519::Error;
 
 /// Represents a hash digest (32 bytes).
@@ -569,7 +578,7 @@ pub fn check_range_proofs<T: RngCore + CryptoRng>(
         )
 }
 
-fn resize_slice_to_pow2<T: Clone>(slice: &[T]) -> Result<Vec<T>, Error> {
+fn resize_slice_to_pow2<T: Clone>(slice: &[T]) -> Result<Vec<T>, error::Error> {
     let len: usize = slice.len();
     if let Some(next_power_of_two) = len.checked_next_power_of_two() {
         let diff = next_power_of_two - len;
@@ -579,14 +588,8 @@ fn resize_slice_to_pow2<T: Clone>(slice: &[T]) -> Result<Vec<T>, Error> {
         Ok(pow2_slice)
     } else {
         // The next power of two would exceed the maximum value of usize.
-        Err(Error::ResizeError)
+        Err(error::Error::ResizeError)
     }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    /// Resize error
-    ResizeError,
 }
 
 pub fn create_shared_secret(
