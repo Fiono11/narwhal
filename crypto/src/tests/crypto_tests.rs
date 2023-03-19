@@ -1,7 +1,12 @@
+use std::io::Bytes;
+
 // Copyright(C) Facebook, Inc. and its affiliates.
 use super::*;
 use chacha20poly1305::Key;
 use curve25519_dalek_ng::constants::RISTRETTO_BASEPOINT_POINT;
+use curve25519_dalek_ng::constants::RISTRETTO_BASEPOINT_TABLE;
+use curve25519_dalek_ng::digest::Update;
+use dalek::ExpandedSecretKey;
 use dalek::ed25519::signature::Keypair;
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
@@ -12,6 +17,9 @@ use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     ChaCha20Poly1305, Nonce
 };
+use rand::thread_rng;
+use schnorrkel::musig::Commitment;
+use schnorrkel::signing_context;
 
 impl Hash for &[u8] {
     fn digest(&self) -> Digest {
@@ -152,7 +160,7 @@ fn decrypt_twisted() {
 
     let decryption = sk.decrypt_twisted(&ciphertext);
 
-    assert_eq!(decryption, message * PedersenGens::default().B);
+    assert_eq!(decryption, message * PedersenGens::default().B_blinding);
 }
 
 #[test]
@@ -170,22 +178,80 @@ fn equal_proof() {
 }
 
 #[test]
+fn verify_pedersen_commitments() {
+    let mut rng = thread_rng();
+    let C1 = RistrettoPoint::random(&mut rng);
+    let C2 = RistrettoPoint::random(&mut rng);
+    let v = Scalar::random(&mut rng);
+
+    // generate a random blinding factor for each commitment
+    let b1 = Scalar::random(&mut rng);
+    let b2 = Scalar::random(&mut rng);
+
+    // compute the commitments
+    let commitment1 = &b1 * &RISTRETTO_BASEPOINT_POINT + v * C1;
+    let commitment2 = &b2 * &RISTRETTO_BASEPOINT_POINT + v * C2;
+
+    // compute the signature on the generator point
+    let signature = {
+        let r = Scalar::random(&mut rng);
+        let R = r * &RISTRETTO_BASEPOINT_POINT;
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        //R.compress().as_bytes().hash(&mut hasher);
+        let e = Scalar::random(&mut rng);
+        let s = r + e * (b1 - b2);
+        (s, e)
+    };
+
+    // verify the signature
+    let (s, e) = signature;
+    let R = s * &RISTRETTO_BASEPOINT_POINT - e * commitment1 - (Scalar::one() - e) * commitment2;
+    R.compress() == C1.compress();
+}
+
+#[test]
 fn pedersen_proof() {
     let mut rng = rand::rngs::OsRng;
     let generators = PedersenGens::default();
-    let sk = Scalar::random(&mut rng);
-    let v = Scalar::from(10u64);
+    let v = Scalar::random(&mut rng);
     let r = Scalar::random(&mut rng);
-    let a = Scalar::from(10u64);
+    let a = v;
     let b = Scalar::random(&mut rng);
-    let secret = ed25519_dalek::SecretKey::from_bytes((r-b).as_bytes()).unwrap();
-    let public = ed25519_dalek::PublicKey::from(&secret);
-    let keypair = ed25519_dalek::Keypair {
-        secret,
-        public,
+    let s = r - b;
+    let c1 = generators.commit(r, v);
+    let c2 = generators.commit(b, a);
+    println!("{:?}", s);
+    println!("c: {:?}", (c1 - c2).compress().as_bytes());
+    println!("c2: {:?}", (r * generators.B_blinding - b * generators.B_blinding).compress().as_bytes());
+    let ed = ed25519_dalek::SecretKey::from_bytes(s.as_bytes()).unwrap();
+    println!("{:?}", ed);
+    let mut bytes = ed.as_bytes().to_vec();
+    println!("bytes: {:?}", bytes);
+    let mut vec = vec![0; 32];
+    bytes.append(&mut vec);
+    println!("bytes: {:?}", bytes);
+    let ex = ExpandedSecretKey::from_bytes(&bytes[..]).unwrap();
+    //println!("{:?}", ex);
+    let sk = schnorrkel::SecretKey::from_bytes(&ex.to_bytes()).unwrap();
+    println!("{:?}", sk);
+    let pk = s * RISTRETTO_BASEPOINT_POINT;
+    let pk1 = schnorrkel::PublicKey::from(sk.clone());
+    println!("1: {:?}", schnorrkel::PublicKey::from_point(pk));
+    println!("2: {:?}", pk1);
+    println!("3: {:?}", schnorrkel::PublicKey::from_point(c1 - c2));
+    let keypair = schnorrkel::Keypair {
+        secret: sk,
+        public: pk1,
     };
-    let signature = keypair.sign(b"msg");
-    keypair.verify(b"msg", &signature).unwrap();
+    let ctx = signing_context(b"My Signing Context");
+    let message: &[u8] = b"All I want is to pet all of the dogs.";
+    let prehashed = sha3::Shake256::default().chain(message);
+    let signature = keypair.sign(ctx.xof(prehashed.clone()));
+    let kp = schnorrkel::Keypair {
+        secret: schnorrkel::SecretKey::generate(),
+        public: schnorrkel::PublicKey::from_point(c1 - c2),  
+    };
+    kp.public.verify(ctx.xof(prehashed), &signature).unwrap();
 }
 
 #[test]

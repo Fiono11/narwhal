@@ -98,7 +98,7 @@ impl PublicKey {
     pub fn encrypt_twisted(self, message: &Scalar, random: &Scalar) -> TwistedElGamal {
         let generators = PedersenGens::default();
         let c1 = (CompressedRistretto(self.0).decompress().unwrap() * random).compress();
-        let c2 = (random * generators.B_blinding + message * generators.B).compress();
+        let c2 = (message * generators.B_blinding + random * generators.B).compress();
 
         TwistedElGamal {
             c1,
@@ -242,7 +242,7 @@ impl Drop for SecretKey {
 
 impl<'a> From<&'a SecretKey> for PublicKey {
     fn from(secret: &'a SecretKey) -> PublicKey {
-        PublicKey(*(PedersenGens::default().B_blinding * Scalar::from_bytes_mod_order_wide(&secret.0)).compress().as_bytes())
+        PublicKey(*(PedersenGens::default().B * Scalar::from_bytes_mod_order_wide(&secret.0)).compress().as_bytes())
     }
 }
 
@@ -595,6 +595,7 @@ pub fn create_shared_secret(
 ) -> RistrettoPoint {
     private_key * public_key
 }
+
 
 
 
