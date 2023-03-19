@@ -9,8 +9,11 @@ use async_trait::async_trait;
 use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
+use crypto::triptych::{Verify, KeyGen};
 use crypto::{Digest, PublicKey, Transaction, check_range_proofs, check_range_proof, Signature, Hash};
-use curve25519_dalek_ng::ristretto::CompressedRistretto;
+use curve25519_dalek_ng::ristretto::{CompressedRistretto, RistrettoPoint};
+use curve25519_dalek_ng::scalar::Scalar;
+use curve25519_dalek_ng::traits::Identity;
 use futures::sink::SinkExt as _;
 use log::{error, info, warn, debug};
 use network::{MessageHandler, Receiver, Writer};
@@ -28,7 +31,7 @@ use tokio::sync::mpsc::{channel, Sender};
 pub mod worker_tests;
 
 /// The default channel capacity for each channel of the worker.
-pub const CHANNEL_CAPACITY: usize = 1_000;
+pub const CHANNEL_CAPACITY: usize = 100_000;
 
 /// The primary round number.
 // TODO: Move to the primary.
@@ -265,16 +268,34 @@ impl MessageHandler for TxReceiverHandler {
         let commitments: Vec<CompressedRistretto> = block.txs.iter(). map(|x| x.balance.c2).collect();
         debug!("Received!");
         check_range_proofs(&RangeProof::from_bytes(&&block.range_proof_bytes[..]).unwrap(), &commitments, &generators, &mut rand::rngs::OsRng).unwrap();
-        let message: &[u8] = b"Hello, world!";
-        let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
-        let signatures: Vec<(PublicKey, Signature)> = block.txs.iter(). map(|x| (x.public_key, x.signature.clone())).collect();
-        Signature::verify_batch(&digest, &signatures).unwrap();
+        //let message: &[u8] = b"Hello, world!";
+        //let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
+        //let signatures: Vec<(PublicKey, Signature)> = block.txs.iter(). map(|x| (x.public_key, x.signature.clone())).collect();
+        //Signature::verify_batch(&digest, &signatures).unwrap();
+        
+        let size = 4;
+        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
+        let mut x: Scalar = Scalar::one();
+        let index = 0;
+
+        for i in 0..size {
+            let (sk, pk) = KeyGen();
+            R[i] = pk;
+
+            if i == index {
+                x = sk;
+            }
+        }
+        let M = "This is a triptych signature test, lets see if it works or not";
         debug!("Checked!");
         for tx in block.txs {
+            //debug!("sig: {:?}", tx.signature);
+
+            //Verify(&tx.signature, &M, &R).unwrap();
             self.tx_batch_maker
-            .send(tx)
-            .await
-            .expect("Failed to send transaction");
+                .send(tx)
+                .await
+                .expect("Failed to send transaction");
         }
 
         // Give the change to schedule other tasks.

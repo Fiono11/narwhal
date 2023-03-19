@@ -14,8 +14,13 @@ use crypto::TwistedElGamal;
 use crypto::check_range_proofs;
 use crypto::generate_keypair;
 use crypto::generate_range_proofs;
+use crypto::triptych::KeyGen;
+use crypto::triptych::Sign;
+use crypto::triptych::TriptychSignature;
+use crypto::triptych::Verify;
 use curve25519_dalek_ng::ristretto::RistrettoPoint;
 use curve25519_dalek_ng::scalar::Scalar;
+use curve25519_dalek_ng::traits::Identity;
 use ed25519_dalek::{Sha512, Digest as _};
 use env_logger::Env;
 use futures::future::join_all;
@@ -105,7 +110,7 @@ struct Client {
 impl Client {
     pub async fn send(&self) -> Result<()> {
         const PRECISION: u64 = 1; // Sample precision.
-        const BURST_DURATION: u64 = 800 / PRECISION;
+        const BURST_DURATION: u64 = 2000 / PRECISION;
 
         // The transaction size must be at least 16 bytes to ensure all txs are different.
         if self.size < 9 {
@@ -160,7 +165,28 @@ impl Client {
         let (public_key, secret_key) = generate_keypair(&mut rng);
         let message: &[u8] = b"Hello, world!";
         let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
-        let signature = Signature::new(&digest, &secret_key);
+        //let signature = Signature::new(&digest, &secret_key);
+        
+        let size = 4;
+        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
+        let mut x: Scalar = Scalar::one();
+        let index = 0;
+
+        for i in 0..size {
+            let (sk, pk) = KeyGen();
+            R[i] = pk;
+
+            if i == index {
+                x = sk;
+            }
+        }
+        let M = "This is a triptych signature test, lets see if it works or not";
+
+        let signature = Sign(&x, &M, &R);
+
+        debug!("sig: {:?}", signature);
+
+        Verify(&signature, &M, &R).unwrap();
             
         'main: loop {
             let mut txs = Vec::new();

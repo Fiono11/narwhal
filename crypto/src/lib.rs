@@ -14,6 +14,7 @@ use num_integer::Roots;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::{de, ser, Deserialize, Serialize};
+use triptych::TriptychSignature;
 use zkp::CompactProof;
 use zkp::Transcript;
 use std::array::TryFromSliceError;
@@ -471,18 +472,19 @@ impl ElGamalProof {
     }
 }
 
-#[derive(Default, Clone, Deserialize, Serialize, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Transaction {
     id: u128,
     pub balance: TwistedElGamal,
     //pub range_proof: Vec<u8>, // balance > 0
-    pub signature: Signature,
+    //pub signature: Signature,
+    pub signature: TriptychSignature,
     pub representative: CompressedRistretto,
     pub public_key: PublicKey,
 }
 
 impl Transaction {
-    pub fn random(id: u128, balance: TwistedElGamal, representative: CompressedRistretto, public_key: PublicKey, signature: Signature) -> Self {
+    pub fn random(id: u128, balance: TwistedElGamal, representative: CompressedRistretto, public_key: PublicKey, signature: TriptychSignature) -> Self {
         /*let mut rng = OsRng;
         let representative = RistrettoPoint::random(&mut rng);
         let balance = rand::thread_rng().gen_range(0, u64::MAX);

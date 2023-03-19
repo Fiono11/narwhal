@@ -2,7 +2,7 @@ use curve25519_dalek_ng::scalar::Scalar;
 use serde::{Serialize, Deserialize};
 
 /// A curve scalar
-#[derive(Copy, Clone, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, Default, Serialize, Deserialize, Debug)]
 pub struct CurveScalar {
     /// The scalar value
     pub scalar: Scalar,

@@ -13,7 +13,7 @@ use sha2::Sha512;
 use std::convert::TryInto;
 
 /// A curve scalar vec
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CurveScalarVec {
     /// The scalars values
     pub scalars: Vec<CurveScalar>,
@@ -26,7 +26,7 @@ impl From<Vec<CurveScalar>> for CurveScalarVec {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TriptychEllipticCurveState {
     pub J: CompressedCommitment,
     pub A: CompressedCommitment,
@@ -51,7 +51,7 @@ impl TriptychEllipticCurveState {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TriptychScalarState {
     pub f: Vec<CurveScalarVec>,
     pub zA: CurveScalar,
@@ -70,7 +70,7 @@ impl TriptychScalarState {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TriptychSignature {
     pub a: TriptychEllipticCurveState,
     pub z: TriptychScalarState,
@@ -400,4 +400,56 @@ pub fn Link(sgn_a: &TriptychSignature, sgn_b: &TriptychSignature) -> bool {
     //return sgn_a.a.J == sgn_b.a.J;
     true
 }
+
+    #[test]
+    pub fn test_base_signature() {
+        let G = RISTRETTO_BASEPOINT_POINT;
+        let m: usize = 4;
+        let l: usize = 12;
+        let len_M = 16;
+
+        let mut M: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); len_M];
+
+        let mut rng = rand::thread_rng();
+        let mut r: Scalar = Scalar::one();
+        for i in 0..len_M {
+            let sk = Scalar::random(&mut rng);
+            M[i] = sk * G;
+
+            if i == l {
+                r = sk;
+            }
+        }
+
+        let sgn: TriptychSignature = base_prove(&M, &l, &r, &m, "demo");
+
+        let result = base_verify(&M, &sgn, &m, "demo");
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    pub fn test_signature() {
+        let size = 4;
+        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
+        let mut x: Scalar = Scalar::one();
+        let index = 0;
+
+        for i in 0..size {
+            let (sk, pk) = KeyGen();
+            R[i] = pk;
+
+            if i == index {
+                x = sk;
+            }
+        }
+        let M = "This is a triptych signature test, lets see if it works or not";
+
+        let sgn = Sign(&x, &M, &R);
+
+        let result = Verify(&sgn, &M, &R);
+
+        assert!(result.is_ok());
+    }
+
 
