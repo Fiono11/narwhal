@@ -2,6 +2,7 @@
 use crate::worker::SerializedBatchDigestMessage;
 use config::WorkerId;
 use crypto::Digest;
+use crypto::transaction::Transaction;
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
 use primary::WorkerPrimaryMessage;
@@ -34,6 +35,9 @@ impl Processor {
     ) {
         tokio::spawn(async move {
             while let Some(batch) = rx_batch.recv().await {
+                // validate txs
+                let txs: Vec<Transaction> = bincode::deserialize(&batch).unwrap();
+
                 // Hash the batch.
                 let digest = Digest(Sha512::digest(&batch).as_slice()[..32].try_into().unwrap());
 

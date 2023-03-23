@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::commitment::Commitment;
 
 /// A Pedersen commitment in compressed Ristretto format.
-#[derive(Copy, Clone, Default, Deserialize, Serialize)]
+#[derive(Copy, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct CompressedCommitment {
     /// A Pedersen commitment `v*H + b*G` to a quantity `v` with blinding `b`,
     pub point: CompressedRistretto,

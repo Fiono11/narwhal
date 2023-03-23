@@ -361,8 +361,5 @@ fn test_create_shared_secret_is_symmetric() {
     let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); // 96-bits; unique per message
     let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();
     let plaintext2 = cipher2.decrypt(&nonce2, ciphertext2.as_ref()).unwrap();
-    let mut bytes = [0; 64];
-    bytes.copy_from_slice(&ciphertext1[..]);
-    RistrettoPoint::from_uniform_bytes(&bytes);
     assert_eq!(&plaintext2, shared_secret.as_bytes().as_ref());
 }

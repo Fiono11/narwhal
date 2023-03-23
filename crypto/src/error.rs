@@ -40,6 +40,27 @@ pub enum Error {
     SignatureMismatch,
     /// There was an opaque error returned by another crate or library
     InternalError,
+    /**
+     * The masked value, token id, or shared secret are not consistent with
+     * the commitment.
+     */
+    InconsistentCommitment,
+
+    /**
+     * The masked token id has an invalid number of bytes
+     */
+    InvalidMaskedTokenId,
+
+    /**
+     * The masked amount is missing
+     */
+    MissingMaskedAmount,
+
+    /// Token Id is not supported at this block version
+    TokenIdNotSupportedAtBlockVersion,
+
+    /// Amount version is too old to have amount shared secret
+    AmountVersionTooOldForAmountSharedSecret,
 }
 
 /*impl From<mc_util_repr_bytes::LengthMismatch> for Error {

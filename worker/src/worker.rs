@@ -9,8 +9,10 @@ use async_trait::async_trait;
 use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
+use crypto::account_keys::PublicAddress;
+use crypto::transaction::Transaction;
 use crypto::triptych::{Verify, KeyGen};
-use crypto::{Digest, PublicKey, Transaction, check_range_proofs, check_range_proof, Signature, Hash};
+use crypto::{Digest, PublicKey, check_range_proofs, check_range_proof, Signature, Hash, generate_range_proofs};
 use curve25519_dalek_ng::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek_ng::scalar::Scalar;
 use curve25519_dalek_ng::traits::Identity;
@@ -19,9 +21,6 @@ use log::{error, info, warn, debug};
 use network::{MessageHandler, Receiver, Writer};
 use primary::PrimaryWorkerMessage;
 use serde::{Deserialize, Serialize};
-use ed25519_dalek::Digest as _;
-use ed25519_dalek::Sha512;
-use std::convert::TryInto;
 use std::error::Error;
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
@@ -58,6 +57,7 @@ pub struct Worker {
     parameters: Parameters,
     /// The persistent storage.
     store: Store,
+    address: PublicAddress,
 }
 
 impl Worker {
@@ -67,6 +67,7 @@ impl Worker {
         committee: Committee,
         parameters: Parameters,
         store: Store,
+        address: PublicAddress,
     ) {
         // Define a worker instance.
         let worker = Self {
@@ -75,6 +76,7 @@ impl Worker {
             committee,
             parameters,
             store,
+            address
         };
 
         // Spawn all worker tasks.
@@ -157,7 +159,7 @@ impl Worker {
         address.set_ip("0.0.0.0".parse().unwrap());
         Receiver::spawn(
             address,
-            /* handler */ TxReceiverHandler { tx_batch_maker },
+            /* handler */ TxReceiverHandler { tx_batch_maker, address: self.address },
         );
 
         // The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
@@ -251,6 +253,7 @@ impl Worker {
 #[derive(Clone)]
 struct TxReceiverHandler {
     tx_batch_maker: Sender<Transaction>,
+    address: PublicAddress,
 }
 
 #[derive(Default, Clone, Deserialize, Serialize, Debug)]
@@ -262,12 +265,25 @@ pub struct Block {
 #[async_trait]
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
-        // Send the transaction to the batch maker.
-        let block: Block = bincode::deserialize(&message).unwrap();
+        // create range proofs
+        let mut rng = rand::rngs::OsRng;
         let generators = PedersenGens::default();
-        let commitments: Vec<CompressedRistretto> = block.txs.iter(). map(|x| x.balance.c2).collect();
-        debug!("Received!");
-        check_range_proofs(&RangeProof::from_bytes(&&block.range_proof_bytes[..]).unwrap(), &commitments, &generators, &mut rand::rngs::OsRng).unwrap();
+        let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
+        let mut values = Vec::new();
+        let mut blindings = Vec::new();
+
+        let (range_proof, _commitment) = generate_range_proofs(
+            &values,
+            &blindings,
+            &generators,
+            &mut rng,
+        ).unwrap();
+
+        // Send the transaction to the batch maker.
+        //let block: Block = bincode::deserialize(&message).unwrap();
+        //let commitments: Vec<CompressedRistretto> = block.txs.iter(). map(|x| x.balance.c2).collect();
+        //debug!("Received!");
+        //check_range_proofs(&RangeProof::from_bytes(&&block.range_proof_bytes[..]).unwrap(), &commitments, &generators, &mut rand::rngs::OsRng).unwrap();
         //let message: &[u8] = b"Hello, world!";
         //let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
         //let signatures: Vec<(PublicKey, Signature)> = block.txs.iter(). map(|x| (x.public_key, x.signature.clone())).collect();
@@ -287,11 +303,8 @@ impl MessageHandler for TxReceiverHandler {
             }
         }
         let M = "This is a triptych signature test, lets see if it works or not";
-        debug!("Checked!");
-        for tx in block.txs {
-            debug!("sig: {:?}", tx.signature);
-            debug!("M: {:?}", &M);
-            debug!("R: {:?}", &R);
+        for tx in txs {
+            let ss = create_shared_secret(&A, &self.address.spend_public_key());
             Verify(&tx.signature, &M, &R).unwrap();
             self.tx_batch_maker
                 .send(tx)

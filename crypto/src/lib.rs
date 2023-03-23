@@ -41,6 +41,11 @@ pub mod curve_scalar;
 pub mod key_image;
 pub mod ristretto;
 pub mod util;
+pub mod transaction;
+pub mod masked_amount;
+pub mod account_keys;
+pub mod onetime_keys;
+pub mod domain_separators;
 
 pub type CryptoError = ed25519::Error;
 
@@ -469,53 +474,6 @@ impl ElGamalProof {
         } else {
             Ok(())
         }
-    }
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct Transaction {
-    id: u128,
-    pub balance: TwistedElGamal,
-    //pub range_proof: Vec<u8>, // balance > 0
-    //pub signature: Signature,
-    pub signature: TriptychSignature,
-    pub representative: CompressedRistretto,
-    pub public_key: PublicKey,
-}
-
-impl Transaction {
-    pub fn random(id: u128, balance: TwistedElGamal, representative: CompressedRistretto, public_key: PublicKey, signature: TriptychSignature) -> Self {
-        /*let mut rng = OsRng;
-        let representative = RistrettoPoint::random(&mut rng);
-        let balance = rand::thread_rng().gen_range(0, u64::MAX);
-        let amount = rand::thread_rng().gen_range(0, balance);
-        let random = Scalar::random(&mut rng);
-        let random1 = Scalar::random(&mut rng);
-        let generators = PedersenGens::default();
-        
-        let (range_proof, _commitment) = generate_range_proofs(
-            &vec![balance - amount],
-            &vec![random - &random1],
-            &generators,
-            &mut rng,
-        )
-        .unwrap();
-    
-        let range_proof = range_proof.to_bytes().to_vec();*/
-    
-        Self {
-            id,
-            balance,
-            signature,
-            //range_proof,
-            representative,
-            public_key,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        let bytes = bincode::serialize(&self).unwrap();
-        bytes.len()
     }
 }
 

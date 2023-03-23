@@ -5,6 +5,7 @@ use bytes::Bytes;
 #[cfg(feature = "benchmark")]
 use crypto::Digest;
 use crypto::PublicKey;
+use crypto::transaction::Transaction;
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
 #[cfg(feature = "benchmark")]
@@ -15,7 +16,6 @@ use std::convert::TryInto as _;
 use std::net::SocketAddr;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, Duration, Instant};
-use crypto::Transaction;
 
 #[cfg(test)]
 #[path = "tests/batch_maker_tests.rs"]

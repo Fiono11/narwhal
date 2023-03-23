@@ -184,12 +184,37 @@ impl Client {
 
         let signature = Sign(&x, &M, &R);
 
-        info!("sig: {:?}", signature);
+        let a = Scalar::from(1u8);
+        let A = a * RISTRETTO_BASEPOINT_POINT;
 
-        info!("M: {:?}", &M);
-        info!("R: {:?}", &R);
+        let b = Scalar::from(2u8);
+        let B = b * RISTRETTO_BASEPOINT_POINT;
 
-        //Verify(&signature, &M, &R).unwrap();
+        let c = Scalar::from(3u8);
+        let C = c * RISTRETTO_BASEPOINT_POINT;
+
+        let aB = create_shared_secret(&B, &a);
+        let aC = create_shared_secret(&C, &a);
+
+        let bA = create_shared_secret(&A, &b);
+        let cA = create_shared_secret(&A, &c);
+
+        assert_eq!(aB, bA);
+        assert_eq!(aC, cA);
+
+        let shared_secret = Scalar::from(4u8);
+
+        let aB_bytes = bA.compress();
+        let key1 = Key::from_slice(aB_bytes.as_bytes());
+        let cipher1 = ChaCha20Poly1305::new(&key1);
+        let nonce1 = ChaCha20Poly1305::generate_nonce(&mut OsRng); 
+        let ciphertext1 = cipher1.encrypt(&nonce1, shared_secret.as_bytes().as_ref()).unwrap();
+
+        let aC_bytes = cA.compress();
+        let key2 = Key::from_slice(aC_bytes.as_bytes());
+        let cipher2 = ChaCha20Poly1305::new(&key2);
+        let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); 
+        let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();
             
         'main: loop {
             let mut txs = Vec::new();
@@ -199,7 +224,7 @@ impl Client {
 
             for x in 0..burst {
                 let id = thread_rng().gen_range(0, u128::MAX);
-                let tx = Transaction::random(id, balance.clone(), representative.compress(), public_key.clone(), signature.clone());
+                let tx = Transaction::random(id, balance.clone(), representative.compress(), public_key.clone(), signature.clone(), (ciphertext1, ciphertext2));
                 txs.push(tx);
             }
     

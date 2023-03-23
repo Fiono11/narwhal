@@ -1,6 +1,7 @@
 use std::{convert::{TryFrom, TryInto}, cmp::Ordering, fmt::Formatter};
 use crate::error::Error;
 use curve25519_dalek_ng::{scalar::Scalar, constants::RISTRETTO_BASEPOINT_POINT, ristretto::{CompressedRistretto, RistrettoPoint}, digest::Update};
+use rand_core::{CryptoRng, RngCore};
 use schnorrkel::{signing_context, SIGNATURE_LENGTH, SignatureError};
 use serde::{Deserialize, Serialize};
 use signature::Signature;
@@ -109,6 +110,13 @@ impl<T: Digestible> DigestibleSigner<RistrettoSignature, T> for RistrettoPrivate
     ) -> Result<RistrettoSignature, SignatureError> {
         Ok(self.sign_digestible(context, message))
     }
+}*/
+
+/// A trait which can construct an object from a cryptographically secure
+/// pseudo-random number generator.
+pub trait FromRandom: Sized {
+    /// Using a mutable RNG, take it's output to securely initialize the object
+    fn from_random<R: CryptoRng + RngCore>(csprng: &mut R) -> Self;
 }
 
 impl FromRandom for RistrettoPrivate {
@@ -117,7 +125,7 @@ impl FromRandom for RistrettoPrivate {
     }
 }
 
-impl KexEphemeralPrivate for RistrettoPrivate {
+/*impl KexEphemeralPrivate for RistrettoPrivate {
     fn key_exchange(
         self,
         their_public: &<Self as PrivateKey>::Public,
@@ -187,7 +195,7 @@ impl Debug for RistrettoEphemeralPrivate {
 }*/
 
 /// A Ristretto-format curve point for use as a public key
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize)]
 pub struct RistrettoPublic(pub RistrettoPoint);
 
 impl AsRef<RistrettoPoint> for RistrettoPublic {
@@ -388,7 +396,7 @@ impl AsRef<[u8; 32]> for RistrettoSecret {
 ///
 /// As a result, this does not implement the `PublicKey` interface, nor is it
 /// usable in a key-exchange.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, Eq, PartialEq,)]
 //#[digestible(never_omit)]
 pub struct CompressedRistrettoPublic(pub CompressedRistretto);
 
@@ -580,4 +588,6 @@ impl TryFrom<RistrettoSignature> for SchnorrkelSignature {
 //derive_repr_bytes_from_as_ref_and_try_from!(RistrettoSignature, U64);
 //derive_serde_from_repr_bytes!(RistrettoSignature);
 //derive_prost_message_from_repr_bytes!(RistrettoSignature);
+
+
 
