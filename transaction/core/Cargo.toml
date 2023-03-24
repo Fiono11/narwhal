@@ -1,0 +1,16 @@
+[package]
+name = "mc-transaction-core"
+version = "4.1.0-pre0"
+authors = ["MobileCoin"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+rust-version = { workspace = true }
+
+[dependencies]
+# External dependencies
+hex_fmt = "0.3"
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+
+mc-crypto-digestible = { path = "../../crypto/digestible", features = ["dalek", "derive"] }
+base64 = "0.13.0"

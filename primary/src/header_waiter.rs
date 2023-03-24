@@ -4,11 +4,12 @@ use crate::messages::Header;
 use crate::primary::{PrimaryMessage, PrimaryWorkerMessage, Round};
 use bytes::Bytes;
 use config::{Committee, WorkerId};
-use crypto::{Digest, PublicKey};
 use futures::future::try_join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use log::{debug, error};
+use mc_crypto_keys::Ed25519Public as PublicAddress;
+use mc_transaction_core::tx::TxHash;
 use network::SimpleSender;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -25,14 +26,14 @@ const TIMER_RESOLUTION: u64 = 1_000;
 /// The commands that can be sent to the `Waiter`.
 #[derive(Debug)]
 pub enum WaiterMessage {
-    SyncBatches(HashMap<Digest, WorkerId>, Header),
-    SyncParents(Vec<Digest>, Header),
+    SyncBatches(HashMap<TxHash, WorkerId>, Header),
+    SyncParents(Vec<TxHash>, Header),
 }
 
 /// Waits for missing parent certificates and batches' digests.
 pub struct HeaderWaiter {
     /// The name of this authority.
-    name: PublicKey,
+    name: PublicAddress,
     /// The committee information.
     committee: Committee,
     /// The persistent storage.
@@ -55,19 +56,19 @@ pub struct HeaderWaiter {
     network: SimpleSender,
     /// Keeps the digests of the all certificates for which we sent a sync request,
     /// along with a timestamp (`u128`) indicating when we sent the request.
-    parent_requests: HashMap<Digest, (Round, u128)>,
+    parent_requests: HashMap<TxHash, (Round, u128)>,
     /// Keeps the digests of the all tx batches for which we sent a sync request,
     /// similarly to `header_requests`.
-    batch_requests: HashMap<Digest, Round>,
+    batch_requests: HashMap<TxHash, Round>,
     /// List of digests (either certificates, headers or tx batch) that are waiting
     /// to be processed. Their processing will resume when we get all their dependencies.
-    pending: HashMap<Digest, (Round, Sender<()>)>,
+    pending: HashMap<TxHash, (Round, Sender<()>)>,
 }
 
 impl HeaderWaiter {
     #[allow(clippy::too_many_arguments)]
     pub fn spawn(
-        name: PublicKey,
+        name: PublicAddress,
         committee: Committee,
         store: Store,
         consensus_round: Arc<AtomicU64>,

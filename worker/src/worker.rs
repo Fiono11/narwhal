@@ -1,5 +1,5 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::batch_maker::{Batch, BatchMaker};
+use crate::batch_maker::{Batch, BatchMaker, Transaction};
 use crate::helper::Helper;
 use crate::primary_connector::PrimaryConnector;
 use crate::processor::{Processor, SerializedBatchMessage};
@@ -9,10 +9,8 @@ use async_trait::async_trait;
 use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
-use crypto::account_keys::PublicAddress;
-use crypto::transaction::Transaction;
-use crypto::triptych::{Verify, KeyGen};
-use crypto::{Digest, PublicKey, check_range_proofs, check_range_proof, Signature, Hash, generate_range_proofs};
+use mc_crypto_keys::Ed25519Public as PublicKey;
+use mc_transaction_core::tx::TxHash as Digest;
 use curve25519_dalek_ng::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek_ng::scalar::Scalar;
 use curve25519_dalek_ng::traits::Identity;
@@ -57,7 +55,6 @@ pub struct Worker {
     parameters: Parameters,
     /// The persistent storage.
     store: Store,
-    address: PublicAddress,
 }
 
 impl Worker {
@@ -67,7 +64,6 @@ impl Worker {
         committee: Committee,
         parameters: Parameters,
         store: Store,
-        address: PublicAddress,
     ) {
         // Define a worker instance.
         let worker = Self {
@@ -76,7 +72,6 @@ impl Worker {
             committee,
             parameters,
             store,
-            address
         };
 
         // Spawn all worker tasks.
@@ -159,7 +154,7 @@ impl Worker {
         address.set_ip("0.0.0.0".parse().unwrap());
         Receiver::spawn(
             address,
-            /* handler */ TxReceiverHandler { tx_batch_maker, address: self.address },
+            /* handler */ TxReceiverHandler { tx_batch_maker },
         );
 
         // The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
@@ -253,7 +248,6 @@ impl Worker {
 #[derive(Clone)]
 struct TxReceiverHandler {
     tx_batch_maker: Sender<Transaction>,
-    address: PublicAddress,
 }
 
 #[derive(Default, Clone, Deserialize, Serialize, Debug)]
@@ -269,15 +263,15 @@ impl MessageHandler for TxReceiverHandler {
         let mut rng = rand::rngs::OsRng;
         let generators = PedersenGens::default();
         let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
-        let mut values = Vec::new();
-        let mut blindings = Vec::new();
+        //let mut values = Vec::new();
+        //let mut blindings = Vec::new();
 
-        let (range_proof, _commitment) = generate_range_proofs(
+        /*let (range_proof, _commitment) = generate_range_proofs(
             &values,
             &blindings,
             &generators,
             &mut rng,
-        ).unwrap();
+        ).unwrap();*/
 
         // Send the transaction to the batch maker.
         //let block: Block = bincode::deserialize(&message).unwrap();
@@ -295,17 +289,17 @@ impl MessageHandler for TxReceiverHandler {
         let index = 0;
 
         for i in 0..size {
-            let (sk, pk) = KeyGen();
-            R[i] = pk;
+            //let (sk, pk) = KeyGen();
+           // R[i] = pk;
 
             if i == index {
-                x = sk;
+                //x = sk;
             }
         }
         let M = "This is a triptych signature test, lets see if it works or not";
         for tx in txs {
-            let ss = create_shared_secret(&A, &self.address.spend_public_key());
-            Verify(&tx.signature, &M, &R).unwrap();
+            //let ss = create_shared_secret(&A, &self.address.spend_public_key());
+            //Verify(&tx.signature, &M, &R).unwrap();
             self.tx_batch_maker
                 .send(tx)
                 .await

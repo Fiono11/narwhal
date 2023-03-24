@@ -1,6 +1,6 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use config::WorkerId;
-use crypto::Digest;
+use mc_transaction_core::tx::TxHash;
 use store::Store;
 use tokio::sync::mpsc::Receiver;
 
@@ -10,11 +10,11 @@ pub struct PayloadReceiver {
     /// The persistent storage.
     store: Store,
     /// Receives batches' digests from the network.
-    rx_workers: Receiver<(Digest, WorkerId)>,
+    rx_workers: Receiver<(TxHash, WorkerId)>,
 }
 
 impl PayloadReceiver {
-    pub fn spawn(store: Store, rx_workers: Receiver<(Digest, WorkerId)>) {
+    pub fn spawn(store: Store, rx_workers: Receiver<(TxHash, WorkerId)>) {
         tokio::spawn(async move {
             Self { store, rx_workers }.run().await;
         });

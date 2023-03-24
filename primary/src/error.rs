@@ -1,6 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::primary::Round;
-use crypto::{CryptoError, Digest, PublicKey};
+use mc_crypto_keys::Ed25519Public as PublicAddress;
+use mc_transaction_core::tx::TxHash;
 use store::StoreError;
 use thiserror::Error;
 
@@ -24,8 +25,8 @@ pub type DagResult<T> = Result<T, DagError>;
 
 #[derive(Debug, Error)]
 pub enum DagError {
-    #[error("Invalid signature")]
-    InvalidSignature(#[from] CryptoError),
+    //#[error("Invalid signature")]
+    //InvalidSignature(#[from] CryptoError),
 
     #[error("Storage failure: {0}")]
     StoreError(#[from] StoreError),
@@ -37,23 +38,23 @@ pub enum DagError {
     InvalidHeaderId,
 
     #[error("Malformed header {0}")]
-    MalformedHeader(Digest),
+    MalformedHeader(TxHash),
 
     #[error("Received message from unknown authority {0}")]
-    UnknownAuthority(PublicKey),
+    UnknownAuthority(PublicAddress),
 
     #[error("Authority {0} appears in quorum more than once")]
-    AuthorityReuse(PublicKey),
+    AuthorityReuse(PublicAddress),
 
     #[error("Received unexpected vote fo header {0}")]
-    UnexpectedVote(Digest),
+    UnexpectedVote(TxHash),
 
     #[error("Received certificate without a quorum")]
     CertificateRequiresQuorum,
 
     #[error("Parents of header {0} are not a quorum")]
-    HeaderRequiresQuorum(Digest),
+    HeaderRequiresQuorum(TxHash),
 
     #[error("Message {0} (round {1}) too old")]
-    TooOld(Digest, Round),
+    TooOld(TxHash, Round),
 }

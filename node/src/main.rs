@@ -6,6 +6,8 @@ use config::Import as _;
 use config::{Committee, KeyPair, Parameters, WorkerId};
 use consensus::Consensus;
 use env_logger::Env;
+use mc_crypto_keys::Ed25519Pair;
+use mc_util_from_random::FromRandom;
 use primary::{Certificate, Primary};
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver};
@@ -73,7 +75,9 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     let store_path = matches.value_of("store").unwrap();
 
     // Read the committee and node's keypair from file.
-    let keypair = KeyPair::import(key_file).context("Failed to load the node's keypair")?;
+    //let keypair = Ed25519Pair::import(key_file).context("Failed to load the node's keypair")?;
+    let mut rng = rand_core::OsRng;
+    let keypair = Ed25519Pair::from_random(&mut rng);
     let committee =
         Committee::import(committee_file).context("Failed to load the committee information")?;
 
@@ -121,7 +125,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 .unwrap()
                 .parse::<WorkerId>()
                 .context("The worker id must be a positive integer")?;
-            Worker::spawn(keypair.name, id, committee, parameters, store);
+            Worker::spawn(keypair.public_key(), id, committee, parameters, store);
         }
         _ => unreachable!(),
     }

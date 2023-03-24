@@ -3,7 +3,7 @@ use crate::messages::Certificate;
 use crate::primary::PrimaryWorkerMessage;
 use bytes::Bytes;
 use config::Committee;
-use crypto::PublicKey;
+use mc_crypto_keys::Ed25519Public as PublicAddress;
 use network::SimpleSender;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -24,7 +24,7 @@ pub struct GarbageCollector {
 
 impl GarbageCollector {
     pub fn spawn(
-        name: &PublicKey,
+        name: &PublicAddress,
         committee: &Committee,
         consensus_round: Arc<AtomicU64>,
         rx_consensus: Receiver<Certificate>,

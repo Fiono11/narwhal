@@ -1,9 +1,9 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::messages::{Certificate, Header};
+use crate::messages::{Certificate, Header, Hash};
 use crate::primary::Round;
 use config::{Committee, WorkerId};
-use crypto::Hash as _;
-use crypto::{Digest, PublicKey, SignatureService};
+use mc_crypto_keys::{Ed25519Public as PublicKey, SignatureService};
+use mc_transaction_core::tx::TxHash as Digest;
 use log::debug;
 #[cfg(feature = "benchmark")]
 use log::info;

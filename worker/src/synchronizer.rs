@@ -2,7 +2,8 @@
 use crate::worker::{Round, WorkerMessage};
 use bytes::Bytes;
 use config::{Committee, WorkerId};
-use crypto::{Digest, PublicKey};
+use mc_crypto_keys::Ed25519Public as PublicKey;
+use mc_transaction_core::tx::TxHash as Digest;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use log::{debug, error};

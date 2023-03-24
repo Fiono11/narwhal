@@ -1,15 +1,16 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::aggregators::{CertificatesAggregator, VotesAggregator};
 use crate::error::{DagError, DagResult};
-use crate::messages::{Certificate, Header, Vote};
+use crate::messages::{Certificate, Header, Vote, Hash};
 use crate::primary::{PrimaryMessage, Round};
 use crate::synchronizer::Synchronizer;
 use async_recursion::async_recursion;
 use bytes::Bytes;
 use config::Committee;
-use crypto::Hash as _;
-use crypto::{Digest, PublicKey, SignatureService};
 use log::{debug, error, warn};
+use mc_crypto_keys::SignatureService;
+use mc_crypto_keys::Ed25519Public as PublicAddress;
+use mc_transaction_core::tx::TxHash;
 use network::{CancelHandler, ReliableSender};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -23,7 +24,7 @@ pub mod core_tests;
 
 pub struct Core {
     /// The public key of this primary.
-    name: PublicKey,
+    name: PublicAddress,
     /// The committee information.
     committee: Committee,
     /// The persistent storage.
@@ -48,14 +49,14 @@ pub struct Core {
     /// Output all certificates to the consensus layer.
     tx_consensus: Sender<Certificate>,
     /// Send valid a quorum of certificates' ids to the `Proposer` (along with their round).
-    tx_proposer: Sender<(Vec<Digest>, Round)>,
+    tx_proposer: Sender<(Vec<TxHash>, Round)>,
 
     /// The last garbage collected round.
     gc_round: Round,
     /// The authors of the last voted headers.
-    last_voted: HashMap<Round, HashSet<PublicKey>>,
+    last_voted: HashMap<Round, HashSet<PublicAddress>>,
     /// The set of headers we are currently processing.
-    processing: HashMap<Round, HashSet<Digest>>,
+    processing: HashMap<Round, HashSet<TxHash>>,
     /// The last header we proposed (for which we are waiting votes).
     current_header: Header,
     /// Aggregates votes into a certificate.
@@ -71,7 +72,7 @@ pub struct Core {
 impl Core {
     #[allow(clippy::too_many_arguments)]
     pub fn spawn(
-        name: PublicKey,
+        name: PublicAddress,
         committee: Committee,
         store: Store,
         synchronizer: Synchronizer,
@@ -83,7 +84,7 @@ impl Core {
         rx_certificate_waiter: Receiver<Certificate>,
         rx_proposer: Receiver<Header>,
         tx_consensus: Sender<Certificate>,
-        tx_proposer: Sender<(Vec<Digest>, Round)>,
+        tx_proposer: Sender<(Vec<TxHash>, Round)>,
     ) {
         tokio::spawn(async move {
             Self {

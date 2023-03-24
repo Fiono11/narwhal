@@ -1,7 +1,8 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use bytes::Bytes;
 use config::{Committee, WorkerId};
-use crypto::{Digest, PublicKey};
+use mc_crypto_keys::Ed25519Public as PublicKey;
+use mc_transaction_core::tx::TxHash as Digest;
 use log::{error, warn};
 use network::SimpleSender;
 use store::Store;

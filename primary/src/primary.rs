@@ -11,8 +11,7 @@ use crate::proposer::Proposer;
 use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
 use bytes::Bytes;
-use config::{Committee, KeyPair, Parameters, WorkerId};
-use crypto::{Digest, PublicKey, SignatureService};
+use config::{Committee, Parameters, WorkerId};
 use futures::sink::SinkExt as _;
 use log::info;
 use network::{MessageHandler, Receiver as NetworkReceiver, Writer};
@@ -22,6 +21,8 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use mc_crypto_keys::{Ed25519Public as PublicKey, SignatureService, Ed25519Pair};
+use mc_transaction_core::tx::TxHash as Digest;
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 100_000;
@@ -59,7 +60,7 @@ pub struct Primary;
 
 impl Primary {
     pub fn spawn(
-        keypair: KeyPair,
+        keypair: Ed25519Pair,
         committee: Committee,
         parameters: Parameters,
         store: Store,
@@ -81,8 +82,8 @@ impl Primary {
         parameters.log();
 
         // Parse the public and secret key of this authority.
-        let name = keypair.name;
-        let secret = keypair.secret;
+        let name = keypair.public_key();
+        let secret = keypair.private_key();
 
         // Atomic variable use to synchronizer all tasks with the latest consensus round. This is only
         // used for cleanup. The only tasks that write into this variable is `GarbageCollector`.
@@ -136,7 +137,7 @@ impl Primary {
         );
 
         // The `SignatureService` is used to require signatures on specific digests.
-        let signature_service = SignatureService::new(secret);
+        let signature_service = SignatureService::new(keypair);
 
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         Core::spawn(

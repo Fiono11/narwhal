@@ -1,0 +1,16 @@
+[package]
+name = "mc-crypto-digestible-derive"
+version = "4.1.0-pre0"
+authors = ["MobileCoin"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+rust-version = { workspace = true }
+
+[lib]
+proc_macro = true
+
+[dependencies]
+proc-macro2 = "1.0.8"
+quote = "1.0.2"
+syn = { version = "1.0.14", features = [ "extra-traits" ] }

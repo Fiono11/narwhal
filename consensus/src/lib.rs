@@ -1,12 +1,13 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use config::{Committee, Stake};
-use crypto::Hash as _;
-use crypto::{Digest, PublicKey};
+use mc_crypto_keys::Ed25519Public as PublicKey;
+use mc_transaction_core::tx::TxHash as Digest;
 use log::{debug, info, log_enabled, warn};
 use primary::{Certificate, Round};
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::{Receiver, Sender};
+use primary::Hash;
 
 #[cfg(test)]
 #[path = "tests/consensus_tests.rs"]

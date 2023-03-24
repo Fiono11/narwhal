@@ -1,7 +1,8 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::processor::SerializedBatchMessage;
 use config::{Committee, Stake};
-use crypto::PublicKey;
+use mc_crypto_keys::Ed25519Public as PublicKey;
+use mc_transaction_core::tx::TxHash as Digest;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use network::CancelHandler;

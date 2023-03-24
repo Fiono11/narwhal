@@ -1,16 +1,16 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
-use crate::messages::{Certificate, Header, Vote};
+use crate::messages::{Certificate, Header, Vote, Hash};
 use config::{Committee, Stake};
-use crypto::Hash as _;
-use crypto::{Digest, PublicKey, Signature};
+use mc_crypto_keys::{Ed25519Signature, Ed25519Public as PublicAddress};
+use mc_transaction_core::tx::TxHash;
 use std::collections::HashSet;
 
 /// Aggregates votes for a particular header into a certificate.
 pub struct VotesAggregator {
     weight: Stake,
-    votes: Vec<(PublicKey, Signature)>,
-    used: HashSet<PublicKey>,
+    votes: Vec<(PublicAddress, Ed25519Signature)>,
+    used: HashSet<PublicAddress>,
 }
 
 impl VotesAggregator {
@@ -49,8 +49,8 @@ impl VotesAggregator {
 /// Aggregate certificates and check if we reach a quorum.
 pub struct CertificatesAggregator {
     weight: Stake,
-    certificates: Vec<Digest>,
-    used: HashSet<PublicKey>,
+    certificates: Vec<TxHash>,
+    used: HashSet<PublicAddress>,
 }
 
 impl CertificatesAggregator {
@@ -66,7 +66,7 @@ impl CertificatesAggregator {
         &mut self,
         certificate: Certificate,
         committee: &Committee,
-    ) -> DagResult<Option<Vec<Digest>>> {
+    ) -> DagResult<Option<Vec<TxHash>>> {
         let origin = certificate.origin();
 
         // Ensure it is the first time this authority votes.
