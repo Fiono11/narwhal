@@ -10,7 +10,7 @@ use config::Committee;
 use log::{debug, error, warn};
 use mc_crypto_keys::SignatureService;
 use mc_crypto_keys::Ed25519Public as PublicAddress;
-use mc_transaction_core::tx::TxHash;
+use mc_crypto_keys::tx_hash::TxHash;
 use network::{CancelHandler, ReliableSender};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};

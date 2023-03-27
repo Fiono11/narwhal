@@ -3,7 +3,7 @@ use crate::batch_maker::Transaction;
 use crate::worker::SerializedBatchDigestMessage;
 use config::WorkerId;
 use mc_crypto_keys::Ed25519Public as PublicKey;
-use mc_transaction_core::tx::TxHash as Digest;
+use mc_crypto_keys::tx_hash::TxHash as Digest;
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
 use primary::WorkerPrimaryMessage;

@@ -51,7 +51,7 @@ use zeroize::Zeroize;
 /// A Ristretto-format private scalar
 #[derive(Clone, Copy, Default, Digestible, Zeroize)]
 #[digestible(transparent)]
-pub struct RistrettoPrivate(pub(crate) Scalar);
+pub struct RistrettoPrivate(pub Scalar);
 
 impl Eq for RistrettoPrivate {}
 

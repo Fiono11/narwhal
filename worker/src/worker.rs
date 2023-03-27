@@ -10,7 +10,7 @@ use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
 use mc_crypto_keys::Ed25519Public as PublicKey;
-use mc_transaction_core::tx::TxHash as Digest;
+use mc_crypto_keys::tx_hash::TxHash as Digest;
 use curve25519_dalek_ng::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek_ng::scalar::Scalar;
 use curve25519_dalek_ng::traits::Identity;

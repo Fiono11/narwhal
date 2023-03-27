@@ -4,7 +4,7 @@ use bytes::Bytes;
 use config::Committee;
 use log::{error, warn};
 use mc_crypto_keys::Ed25519Public as PublicAddress;
-use mc_transaction_core::tx::TxHash;
+use mc_crypto_keys::tx_hash::TxHash;
 use network::SimpleSender;
 use store::Store;
 use tokio::sync::mpsc::Receiver;

@@ -5,7 +5,7 @@ use bytes::Bytes;
 #[cfg(feature = "benchmark")]
 use crypto::Digest;
 use mc_crypto_keys::Ed25519Public as PublicKey;
-use mc_transaction_core::tx::TxHash as Digest;
+use mc_crypto_keys::tx_hash::TxHash as Digest;
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
 #[cfg(feature = "benchmark")]

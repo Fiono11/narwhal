@@ -5,7 +5,7 @@ use config::{Committee, WorkerId};
 use ed25519_dalek::{Digest as _, Sha512};
 use mc_crypto_keys::Ed25519Public as PublicAddress;
 use mc_crypto_keys::{Ed25519Signature, SignatureService};
-use mc_transaction_core::tx::TxHash;
+use mc_crypto_keys::tx_hash::TxHash;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::convert::TryInto;

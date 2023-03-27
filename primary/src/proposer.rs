@@ -3,7 +3,7 @@ use crate::messages::{Certificate, Header, Hash};
 use crate::primary::Round;
 use config::{Committee, WorkerId};
 use mc_crypto_keys::{Ed25519Public as PublicKey, SignatureService};
-use mc_transaction_core::tx::TxHash as Digest;
+use mc_crypto_keys::tx_hash::TxHash as Digest;
 use log::debug;
 #[cfg(feature = "benchmark")]
 use log::info;

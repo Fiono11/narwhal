@@ -22,7 +22,7 @@ use std::sync::Arc;
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use mc_crypto_keys::{Ed25519Public as PublicKey, SignatureService, Ed25519Pair};
-use mc_transaction_core::tx::TxHash as Digest;
+use mc_crypto_keys::tx_hash::TxHash as Digest;
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 100_000;

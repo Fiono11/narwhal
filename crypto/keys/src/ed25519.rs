@@ -5,7 +5,7 @@
 
 use crate::{
     DigestSigner, DigestVerifier, DistinguishedEncoding, KeyError, PrivateKey, PublicKey,
-    Signature as SignatureTrait, SignatureError, Signer, Verifier,
+    Signature as SignatureTrait, SignatureError, Signer, Verifier, tx_hash::TxHash,
 };
 use digest::{
     generic_array::typenum::{U32, U64},
@@ -17,7 +17,6 @@ use ed25519_dalek::{
     PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH,
 };
 use mc_crypto_digestible::{DigestTranscript, Digestible};
-use mc_transaction_core::tx::TxHash;
 use mc_util_from_random::FromRandom;
 use mc_util_repr_bytes::{
     derive_core_cmp_from_as_ref, derive_debug_and_display_hex_from_as_ref,

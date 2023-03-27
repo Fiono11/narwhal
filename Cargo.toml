@@ -11,6 +11,7 @@ members = [
     "crypto/digestible/test-utils",
     "crypto/keys",
     "crypto/rand",
+    "crypto/ring-signature",
     "crypto/sig",
     "network", 
     "node", 
@@ -26,6 +27,7 @@ members = [
     "util/test-vector",
     "util/test-with-data",
     "transaction/core",
+    "transaction/types",
     "worker",  
 ]
 

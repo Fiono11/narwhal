@@ -1,7 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::primary::Round;
 use mc_crypto_keys::Ed25519Public as PublicAddress;
-use mc_transaction_core::tx::TxHash;
+use mc_crypto_keys::tx_hash::TxHash;
 use store::StoreError;
 use thiserror::Error;
 

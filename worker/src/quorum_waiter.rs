@@ -2,7 +2,7 @@
 use crate::processor::SerializedBatchMessage;
 use config::{Committee, Stake};
 use mc_crypto_keys::Ed25519Public as PublicKey;
-use mc_transaction_core::tx::TxHash as Digest;
+use mc_crypto_keys::tx_hash::TxHash as Digest;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use network::CancelHandler;

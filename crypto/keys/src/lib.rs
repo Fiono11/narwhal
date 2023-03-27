@@ -55,6 +55,7 @@ mod ed25519;
 mod ristretto;
 mod traits;
 mod x25519;
+pub mod tx_hash;
 
 pub use crate::{
     ed25519::{Ed25519Pair, Ed25519Private, Ed25519Public, Ed25519Signature, SignatureService},

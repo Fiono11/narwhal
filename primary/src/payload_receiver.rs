@@ -1,6 +1,6 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use config::WorkerId;
-use mc_transaction_core::tx::TxHash;
+use mc_crypto_keys::tx_hash::TxHash;
 use store::Store;
 use tokio::sync::mpsc::Receiver;
 

@@ -3,7 +3,7 @@ use crate::error::{DagError, DagResult};
 use crate::messages::{Certificate, Header, Vote, Hash};
 use config::{Committee, Stake};
 use mc_crypto_keys::{Ed25519Signature, Ed25519Public as PublicAddress};
-use mc_transaction_core::tx::TxHash;
+use mc_crypto_keys::tx_hash::TxHash;
 use std::collections::HashSet;
 
 /// Aggregates votes for a particular header into a certificate.

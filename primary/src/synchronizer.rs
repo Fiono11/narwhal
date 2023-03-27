@@ -6,8 +6,7 @@ use config::Committee;
 use std::collections::HashMap;
 use store::Store;
 use tokio::sync::mpsc::Sender;
-use mc_crypto_keys::Ed25519Public as PublicKey;
-use mc_transaction_core::tx::TxHash as Digest;
+use mc_crypto_keys::{Ed25519Public as PublicKey, tx_hash::TxHash as Digest};
 
 /// The `Synchronizer` checks if we have all batches and parents referenced by a header. If we don't, it sends
 /// a command to the `Waiter` to request the missing data.
