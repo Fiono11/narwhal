@@ -3,10 +3,14 @@ use anyhow::{Context, Result};
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::Export as _;
 use config::Import as _;
+use config::PK;
+use config::SK;
 use config::{Committee, KeyPair, Parameters, WorkerId};
 use consensus::Consensus;
 use curve25519_dalek::scalar::Scalar;
 use env_logger::Env;
+use mc_account_keys::AccountKey;
+use mc_account_keys::PublicAddress;
 use mc_crypto_keys::Ed25519Pair;
 use mc_crypto_keys::RistrettoPrivate;
 use mc_crypto_keys::RistrettoPublic;
@@ -63,21 +67,25 @@ async fn main() -> Result<()> {
 
     let sk1 = RistrettoPrivate(Scalar::random(&mut OsRng));
     let sk2 = RistrettoPrivate(Scalar::random(&mut OsRng));
-    let pk1 = RistrettoPublic::from(sk1);
-    let pk2 = RistrettoPublic::from(sk2);
-    let a: [u8; 32] = sk1.as_ref();
+    let pk1 = RistrettoPublic::from(&sk1);
+    let pk2 = RistrettoPublic::from(&sk2);
+    let a: [u8; 32] = *sk1.as_ref();
     let mut b = a.to_vec();
-    let c: [u8; 32] = sk2.as_ref();
+    let c: [u8; 32] = *sk2.as_ref();
     let mut d = c.to_vec();
     b.append(&mut d); 
-    let e: [u8; 32] = sk1.as_ref();
-    let mut f = a.to_vec();
-    let g: [u8; 32] = sk2.as_ref();
-    let mut h = c.to_vec();
-    f.append(&mut d); 
+    let e: [u8; 32] = pk1.as_ref().compress().to_bytes();
+    let mut f = e.to_vec();
+    let g: [u8; 32] = pk2.as_ref().compress().to_bytes();
+    let mut h = g.to_vec();
+    f.append(&mut h); 
+    let mut i = [0; 64];
+    i.copy_from_slice(&f[..]);
+    let mut j = [0; 64];
+    j.copy_from_slice(&b[..]);
     let keypair = KeyPair {
-        name: &f[..],
-        secret: &b[..]
+        name: PK(i),
+        secret: SK(j)
     };
 
     match matches.subcommand() {
@@ -98,7 +106,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     let store_path = matches.value_of("store").unwrap();
 
     // Read the committee and node's keypair from file.
-    let keypair: Ed25519Pair = Ed25519Pair::from(&KeyPair::import(key_file).context("Failed to load the node's keypair").unwrap());
+    let keypair = KeyPair::import(key_file).context("Failed to load the node's keypair").unwrap();
     let committee =
         Committee::import(committee_file).context("Failed to load the committee information")?;
 
@@ -123,7 +131,8 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
             let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
             let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
             Primary::spawn(
-                keypair,
+                PublicAddress::from_bytes(keypair.name.0),
+                AccountKey::from_bytes(keypair.secret.0),
                 committee.clone(),
                 parameters.clone(),
                 store,
@@ -146,7 +155,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 .unwrap()
                 .parse::<WorkerId>()
                 .context("The worker id must be a positive integer")?;
-            Worker::spawn(keypair.public_key(), id, committee, parameters, store);
+            Worker::spawn(PublicAddress::from_bytes(keypair.name.0), id, committee, parameters, store);
         }
         _ => unreachable!(),
     }

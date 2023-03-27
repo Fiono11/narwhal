@@ -5,9 +5,6 @@ use bulletproofs::RangeProof;
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
-use curve25519_dalek_ng::ristretto::RistrettoPoint;
-use curve25519_dalek_ng::scalar::Scalar;
-use curve25519_dalek_ng::traits::Identity;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
@@ -234,7 +231,7 @@ impl Client {
             let bytes = Bytes::from(message);
             if let Err(e) = transport.send(bytes).await {
                 warn!("Failed to send transaction: {}", e);
-                break 'main;
+                //break 'main;
             }
             if now.elapsed().as_millis() > BURST_DURATION as u128 {
                 // NOTE: This log entry is used to compute performance.

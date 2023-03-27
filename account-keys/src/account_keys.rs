@@ -377,6 +377,21 @@ impl AccountKey {
         c.copy_from_slice(&a[..]);
         c
     }
+
+    /// From bytes
+    pub fn from_bytes(bytes: [u8; 64]) -> Self {
+        let mut a = [0; 32];
+        a.copy_from_slice(&bytes[..32]);
+        let mut b = [0; 32];
+        b.copy_from_slice(&bytes[32..64]);
+        let view_private_key = RistrettoPrivate::from_bytes(&GenericArray::from(a)).unwrap();
+        let spend_private_key = RistrettoPrivate::from_bytes(&GenericArray::from(b)).unwrap();
+
+        Self {
+            view_private_key,
+            spend_private_key,
+        }
+    }
 }
 
 #[cfg(test)]

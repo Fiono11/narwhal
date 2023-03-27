@@ -1,5 +1,5 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use config::{Committee, Stake};
+use config::{Committee, Stake, PK};
 use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 use log::{debug, info, log_enabled, warn};
@@ -37,7 +37,7 @@ impl State {
 
         Self {
             last_committed_round: 0,
-            last_committed: genesis.iter().map(|(x, (_, y))| (*x, y.round())).collect(),
+            last_committed: genesis.iter().map(|(x, (_, y))| (x.clone(), y.round())).collect(),
             dag: [(0, genesis)].iter().cloned().collect(),
         }
     }
@@ -144,7 +144,7 @@ impl Consensus {
                 .expect("We should have the whole history by now")
                 .values()
                 .filter(|(_, x)| x.header.parents.contains(&leader_digest))
-                .map(|(_, x)| self.committee.stake(&x.origin()))
+                .map(|(_, x)| self.committee.stake(&PK(x.origin().to_bytes())))
                 .sum();
 
             // If it is the case, we can commit the leader. But first, we need to recursively go back to
@@ -216,7 +216,7 @@ impl Consensus {
         let leader = keys[coin as usize % self.committee.size()];
 
         // Return its certificate and the certificate's digest.
-        dag.get(&round).map(|x| x.get(&leader)).flatten()
+        dag.get(&round).map(|x| x.get(&PublicKey::from_bytes(leader.0))).flatten()
     }
 
     /// Order the past leaders that we didn't already commit.
