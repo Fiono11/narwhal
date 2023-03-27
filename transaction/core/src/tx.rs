@@ -3,11 +3,14 @@
 //! Definition of a MobileCoin transaction and a MobileCoin TxOut
 
 use std::{fmt, array::TryFromSliceError};
-use mc_account_keys::PublicAddress;
+use curve25519_dalek::traits::Identity;
+use mc_account_keys::{PublicAddress, AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{tx_hash::TxHash, CompressedRistrettoPublic, RistrettoPublic, RistrettoPrivate};
-use mc_crypto_ring_signature::{KeyImage, get_tx_out_shared_secret, onetime_keys::{create_shared_secret, create_tx_out_public_key, create_tx_out_target_key}, ReducedTxOut, CompressedCommitment, TriptychSignature};
-use mc_transaction_types::{MaskedAmount, Amount};
+use mc_crypto_ring_signature::{KeyImage, get_tx_out_shared_secret, onetime_keys::{create_shared_secret, create_tx_out_public_key, create_tx_out_target_key, recover_onetime_private_key}, ReducedTxOut, CompressedCommitment, TriptychSignature, Sign, Scalar, KeyGen, RistrettoPoint};
+use mc_transaction_types::{MaskedAmount, Amount, constants::RING_SIZE};
+use mc_util_from_random::FromRandom;
+use rand_core::{RngCore, CryptoRng};
 use serde::{Deserialize, Serialize};
 use prost::Message;
 use zeroize::Zeroize;
@@ -63,7 +66,7 @@ impl Tx {
 pub struct TxPrefix {
     /// List of inputs to the transaction.
     #[prost(message, repeated, tag = "1")]
-    pub inputs: Vec<TxIn>,
+    pub inputs: Vec<u64>,
 
     /// List of outputs from the transaction.
     #[prost(message, repeated, tag = "2")]
@@ -77,7 +80,7 @@ impl TxPrefix {
     /// * `inputs` - Inputs spent by the transaction.
     /// * `outputs` - Outputs created by the transaction.
     pub fn new(
-        inputs: Vec<TxIn>,
+        inputs: Vec<u64>,
         outputs: Vec<TxOut>,
     ) -> TxPrefix {
         TxPrefix {
@@ -128,27 +131,6 @@ pub struct TxOut {
 }
 
 impl TxOut {
-    /// Creates a TxOut that sends `value` to `recipient`.
-    /// This uses a defaulted (all zeroes) MemoPayload.
-    ///
-    /// # Arguments
-    /// * `block_version` - Structural rules to target
-    /// * `amount` - Amount contained within the TxOut
-    /// * `recipient` - Recipient's address.
-    /// * `tx_private_key` - The transaction's private key
-    /// * `hint` - Encrypted Fog hint for this output.
-    pub fn new(
-        amount: Amount,
-        recipient: &PublicAddress,
-        tx_private_key: &RistrettoPrivate,
-    ) -> Result<Self, NewTxError> {
-        TxOut::new_with_memo(
-            amount,
-            recipient,
-            tx_private_key,
-        )
-    }
-
     /// Creates a TxOut that sends `value` to `recipient`, with a custom memo
     /// attached. The memo is produced by a callback function which is
     /// passed the value and tx_public_key.
@@ -158,10 +140,8 @@ impl TxOut {
     /// * `amount` - Amount contained within the TxOut
     /// * `recipient` - Recipient's address.
     /// * `tx_private_key` - The transaction's private key
-    /// * `hint` - Encrypted Fog hint.
-    /// * `memo_fn` - A callback taking MemoContext, which produces a
     ///   MemoPayload, or a NewMemo error
-    pub fn new_with_memo(
+    pub fn new(
         amount: Amount,
         recipient: &PublicAddress,
         tx_private_key: &RistrettoPrivate,
@@ -253,6 +233,67 @@ impl TryFrom<&TxOut> for ReducedTxOut {
             commitment: *src.get_masked_amount()?.commitment(),
         })
     }
+}
+
+/// Creates a transaction that sends the full value of `tx_out` to a single
+/// recipient.
+///
+/// # Arguments:
+/// * `tx_out` - The TxOut that will be spent.
+/// * `sender` - The owner of `tx_out`.
+/// * `recipient` - The recipient of the new transaction.
+/// * `rng` - The randomness used by this function
+pub fn create_transaction<R: RngCore + CryptoRng>(
+    tx_out: &TxOut,
+    sender: &AccountKey,
+    recipient: &PublicAddress,
+    amount: u64,
+    rng: &mut R,
+) -> Tx {
+    // Get the output value.
+    let tx_out_public_key = RistrettoPublic::try_from(&tx_out.public_key).unwrap();
+    let shared_secret = get_tx_out_shared_secret(sender.view_private_key(), &tx_out_public_key);
+    let (amount, _blinding) = tx_out
+        .get_masked_amount()
+        .unwrap()
+        .get_value(&shared_secret)
+        .unwrap();
+
+    let spend_private_key = sender.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX);
+    let tx_out_public_key = RistrettoPublic::try_from(&tx_out.public_key).unwrap();
+    let onetime_private_key = recover_onetime_private_key(
+        &tx_out_public_key,
+        sender.view_private_key(),
+        &spend_private_key,
+    );
+
+    let mut inputs = Vec::new();
+
+    for i in 0..RING_SIZE {
+        inputs.push(i as u64);
+    }
+
+    let tx_private_key = RistrettoPrivate::from_random(rng);
+
+    let output = TxOut::new(amount, recipient, &tx_private_key).unwrap();
+
+    let prefix = TxPrefix::new(inputs, vec![output]);
+
+    let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
+    let mut x: Scalar = Scalar::one();
+
+    for i in 0..RING_SIZE {
+        let (sk, pk) = KeyGen();
+        R[i] = pk;
+
+        if i == 0 {
+            x = sk;
+        }
+    }
+
+    let signature = Sign(&x, "msg", &R);
+
+    Tx { prefix, signature }
 }
 
 #[cfg(test)]
