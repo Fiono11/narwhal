@@ -6,7 +6,7 @@ use std::{fmt, array::TryFromSliceError};
 use curve25519_dalek::traits::Identity;
 use mc_account_keys::{PublicAddress, AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{tx_hash::TxHash, CompressedRistrettoPublic, RistrettoPublic, RistrettoPrivate};
+use mc_crypto_keys::{tx_hash::TxHash, CompressedRistrettoPublic, RistrettoPublic, RistrettoPrivate, PublicKey};
 use mc_crypto_ring_signature::{KeyImage, get_tx_out_shared_secret, onetime_keys::{create_shared_secret, create_tx_out_public_key, create_tx_out_target_key, recover_onetime_private_key}, ReducedTxOut, CompressedCommitment, TriptychSignature, Sign, Scalar, KeyGen, RistrettoPoint};
 use mc_transaction_types::{MaskedAmount, Amount, constants::RING_SIZE};
 use mc_util_from_random::FromRandom;
@@ -20,7 +20,7 @@ use crate::tx_error::{TxOutConversionError, ViewKeyMatchError, NewTxError};
 
 /// A CryptoNote-style transaction.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Message, Digestible)]
-pub struct Tx {
+pub struct Transaction {
     /// The transaction contents.
     #[prost(message, required, tag = "1")]
     pub prefix: TxPrefix,
@@ -30,13 +30,13 @@ pub struct Tx {
     pub signature: TriptychSignature,
 }
 
-impl fmt::Display for Tx {
+impl fmt::Display for Transaction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.tx_hash())
     }
 }
 
-impl Tx {
+impl Transaction {
     /// Compute a 32-byte hash from all of the contents of a Tx
     pub fn tx_hash(&self) -> TxHash {
         TxHash::from(self.digest32::<MerlinTranscript>(b"mobilecoin-tx"))
@@ -54,6 +54,11 @@ impl Tx {
             .iter()
             .map(|tx_out| tx_out.public_key)
             .collect()
+    }
+
+    pub fn len(&self) -> usize {
+        let bytes = bincode::serialize(&self).unwrap();
+        bytes.len()
     }
 }
 
@@ -243,13 +248,12 @@ impl TryFrom<&TxOut> for ReducedTxOut {
 /// * `sender` - The owner of `tx_out`.
 /// * `recipient` - The recipient of the new transaction.
 /// * `rng` - The randomness used by this function
-pub fn create_transaction<R: RngCore + CryptoRng>(
+pub fn create_transaction(
     tx_out: &TxOut,
     sender: &AccountKey,
     recipient: &PublicAddress,
     amount: u64,
-    rng: &mut R,
-) -> Tx {
+) -> Transaction {
     // Get the output value.
     let tx_out_public_key = RistrettoPublic::try_from(&tx_out.public_key).unwrap();
     let shared_secret = get_tx_out_shared_secret(sender.view_private_key(), &tx_out_public_key);
@@ -273,7 +277,8 @@ pub fn create_transaction<R: RngCore + CryptoRng>(
         inputs.push(i as u64);
     }
 
-    let tx_private_key = RistrettoPrivate::from_random(rng);
+    let mut rng = rand_core::OsRng;
+    let tx_private_key = RistrettoPrivate::from_random(&mut rng);
 
     let output = TxOut::new(amount, recipient, &tx_private_key).unwrap();
 
@@ -293,7 +298,7 @@ pub fn create_transaction<R: RngCore + CryptoRng>(
 
     let signature = Sign(&x, "msg", &R);
 
-    Tx { prefix, signature }
+    Transaction { prefix, signature }
 }
 
 #[cfg(test)]
@@ -304,7 +309,7 @@ mod tests {
         ring_ct::SignatureRctBulletproofs,
         subaddress_matches_tx_out,
         tokens::Mob,
-        tx::{Tx, TxIn, TxOut, TxPrefix},
+        tx::{Transaction, TxIn, TxOut, TxPrefix},
         Amount, BlockVersion, Token,
     };
     use mc_account_keys::{
@@ -360,13 +365,13 @@ mod tests {
             // TODO: use a meaningful signature.
             let signature = SignatureRctBulletproofs::default();
 
-            let tx = Tx {
+            let tx = Transaction {
                 prefix,
                 signature,
                 fee_map_digest: vec![],
             };
 
-            let recovered_tx: Tx = Tx::decode(&tx.encode_to_vec()[..]).unwrap();
+            let recovered_tx: Transaction = Transaction::decode(&tx.encode_to_vec()[..]).unwrap();
             assert_eq!(tx, recovered_tx);
         }
     }

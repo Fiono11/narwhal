@@ -2,8 +2,8 @@
 use crate::messages::Certificate;
 use crate::primary::PrimaryWorkerMessage;
 use bytes::Bytes;
-use config::Committee;
-use mc_crypto_keys::Ed25519Public as PublicAddress;
+use config::{Committee, PK};
+use mc_account_keys::PublicAddress;
 use network::SimpleSender;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -30,7 +30,7 @@ impl GarbageCollector {
         rx_consensus: Receiver<Certificate>,
     ) {
         let addresses = committee
-            .our_workers(name)
+            .our_workers(&PK(name.to_bytes()))
             .expect("Our public key or worker id is not in the committee")
             .iter()
             .map(|x| x.primary_to_worker)

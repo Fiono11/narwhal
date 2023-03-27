@@ -17,6 +17,7 @@ use core::{
     fmt,
     hash::{Hash, Hasher},
 };
+use alloc::string::String;
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use mc_core::{
     keys::{
@@ -27,12 +28,12 @@ use mc_core::{
     subaddress::Subaddress,
 };
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic, ReprBytes, GenericArray};
 use mc_util_from_random::FromRandom;
 #[cfg(feature = "prost")]
 use prost::Message;
 use rand_core::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser, de};
 use zeroize::Zeroize;
 
 pub use mc_core::{
@@ -45,7 +46,7 @@ pub use mc_core::{
 
 /// A MobileCoin user's public subaddress.
 #[derive(
-    Clone, Deserialize, Digestible, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Zeroize,
+    Clone, Deserialize, Digestible, Eq, Hash, Ord, PartialEq, PartialOrd, Zeroize, Serialize
 )]
 #[cfg_attr(feature = "prost", derive(Message))]
 pub struct PublicAddress {
@@ -88,6 +89,14 @@ impl PublicAddress {
         }
     }
 
+    /// Default
+    pub fn default() -> Self {
+        Self {
+            view_public_key: RistrettoPublic::default(),
+            spend_public_key: RistrettoPublic::default(),
+        }
+    }
+
     /// Get the public subaddress view key.
     pub fn view_public_key(&self) -> &RistrettoPublic {
         &self.view_public_key
@@ -96,6 +105,33 @@ impl PublicAddress {
     /// Get the public subaddress spend key.
     pub fn spend_public_key(&self) -> &RistrettoPublic {
         &self.spend_public_key
+    }
+
+    /// To bytes
+    pub fn to_bytes(&self) -> [u8; 64] {
+        let pk1 = self.view_public_key().to_bytes();
+        let mut a = pk1.to_vec();
+        let pk2 = self.spend_public_key().to_bytes();
+        let mut b = pk2.to_vec();
+        a.append(&mut b);
+        let mut c = [0; 64];
+        c.copy_from_slice(&a[..]);
+        c
+    }
+
+    /// From bytes
+    pub fn from_bytes(bytes: [u8; 64]) -> Self {
+        let mut a = [0; 32];
+        a.copy_from_slice(&bytes[..32]);
+        let mut b = [0; 32];
+        b.copy_from_slice(&bytes[32..64]);
+        let view_public_key = RistrettoPublic::from_bytes(&GenericArray::from(a)).unwrap();
+        let spend_public_key = RistrettoPublic::from_bytes(&GenericArray::from(b)).unwrap();
+
+        Self {
+            view_public_key,
+            spend_public_key,
+        }
     }
 }
 
@@ -215,6 +251,14 @@ impl AccountKey {
         }
     }
 
+    /// Default
+    pub fn default() -> Self {
+        Self {
+            spend_private_key: RistrettoPrivate::default(),
+            view_private_key: RistrettoPrivate::default(),
+        }
+    }
+
     /// Get the view private key.
     pub fn view_private_key(&self) -> &RistrettoPrivate {
         &self.view_private_key
@@ -320,6 +364,18 @@ impl AccountKey {
             .subaddress(index);
 
         view_private.inner()
+    }
+
+    /// To bytes
+    pub fn to_bytes(&self) -> [u8; 64] {
+        let pk1 = self.view_private_key().to_bytes();
+        let mut a = pk1.to_vec();
+        let pk2 = self.spend_private_key().to_bytes();
+        let mut b = pk2.to_vec();
+        a.append(&mut b);
+        let mut c = [0; 64];
+        c.copy_from_slice(&a[..]);
+        c
     }
 }
 

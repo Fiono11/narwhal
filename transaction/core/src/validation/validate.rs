@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use crate::tx::{Tx, TxPrefix, TxOut};
+use crate::tx::{Transaction, TxPrefix, TxOut};
 
 use super::error::{TransactionValidationError, TransactionValidationResult};
 use alloc::{format, vec::Vec};
@@ -28,7 +28,7 @@ use curve25519_dalek::traits::Identity;
 ///   tx.prefix.fee_token_id
 /// * `csprng` - Cryptographically secure random number generator.
 pub fn validate<R: RngCore + CryptoRng>(
-    tx: &Tx,
+    tx: &Transaction,
     csprng: &mut R,
 ) -> TransactionValidationResult<()> {
 
@@ -112,7 +112,7 @@ pub fn validate_ring_sizes(
 /// * The transaction does not create or destroy mobilecoins.
 /// * The signature is valid according to the rules of this block version
 pub fn validate_signature<R: RngCore + CryptoRng>(
-    tx: &Tx,
+    tx: &Transaction,
     rng: &mut R,
 ) -> TransactionValidationResult<()> {
 	let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];

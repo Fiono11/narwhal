@@ -1,4 +1,3 @@
-use crate::batch_maker::Transaction;
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::worker::SerializedBatchDigestMessage;
 use config::WorkerId;
@@ -10,6 +9,7 @@ use primary::WorkerPrimaryMessage;
 use std::convert::TryInto;
 use store::Store;
 use tokio::sync::mpsc::{Receiver, Sender};
+use mc_transaction_core::tx::Transaction;
 
 #[cfg(test)]
 #[path = "tests/processor_tests.rs"]

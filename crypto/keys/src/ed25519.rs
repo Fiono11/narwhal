@@ -5,7 +5,7 @@
 
 use crate::{
     DigestSigner, DigestVerifier, DistinguishedEncoding, KeyError, PrivateKey, PublicKey,
-    Signature as SignatureTrait, SignatureError, Signer, Verifier, tx_hash::TxHash,
+    Signature as SignatureTrait, SignatureError, Signer, Verifier, tx_hash::TxHash, RistrettoSignature, RistrettoPrivate,
 };
 use digest::{
     generic_array::typenum::{U32, U64},
@@ -113,7 +113,7 @@ impl DistinguishedEncoding for Ed25519Signature {
 /// An Ed25519 public key.
 #[derive(Copy, Clone, Default, Digestible)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Ed25519Public(DalekPublicKey);
+pub struct Ed25519Public(pub DalekPublicKey);
 
 impl AsRef<[u8]> for Ed25519Public {
     fn as_ref(&self) -> &[u8] {
@@ -236,7 +236,7 @@ impl Verifier<Ed25519Signature> for Ed25519Public {
 
 /// An Ed25519 private key
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Ed25519Private(SecretKey);
+pub struct Ed25519Private(pub SecretKey);
 
 impl AsRef<[u8]> for Ed25519Private {
     fn as_ref(&self) -> &[u8] {
@@ -335,7 +335,7 @@ impl TryFrom<alloc::vec::Vec<u8>> for Ed25519Private {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Ed25519Pair(Keypair);
+pub struct Ed25519Pair(pub Keypair);
 
 impl Ed25519Pair {
     pub fn private_key(&self) -> Ed25519Private {
@@ -344,6 +344,11 @@ impl Ed25519Pair {
 
     pub fn public_key(&self) -> Ed25519Public {
         Ed25519Public(self.0.public)
+    }
+
+    pub fn new() -> Self {
+        let mut rng = rand_core::OsRng;
+        Ed25519Pair::from_random(&mut rng)
     }
 }
 
@@ -427,22 +432,23 @@ impl Verifier<Ed25519Signature> for Ed25519Pair {
 /// over the digest (through a oneshot channel).
 #[derive(Clone)]
 pub struct SignatureService {
-    channel: Sender<(TxHash, oneshot::Sender<Ed25519Signature>)>,
+    channel: Sender<(TxHash, oneshot::Sender<RistrettoSignature>)>,
 }
 
 impl SignatureService {
-    pub fn new(pair: Ed25519Pair) -> Self {
+    pub fn new(secret: RistrettoPrivate) -> Self {
         let (tx, mut rx): (Sender<(TxHash, oneshot::Sender<_>)>, _) = channel(100);
         tokio::spawn(async move {
             while let Some((digest, sender)) = rx.recv().await {
-                let signature = pair.sign(&digest[..]);
+                //let signature = pair.sign(&digest[..]);
+                let signature = secret.sign_schnorrkel(b"context", b"message");
                 let _ = sender.send(signature);
             }
         });
         Self { channel: tx }
     }
 
-    pub async fn request_signature(&mut self, digest: TxHash) -> Ed25519Signature {
+    pub async fn request_signature(&mut self, digest: TxHash) -> RistrettoSignature {
         let (sender, receiver): (oneshot::Sender<_>, oneshot::Receiver<_>) = oneshot::channel();
         if let Err(e) = self.channel.send((digest, sender)).await {
             panic!("Failed to send message Signature Service: {}", e);

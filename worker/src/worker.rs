@@ -1,5 +1,5 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::batch_maker::{Batch, BatchMaker, Transaction};
+use crate::batch_maker::{Batch, BatchMaker};
 use crate::helper::Helper;
 use crate::primary_connector::PrimaryConnector;
 use crate::processor::{Processor, SerializedBatchMessage};
@@ -8,8 +8,8 @@ use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
 use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
-use config::{Committee, Parameters, WorkerId};
-use mc_crypto_keys::Ed25519Public as PublicKey;
+use config::{Committee, Parameters, WorkerId, PK};
+use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 use curve25519_dalek_ng::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek_ng::scalar::Scalar;
@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
+use mc_transaction_core::tx::Transaction;
 
 #[cfg(test)]
 #[path = "tests/worker_tests.rs"]
@@ -84,7 +85,7 @@ impl Worker {
         PrimaryConnector::spawn(
             worker
                 .committee
-                .primary(&worker.name)
+                .primary(&PK(worker.name.to_bytes()))
                 .expect("Our public key is not in the committee")
                 .worker_to_primary,
             rx_primary,
@@ -96,7 +97,7 @@ impl Worker {
             id,
             worker
                 .committee
-                .worker(&worker.name, &worker.id)
+                .worker(&PK(worker.name.to_bytes()), &worker.id)
                 .expect("Our public key or worker id is not in the committee")
                 .transactions
                 .ip()
@@ -110,7 +111,7 @@ impl Worker {
         // Receive incoming messages from our primary.
         let mut address = self
             .committee
-            .worker(&self.name, &self.id)
+            .worker(&PK(self.name.to_bytes()), &self.id)
             .expect("Our public key or worker id is not in the committee")
             .primary_to_worker;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -123,7 +124,7 @@ impl Worker {
         // The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
         // it receives from the primary (which are mainly notifications that we are out of sync).
         Synchronizer::spawn(
-            self.name,
+            self.name.clone(),
             self.id,
             self.committee.clone(),
             self.store.clone(),
@@ -148,7 +149,7 @@ impl Worker {
         // We first receive clients' transactions from the network.
         let mut address = self
             .committee
-            .worker(&self.name, &self.id)
+            .worker(&PK(self.name.to_bytes()), &self.id)
             .expect("Our public key or worker id is not in the committee")
             .transactions;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -167,9 +168,9 @@ impl Worker {
             /* tx_message */ tx_quorum_waiter,
             /* workers_addresses */
             self.committee
-                .others_workers(&self.name, &self.id)
+                .others_workers(&PK(self.name.to_bytes()), &self.id)
                 .iter()
-                .map(|(name, addresses)| (*name, addresses.worker_to_worker))
+                .map(|(name, addresses)| (PublicKey::from_bytes(name.0), addresses.worker_to_worker))
                 .collect(),
         );
 
@@ -177,7 +178,7 @@ impl Worker {
         // the batch to the `Processor`.
         QuorumWaiter::spawn(
             self.committee.clone(),
-            /* stake */ self.committee.stake(&self.name),
+            /* stake */ self.committee.stake(&PK(self.name.to_bytes())),
             /* rx_message */ rx_quorum_waiter,
             /* tx_batch */ tx_processor,
         );
@@ -206,7 +207,7 @@ impl Worker {
         // Receive incoming messages from other workers.
         let mut address = self
             .committee
-            .worker(&self.name, &self.id)
+            .worker(&PK(self.name.to_bytes()), &self.id)
             .expect("Our public key or worker id is not in the committee")
             .worker_to_worker;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -283,20 +284,20 @@ impl MessageHandler for TxReceiverHandler {
         //let signatures: Vec<(PublicKey, Signature)> = block.txs.iter(). map(|x| (x.public_key, x.signature.clone())).collect();
         //Signature::verify_batch(&digest, &signatures).unwrap();
         
-        let size = 64;
-        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
-        let mut x: Scalar = Scalar::one();
-        let index = 0;
+        //let size = 64;
+        //let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
+        //let mut x: Scalar = Scalar::one();
+        //let index = 0;
 
-        for i in 0..size {
+        //for i in 0..size {
             //let (sk, pk) = KeyGen();
            // R[i] = pk;
 
-            if i == index {
+            //if i == index {
                 //x = sk;
-            }
-        }
-        let M = "This is a triptych signature test, lets see if it works or not";
+            //}
+        //}
+        //let M = "This is a triptych signature test, lets see if it works or not";
         for tx in txs {
             //let ss = create_shared_secret(&A, &self.address.spend_public_key());
             //Verify(&tx.signature, &M, &R).unwrap();

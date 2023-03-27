@@ -5,28 +5,20 @@ use bulletproofs::RangeProof;
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
-use crypto::Digest;
-use crypto::Hash;
-use crypto::PublicKey;
-use crypto::Signature;
-use crypto::Transaction;
-use crypto::TwistedElGamal;
-use crypto::check_range_proofs;
-use crypto::generate_keypair;
-use crypto::generate_range_proofs;
-use crypto::triptych::KeyGen;
-use crypto::triptych::Sign;
-use crypto::triptych::TriptychSignature;
-use crypto::triptych::Verify;
 use curve25519_dalek_ng::ristretto::RistrettoPoint;
 use curve25519_dalek_ng::scalar::Scalar;
 use curve25519_dalek_ng::traits::Identity;
-use ed25519_dalek::{Sha512, Digest as _};
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
 use log::debug;
 use log::{info, warn};
+use mc_account_keys::AccountKey;
+use mc_account_keys::PublicAddress;
+use mc_crypto_keys::RistrettoPrivate;
+use mc_transaction_core::tx::TxOut;
+use mc_transaction_core::tx::create_transaction;
+use mc_transaction_types::Amount;
 use rand::Rng;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -143,8 +135,8 @@ impl Client {
             txs.push(tx.clone());
         }*/
 
-        let mut rng = rand::rngs::OsRng;
-        let representative = RistrettoPoint::random(&mut rng);
+        //let mut rng = rand::rngs::OsRng;
+        /*let representative = RistrettoPoint::random(&mut rng);
         let balance = rand::thread_rng().gen_range(0, u64::MAX);
         let random = Scalar::random(&mut rng);
         let generators = PedersenGens::default();
@@ -214,7 +206,7 @@ impl Client {
         let key2 = Key::from_slice(aC_bytes.as_bytes());
         let cipher2 = ChaCha20Poly1305::new(&key2);
         let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); 
-        let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();
+        let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();*/
             
         'main: loop {
             let mut txs = Vec::new();
@@ -224,14 +216,20 @@ impl Client {
 
             for x in 0..burst {
                 let id = thread_rng().gen_range(0, u128::MAX);
-                let tx = Transaction::random(id, balance.clone(), representative.compress(), public_key.clone(), signature.clone(), (ciphertext1, ciphertext2));
+                let amount = Amount::new(1);
+                let recipient = PublicAddress::default();
+                let tx_private_key = RistrettoPrivate::default();
+                let sender = AccountKey::default();
+                let tx_out = TxOut::new(amount, &recipient, &tx_private_key).unwrap(); 
+                let tx = create_transaction(&tx_out, &sender, &recipient, amount.value);
+                //let tx = Transaction::random(id, balance.clone(), representative.compress(), public_key.clone(), signature.clone(), (ciphertext1, ciphertext2));
                 txs.push(tx);
             }
     
-            let block = Block {
-                txs, range_proof_bytes: range_proof_bytes.clone(),
-            };
-            let message = bincode::serialize(&block).unwrap();
+            //let block = Block {
+                //txs, range_proof_bytes: range_proof_bytes.clone(),
+            //};
+            let message = bincode::serialize(&txs).unwrap();
 
             let bytes = Bytes::from(message);
             if let Err(e) = transport.send(bytes).await {

@@ -11,9 +11,11 @@ use crate::proposer::Proposer;
 use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
 use bytes::Bytes;
-use config::{Committee, Parameters, WorkerId};
+use config::{Committee, Parameters, WorkerId, PK, KeyPair, SK};
+use curve25519_dalek::scalar::Scalar;
 use futures::sink::SinkExt as _;
 use log::info;
+use mc_account_keys::{PublicAddress, AccountKey};
 use network::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -21,7 +23,8 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use mc_crypto_keys::{Ed25519Public as PublicKey, SignatureService, Ed25519Pair};
+use mc_crypto_keys::{SignatureService, RistrettoPrivate, ReprBytes};
+use config::PK as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 
 /// The default channel capacity for each channel of the primary.
@@ -60,7 +63,8 @@ pub struct Primary;
 
 impl Primary {
     pub fn spawn(
-        keypair: Ed25519Pair,
+        name: PublicAddress,
+        secret: AccountKey,
         committee: Committee,
         parameters: Parameters,
         store: Store,
@@ -81,17 +85,13 @@ impl Primary {
         // Write the parameters to the logs.
         parameters.log();
 
-        // Parse the public and secret key of this authority.
-        let name = keypair.public_key();
-        let secret = keypair.private_key();
-
         // Atomic variable use to synchronizer all tasks with the latest consensus round. This is only
         // used for cleanup. The only tasks that write into this variable is `GarbageCollector`.
         let consensus_round = Arc::new(AtomicU64::new(0));
 
         // Spawn the network receiver listening to messages from the other primaries.
         let mut address = committee
-            .primary(&name)
+            .primary(&PK(name.to_bytes()))
             .expect("Our public key or worker id is not in the committee")
             .primary_to_primary;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -110,7 +110,7 @@ impl Primary {
 
         // Spawn the network receiver listening to messages from our workers.
         let mut address = committee
-            .primary(&name)
+            .primary(&PK(name.to_bytes()))
             .expect("Our public key or worker id is not in the committee")
             .worker_to_primary;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -129,19 +129,23 @@ impl Primary {
 
         // The `Synchronizer` provides auxiliary methods helping to `Core` to sync.
         let synchronizer = Synchronizer::new(
-            name,
+            name.clone(),
             &committee,
             store.clone(),
             /* tx_header_waiter */ tx_sync_headers,
             /* tx_certificate_waiter */ tx_sync_certificates,
         );
 
+        let mut bytes = [0; 32];
+        bytes.copy_from_slice(&SK(secret.to_bytes()).0[..32]);
+        let s = Scalar::from_bits(bytes);
+
         // The `SignatureService` is used to require signatures on specific digests.
-        let signature_service = SignatureService::new(keypair);
+        let signature_service = SignatureService::new(RistrettoPrivate(s));
 
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         Core::spawn(
-            name,
+            name.clone(),
             committee.clone(),
             store.clone(),
             synchronizer,
@@ -157,7 +161,7 @@ impl Primary {
         );
 
         // Keeps track of the latest consensus round and allows other tasks to clean up their their internal state
-        GarbageCollector::spawn(&name, &committee, consensus_round.clone(), rx_consensus);
+        GarbageCollector::spawn(&name.clone(), &committee, consensus_round.clone(), rx_consensus);
 
         // Receives batch digests from other workers. They are only used to validate headers.
         PayloadReceiver::spawn(store.clone(), /* rx_workers */ rx_others_digests);
@@ -166,7 +170,7 @@ impl Primary {
         // batch digests, it commands the `HeaderWaiter` to synchronizer with other nodes, wait for their reply, and
         // re-schedule execution of the header once we have all missing data.
         HeaderWaiter::spawn(
-            name,
+            name.clone(),
             committee.clone(),
             store.clone(),
             consensus_round,
@@ -188,7 +192,7 @@ impl Primary {
         // When the `Core` collects enough parent certificates, the `Proposer` generates a new header with new batch
         // digests from our workers and it back to the `Core`.
         Proposer::spawn(
-            name,
+            name.clone(),
             &committee,
             signature_service,
             parameters.header_size,
@@ -204,9 +208,9 @@ impl Primary {
         // NOTE: This log entry is used to compute performance.
         info!(
             "Primary {} successfully booted on {}",
-            name,
+            name.clone(),
             committee
-                .primary(&name)
+                .primary(&PK(name.to_bytes()))
                 .expect("Our public key or worker id is not in the committee")
                 .primary_to_primary
                 .ip()

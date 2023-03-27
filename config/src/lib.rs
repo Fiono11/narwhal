@@ -1,8 +1,12 @@
+use ed25519_dalek::{SecretKey, PublicKey};
 // Copyright(C) Facebook, Inc. and its affiliates.
 use log::info;
 use mc_crypto_keys::{RistrettoPrivate, Ed25519Public as PublicAddress, Ed25519Private as AccountKey, Ed25519Pair};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use rand_core::OsRng;
+use serde::de::{DeserializeOwned, self};
+use serde::{Deserialize, Serialize, ser};
+use std::convert::TryInto;
+use std::fmt;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, OpenOptions};
 use std::io::BufWriter;
@@ -14,7 +18,7 @@ use mc_util_from_random::FromRandom;
 #[derive(Error, Debug)]
 pub enum ConfigError {
     #[error("Node {0} is not in the committee")]
-    NotInCommittee(PublicAddress),
+    NotInCommittee(PK),
 
     #[error("Unknown worker id {0}")]
     UnknownWorker(WorkerId),
@@ -55,6 +59,9 @@ pub trait Export: Serialize {
         })
     }
 }
+
+impl Import for Ed25519Pair {}
+impl Export for Ed25519Pair {}
 
 pub type Stake = u32;
 pub type WorkerId = u32;
@@ -140,7 +147,7 @@ pub struct Authority {
 
 #[derive(Clone, Deserialize)]
 pub struct Committee {
-    pub authorities: BTreeMap<PublicAddress, Authority>,
+    pub authorities: BTreeMap<PK, Authority>,
 }
 
 impl Import for Committee {}
@@ -152,12 +159,12 @@ impl Committee {
     }
 
     /// Return the stake of a specific authority.
-    pub fn stake(&self, name: &PublicAddress) -> Stake {
+    pub fn stake(&self, name: &PK) -> Stake {
         self.authorities.get(&name).map_or_else(|| 0, |x| x.stake)
     }
 
     /// Returns the stake of all authorities except `myself`.
-    pub fn others_stake(&self, myself: &PublicAddress) -> Vec<(PublicAddress, Stake)> {
+    pub fn others_stake(&self, myself: &PK) -> Vec<(PK, Stake)> {
         self.authorities
             .iter()
             .filter(|(name, _)| name != &myself)
@@ -182,7 +189,7 @@ impl Committee {
     }
 
     /// Returns the primary addresses of the target primary.
-    pub fn primary(&self, to: &PublicAddress) -> Result<PrimaryAddresses, ConfigError> {
+    pub fn primary(&self, to: &PK) -> Result<PrimaryAddresses, ConfigError> {
         self.authorities
             .get(to)
             .map(|x| x.primary.clone())
@@ -190,7 +197,7 @@ impl Committee {
     }
 
     /// Returns the addresses of all primaries except `myself`.
-    pub fn others_primaries(&self, myself: &PublicAddress) -> Vec<(PublicAddress, PrimaryAddresses)> {
+    pub fn others_primaries(&self, myself: &PK) -> Vec<(PK, PrimaryAddresses)> {
         self.authorities
             .iter()
             .filter(|(name, _)| name != &myself)
@@ -199,7 +206,7 @@ impl Committee {
     }
 
     /// Returns the addresses of a specific worker (`id`) of a specific authority (`to`).
-    pub fn worker(&self, to: &PublicAddress, id: &WorkerId) -> Result<WorkerAddresses, ConfigError> {
+    pub fn worker(&self, to: &PK, id: &WorkerId) -> Result<WorkerAddresses, ConfigError> {
         self.authorities
             .iter()
             .find(|(name, _)| name == &to)
@@ -213,7 +220,7 @@ impl Committee {
     }
 
     /// Returns the addresses of all our workers.
-    pub fn our_workers(&self, myself: &PublicAddress) -> Result<Vec<WorkerAddresses>, ConfigError> {
+    pub fn our_workers(&self, myself: &PK) -> Result<Vec<WorkerAddresses>, ConfigError> {
         self.authorities
             .iter()
             .find(|(name, _)| name == &myself)
@@ -230,9 +237,9 @@ impl Committee {
     /// specified by `myself`.
     pub fn others_workers(
         &self,
-        myself: &PublicAddress,
+        myself: &PK,
         id: &WorkerId,
-    ) -> Vec<(PublicAddress, WorkerAddresses)> {
+    ) -> Vec<(PK, WorkerAddresses)> {
         self.authorities
             .iter()
             .filter(|(name, _)| name != &myself)
@@ -247,27 +254,114 @@ impl Committee {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct KeyPair {
     /// The node's public key (and identifier).
-    pub name: PublicAddress,
+    pub name: PK,
     /// The node's secret key.
-    pub secret: AccountKey,
+    pub secret: SK,
+}
+
+/// Represents a public key (in bytes).
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct PK(pub [u8; 64]);
+
+impl PK {
+    pub fn encode_base64(&self) -> String {
+        base64::encode(&self.0[..])
+    }
+
+    pub fn decode_base64(s: &str) -> Result<Self, base64::DecodeError> {
+        let bytes = base64::decode(s)?;
+        let array = bytes[..64]
+            .try_into()
+            .map_err(|_| base64::DecodeError::InvalidLength)?;
+        Ok(Self(array))
+    }
+}
+
+impl fmt::Debug for PK {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.encode_base64())
+    }
+}
+
+impl fmt::Display for PK {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.encode_base64().get(0..16).unwrap())
+    }
+}
+
+impl Serialize for PK {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_str(&self.encode_base64())
+    }
+}
+
+impl<'de> Deserialize<'de> for PK {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let value = Self::decode_base64(&s).map_err(|e| de::Error::custom(e.to_string()))?;
+        Ok(value)
+    }
+}
+
+impl AsRef<[u8]> for PK {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+/// Represents a secret key (in bytes).
+#[derive(Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
+pub struct SK(pub [u8; 64]);
+
+impl SK {
+    pub fn encode_base64(&self) -> String {
+        base64::encode(&self.0[..])
+    }
+
+    pub fn decode_base64(s: &str) -> Result<Self, base64::DecodeError> {
+        let bytes = base64::decode(s)?;
+        let array = bytes[..64]
+            .try_into()
+            .map_err(|_| base64::DecodeError::InvalidLength)?;
+        Ok(Self(array))
+    }
+}
+
+impl Serialize for SK {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_str(&self.encode_base64())
+    }
+}
+
+impl<'de> Deserialize<'de> for SK {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let value = Self::decode_base64(&s).map_err(|e| de::Error::custom(e.to_string()))?;
+        Ok(value)
+    }
+}
+
+impl Drop for SK {
+    fn drop(&mut self) {
+        self.0.iter_mut().for_each(|x| *x = 0);
+    }
 }
 
 impl Import for KeyPair {}
 impl Export for KeyPair {}
 
-impl KeyPair {
-    pub fn new() -> Self {
-        let mut rng = rand_core::OsRng;
-        let pair = Ed25519Pair::from_random(&mut rng);
-        Self { name: pair.public_key(), secret: pair.private_key() }
-    }
-}
-
-impl Default for KeyPair {
-    fn default() -> Self {
-        Self::new()
-    }
-}

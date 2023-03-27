@@ -27,6 +27,8 @@ mc-account-keys = { path = "../account-keys" }
 mc-crypto-keys = { path = "../crypto/keys" }
 mc-transaction-core = { path = "../transaction/core" }
 
+curve25519-dalek = { version = "4.0.0-pre.2", default-features = false }
+
 [dev-dependencies]
 rand = "0.7.3"
 

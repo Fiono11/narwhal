@@ -3,12 +3,12 @@ use crate::error::{DagError, DagResult};
 use crate::messages::Header;
 use crate::primary::{PrimaryMessage, PrimaryWorkerMessage, Round};
 use bytes::Bytes;
-use config::{Committee, WorkerId};
+use config::{Committee, WorkerId, PK};
 use futures::future::try_join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use log::{debug, error};
-use mc_crypto_keys::Ed25519Public as PublicAddress;
+use mc_account_keys::PublicAddress;
 use mc_crypto_keys::tx_hash::TxHash;
 use network::SimpleSender;
 use std::collections::HashMap;
@@ -133,7 +133,7 @@ impl HeaderWaiter {
                             debug!("Synching the payload of {}", header);
                             let header_id = header.id.clone();
                             let round = header.round;
-                            let author = header.author;
+                            let author = header.author.clone();
 
                             // Ensure we sync only once per header.
                             if self.pending.contains_key(&header_id) {
@@ -151,7 +151,7 @@ impl HeaderWaiter {
                                 .collect();
                             let (tx_cancel, rx_cancel) = channel(1);
                             self.pending.insert(header_id, (round, tx_cancel));
-                            let fut = Self::waiter(wait_for, header, rx_cancel);
+                            let fut = Self::waiter(wait_for, header.clone(), rx_cancel);
                             waiting.push(fut);
 
                             // Ensure we didn't already send a sync request for these parents.
@@ -164,10 +164,10 @@ impl HeaderWaiter {
                             }
                             for (worker_id, digests) in requires_sync {
                                 let address = self.committee
-                                    .worker(&author, &worker_id)
+                                    .worker(&PK(author.to_bytes()), &worker_id)
                                     .expect("Author of valid header is not in the committee")
                                     .primary_to_worker;
-                                let message = PrimaryWorkerMessage::Synchronize(digests, author);
+                                let message = PrimaryWorkerMessage::Synchronize(digests, PK(author.to_bytes()));
                                 let bytes = bincode::serialize(&message)
                                     .expect("Failed to serialize batch sync request");
                                 self.network.send(address, Bytes::from(bytes)).await;
@@ -178,7 +178,7 @@ impl HeaderWaiter {
                             debug!("Synching the parents of {}", header);
                             let header_id = header.id.clone();
                             let round = header.round;
-                            let author = header.author;
+                            let author = header.author.clone();
 
                             // Ensure we sync only once per header.
                             if self.pending.contains_key(&header_id) {
@@ -194,7 +194,7 @@ impl HeaderWaiter {
                                 .collect();
                             let (tx_cancel, rx_cancel) = channel(1);
                             self.pending.insert(header_id, (round, tx_cancel));
-                            let fut = Self::waiter(wait_for, header, rx_cancel);
+                            let fut = Self::waiter(wait_for, header.clone(), rx_cancel);
                             waiting.push(fut);
 
                             // Ensure we didn't already sent a sync request for these parents.
@@ -213,10 +213,10 @@ impl HeaderWaiter {
                             }
                             if !requires_sync.is_empty() {
                                 let address = self.committee
-                                    .primary(&author)
+                                    .primary(&PK(author.to_bytes()))
                                     .expect("Author of valid header not in the committee")
                                     .primary_to_primary;
-                                let message = PrimaryMessage::CertificatesRequest(requires_sync, self.name);
+                                let message = PrimaryMessage::CertificatesRequest(requires_sync, PK(self.name.to_bytes()));
                                 let bytes = bincode::serialize(&message).expect("Failed to serialize cert request");
                                 self.network.send(address, Bytes::from(bytes)).await;
                             }
@@ -262,11 +262,11 @@ impl HeaderWaiter {
                     }
 
                     let addresses = self.committee
-                        .others_primaries(&self.name)
+                        .others_primaries(&PK(self.name.to_bytes()))
                         .iter()
                         .map(|(_, x)| x.primary_to_primary)
                         .collect();
-                    let message = PrimaryMessage::CertificatesRequest(retry, self.name);
+                    let message = PrimaryMessage::CertificatesRequest(retry, PK(self.name.to_bytes()));
                     let bytes = bincode::serialize(&message).expect("Failed to serialize cert request");
                     self.network.lucky_broadcast(addresses, Bytes::from(bytes), self.sync_retry_nodes).await;
 

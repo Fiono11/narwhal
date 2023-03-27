@@ -23,9 +23,14 @@ worker = { path = "../worker" }
 consensus = { path = "../consensus" }
 
 bulletproofs = "3"
-curve25519-dalek-ng = "3"
+curve25519-dalek = { version = "4.0.0-pre.2", default-features = false }
 rand_core = "0.6.4"
+ed25519-dalek = { version = "2.0.0-pre.1", default-features = false, features = [ "rand", "batch" ] }
+
+mc-account-keys = { path = "../account-keys" }
 mc-crypto-keys = { path = "../crypto/keys" }
+mc-transaction-core = { path = "../transaction/core" }
+mc-transaction-types = { path = "../transaction/types" }
 mc-util-from-random = { path = "../util/from-random" }
 
 [features]

@@ -1,8 +1,8 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::worker::{Round, WorkerMessage};
 use bytes::Bytes;
-use config::{Committee, WorkerId};
-use mc_crypto_keys::Ed25519Public as PublicKey;
+use config::{Committee, WorkerId, PK};
+use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
@@ -154,7 +154,7 @@ impl Synchronizer {
                                 continue;
                             }
                         };
-                        let message = WorkerMessage::BatchRequest(missing, self.name);
+                        let message = WorkerMessage::BatchRequest(missing, self.name.clone());
                         let serialized = bincode::serialize(&message).expect("Failed to serialize our own message");
                         self.network.send(address, Bytes::from(serialized)).await;
                     },
@@ -208,10 +208,10 @@ impl Synchronizer {
                     }
                     if !retry.is_empty() {
                         let addresses = self.committee
-                            .others_workers(&self.name, &self.id)
+                            .others_workers(&PK(self.name.to_bytes()), &self.id)
                             .iter().map(|(_, address)| address.worker_to_worker)
                             .collect();
-                        let message = WorkerMessage::BatchRequest(retry, self.name);
+                        let message = WorkerMessage::BatchRequest(retry, self.name.clone());
                         let serialized = bincode::serialize(&message).expect("Failed to serialize our own message");
                         self.network
                             .lucky_broadcast(addresses, Bytes::from(serialized), self.sync_retry_nodes)

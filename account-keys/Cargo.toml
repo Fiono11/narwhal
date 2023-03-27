@@ -14,7 +14,7 @@ serde = ["mc-crypto-keys/serde"]
 default = ["std", "prost", "serde", "mc-util-serial", "mc-crypto-digestible/default", "mc-crypto-hashes/default", "mc-crypto-keys/default"]
 
 [dependencies]
-
+base64 = "0.13.0"
 curve25519-dalek = { version = "4.0.0-pre.2", default-features = false, features = ["nightly"] }
 # External dependencies
 displaydoc = { version = "0.2", default-features = false }

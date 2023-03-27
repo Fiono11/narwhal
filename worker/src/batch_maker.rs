@@ -2,14 +2,15 @@
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
 use bytes::Bytes;
-#[cfg(feature = "benchmark")]
-use crypto::Digest;
-use mc_crypto_keys::Ed25519Public as PublicKey;
+//#[cfg(feature = "benchmark")]
+//use crypto::Digest;
+use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
 #[cfg(feature = "benchmark")]
 use log::info;
+use mc_transaction_core::tx::Transaction;
 use network::ReliableSender;
 #[cfg(feature = "benchmark")]
 use std::convert::TryInto as _;
@@ -21,7 +22,7 @@ use tokio::time::{sleep, Duration, Instant};
 #[path = "tests/batch_maker_tests.rs"]
 pub mod batch_maker_tests;
 
-pub type Transaction = Vec<u8>;
+//pub type Transaction = Vec<u8>;
 pub type Batch = Vec<Transaction>;
 
 /// Assemble clients transactions into batches.

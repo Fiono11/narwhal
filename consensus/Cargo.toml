@@ -11,6 +11,7 @@ log = "0.4.14"
 config = { path = "../config" }
 primary = { path = "../primary" }
 
+mc-account-keys = { path = "../account-keys" }
 mc-crypto-keys = { path = "../crypto/keys" }
 mc-transaction-core = { path = "../transaction/core" }
 

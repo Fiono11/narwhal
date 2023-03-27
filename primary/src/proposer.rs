@@ -2,7 +2,8 @@
 use crate::messages::{Certificate, Header, Hash};
 use crate::primary::Round;
 use config::{Committee, WorkerId};
-use mc_crypto_keys::{Ed25519Public as PublicKey, SignatureService};
+use mc_crypto_keys::SignatureService;
+use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 use log::debug;
 #[cfg(feature = "benchmark")]
@@ -81,7 +82,7 @@ impl Proposer {
     async fn make_header(&mut self) {
         // Make a new header.
         let header = Header::new(
-            self.name,
+            self.name.clone(),
             self.round,
             self.digests.drain(..).collect(),
             self.last_parents.drain(..).collect(),

@@ -10,6 +10,7 @@ rust-version = { workspace = true }
 [dependencies]
 # External dependencies
 base64 = "0.13.0"
+bincode = "1.3.1"
 curve25519-dalek = { version = "4.0.0-pre.2", default-features = false, features = ["nightly"] }
 displaydoc = { version = "0.2", default-features = false }
 hex_fmt = "0.3"

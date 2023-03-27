@@ -1,15 +1,16 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
 use crate::messages::{Certificate, Header, Vote, Hash};
-use config::{Committee, Stake};
-use mc_crypto_keys::{Ed25519Signature, Ed25519Public as PublicAddress};
+use config::{Committee, Stake, PK};
+use mc_account_keys::PublicAddress;
+use mc_crypto_keys::RistrettoSignature;
 use mc_crypto_keys::tx_hash::TxHash;
 use std::collections::HashSet;
 
 /// Aggregates votes for a particular header into a certificate.
 pub struct VotesAggregator {
     weight: Stake,
-    votes: Vec<(PublicAddress, Ed25519Signature)>,
+    votes: Vec<(PublicAddress, RistrettoSignature)>,
     used: HashSet<PublicAddress>,
 }
 
@@ -31,10 +32,10 @@ impl VotesAggregator {
         let author = vote.author;
 
         // Ensure it is the first time this authority votes.
-        ensure!(self.used.insert(author), DagError::AuthorityReuse(author));
+        ensure!(self.used.insert(author.clone()), DagError::AuthorityReuse(author.clone()));
 
-        self.votes.push((author, vote.signature));
-        self.weight += committee.stake(&author);
+        self.votes.push((author.clone(), vote.signature));
+        self.weight += committee.stake(&PK(author.to_bytes()));
         if self.weight >= committee.quorum_threshold() {
             self.weight = 0; // Ensures quorum is only reached once.
             return Ok(Some(Certificate {
@@ -70,12 +71,12 @@ impl CertificatesAggregator {
         let origin = certificate.origin();
 
         // Ensure it is the first time this authority votes.
-        if !self.used.insert(origin) {
+        if !self.used.insert(origin.clone()) {
             return Ok(None);
         }
 
         self.certificates.push(certificate.digest());
-        self.weight += committee.stake(&origin);
+        self.weight += committee.stake(&PK(origin.to_bytes()));
         if self.weight >= committee.quorum_threshold() {
             self.weight = 0; // Ensures quorum is only reached once.
             return Ok(Some(self.certificates.drain(..).collect()));

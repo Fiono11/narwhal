@@ -569,6 +569,7 @@ impl Kex for Ristretto {
     type Secret = RistrettoSecret;
 }
 
+#[derive(Clone)]
 #[repr(transparent)]
 pub struct RistrettoSignature([u8; SIGNATURE_LENGTH]);
 

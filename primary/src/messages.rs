@@ -1,14 +1,14 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
 use crate::primary::Round;
-use config::{Committee, WorkerId};
+use config::{Committee, WorkerId, PK};
 use ed25519_dalek::{Digest as _, Sha512};
-use mc_crypto_keys::Ed25519Public as PublicAddress;
-use mc_crypto_keys::{Ed25519Signature, SignatureService};
+use mc_account_keys::PublicAddress;
+use mc_crypto_keys::{RistrettoSignature, SignatureService};
 use mc_crypto_keys::tx_hash::TxHash;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::convert::TryInto;
+use std::convert::{TryInto, TryFrom};
 use std::fmt;
 
 /// This trait is implemented by all messages that can be hashed.
@@ -24,7 +24,7 @@ pub struct Header {
     pub payload: BTreeMap<TxHash, WorkerId>,
     pub parents: BTreeSet<TxHash>,
     pub id: TxHash,
-    pub signature: Ed25519Signature,
+    pub signature: RistrettoSignature,
 }
 
 impl Header {
@@ -41,7 +41,7 @@ impl Header {
             payload,
             parents,
             id: TxHash::default(),
-            signature: Ed25519Signature::default(),
+            signature: RistrettoSignature::default(),
         };
         let id = header.digest();
         let signature = signature_service.request_signature(id.clone()).await;
@@ -57,13 +57,13 @@ impl Header {
         ensure!(self.digest() == self.id, DagError::InvalidHeaderId);
 
         // Ensure the authority has voting rights.
-        let voting_rights = committee.stake(&self.author);
-        ensure!(voting_rights > 0, DagError::UnknownAuthority(self.author));
+        let voting_rights = committee.stake(&PK(self.author.to_bytes()));
+        ensure!(voting_rights > 0, DagError::UnknownAuthority(self.author.clone()));
 
         // Ensure all worker ids are correct.
         for worker_id in self.payload.values() {
             committee
-                .worker(&self.author, &worker_id)
+                .worker(&PK(self.author.to_bytes()), &worker_id)
                 .map_err(|_| DagError::MalformedHeader(self.id.clone()))?;
         }
 
@@ -79,7 +79,7 @@ impl Header {
 impl Hash for Header {
     fn digest(&self) -> TxHash {
         let mut hasher = Sha512::new();
-        hasher.update(&self.author);
+        hasher.update(self.author.to_bytes());
         hasher.update(self.round.to_le_bytes());
         for (x, y) in &self.payload {
             hasher.update(x);
@@ -117,7 +117,7 @@ pub struct Vote {
     pub round: Round,
     pub origin: PublicAddress,
     pub author: PublicAddress,
-    pub signature: Ed25519Signature,
+    pub signature: RistrettoSignature,
 }
 
 impl Vote {
@@ -131,7 +131,7 @@ impl Vote {
             round: header.round,
             origin: header.author.clone(),
             author: author.clone(),
-            signature: Ed25519Signature::default(),
+            signature: RistrettoSignature::default(),
         };
         let signature = signature_service.request_signature(vote.digest()).await;
         Self { signature, ..vote }
@@ -140,8 +140,8 @@ impl Vote {
     pub fn verify(&self, committee: &Committee) -> DagResult<()> {
         // Ensure the authority has voting rights.
         ensure!(
-            committee.stake(&self.author) > 0,
-            DagError::UnknownAuthority(self.author)
+            committee.stake(&PK(self.author.to_bytes())) > 0,
+            DagError::UnknownAuthority(self.author.clone())
         );
 
         // Check the signature.
@@ -158,7 +158,7 @@ impl Hash for Vote {
         let mut hasher = Sha512::new();
         hasher.update(&self.id);
         hasher.update(self.round.to_le_bytes());
-        hasher.update(&self.origin);
+        hasher.update(&self.origin.to_bytes());
         TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }
@@ -179,7 +179,7 @@ impl fmt::Debug for Vote {
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Certificate {
     pub header: Header,
-    pub votes: Vec<(PublicAddress, Ed25519Signature)>,
+    pub votes: Vec<(PublicAddress, RistrettoSignature)>,
 }
 
 impl Certificate {
@@ -189,7 +189,7 @@ impl Certificate {
             .keys()
             .map(|name| Self {
                 header: Header {
-                    author: *name,
+                    author: PublicAddress::from_bytes(name.0),
                     ..Header::default()
                 },
                 ..Self::default()
@@ -210,10 +210,10 @@ impl Certificate {
         let mut weight = 0;
         let mut used = HashSet::new();
         for (name, _) in self.votes.iter() {
-            ensure!(!used.contains(name), DagError::AuthorityReuse(*name));
-            let voting_rights = committee.stake(name);
-            ensure!(voting_rights > 0, DagError::UnknownAuthority(*name));
-            used.insert(*name);
+            ensure!(!used.contains(name), DagError::AuthorityReuse(name.clone()));
+            let voting_rights = committee.stake(&PK(name.to_bytes()));
+            ensure!(voting_rights > 0, DagError::UnknownAuthority(name.clone()));
+            used.insert(name.clone());
             weight += voting_rights;
         }
         ensure!(
@@ -231,7 +231,7 @@ impl Certificate {
     }
 
     pub fn origin(&self) -> PublicAddress {
-        self.header.author
+        self.header.author.clone()
     }
 }
 
@@ -240,7 +240,7 @@ impl Hash for Certificate {
         let mut hasher = Sha512::new();
         hasher.update(&self.header.id);
         hasher.update(self.round().to_le_bytes());
-        hasher.update(&self.origin());
+        hasher.update(&self.origin().to_bytes());
         TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }

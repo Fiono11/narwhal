@@ -6,10 +6,10 @@ use crate::primary::{PrimaryMessage, Round};
 use crate::synchronizer::Synchronizer;
 use async_recursion::async_recursion;
 use bytes::Bytes;
-use config::Committee;
+use config::{Committee, PK};
 use log::{debug, error, warn};
+use mc_account_keys::PublicAddress;
 use mc_crypto_keys::SignatureService;
-use mc_crypto_keys::Ed25519Public as PublicAddress;
 use mc_crypto_keys::tx_hash::TxHash;
 use network::{CancelHandler, ReliableSender};
 use std::collections::{HashMap, HashSet};
@@ -123,7 +123,7 @@ impl Core {
         // Broadcast the new header in a reliable manner.
         let addresses = self
             .committee
-            .others_primaries(&self.name)
+            .others_primaries(&PK(self.name.to_bytes()))
             .iter()
             .map(|(_, x)| x.primary_to_primary)
             .collect();
@@ -164,7 +164,7 @@ impl Core {
                 x.round() + 1 == header.round,
                 DagError::MalformedHeader(header.id.clone())
             );
-            stake += self.committee.stake(&x.origin());
+            stake += self.committee.stake(&PK(x.origin().to_bytes()));
         }
         ensure!(
             stake >= self.committee.quorum_threshold(),
@@ -187,7 +187,7 @@ impl Core {
             .last_voted
             .entry(header.round)
             .or_insert_with(HashSet::new)
-            .insert(header.author)
+            .insert(header.author.clone())
         {
             // Make a vote and send it to the header's creator.
             let vote = Vote::new(header, &self.name, &mut self.signature_service).await;
@@ -199,7 +199,7 @@ impl Core {
             } else {
                 let address = self
                     .committee
-                    .primary(&header.author)
+                    .primary(&PK(header.author.to_bytes()))
                     .expect("Author of valid header is not in the committee")
                     .primary_to_primary;
                 let bytes = bincode::serialize(&PrimaryMessage::Vote(vote))
@@ -228,7 +228,7 @@ impl Core {
             // Broadcast the certificate.
             let addresses = self
                 .committee
-                .others_primaries(&self.name)
+                .others_primaries(&PK(self.name.to_bytes()))
                 .iter()
                 .map(|(_, x)| x.primary_to_primary)
                 .collect();

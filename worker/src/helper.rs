@@ -1,7 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use bytes::Bytes;
-use config::{Committee, WorkerId};
-use mc_crypto_keys::Ed25519Public as PublicKey;
+use config::{Committee, WorkerId, PK};
+use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 use log::{error, warn};
 use network::SimpleSender;
@@ -51,7 +51,7 @@ impl Helper {
             // TODO [issue #7]: Do some accounting to prevent bad nodes from monopolizing our resources.
 
             // get the requestors address.
-            let address = match self.committee.worker(&origin, &self.id) {
+            let address = match self.committee.worker(&PK(origin.to_bytes()), &self.id) {
                 Ok(x) => x.worker_to_worker,
                 Err(e) => {
                     warn!("Unexpected batch request: {}", e);

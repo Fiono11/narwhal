@@ -1,9 +1,9 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::primary::PrimaryMessage;
 use bytes::Bytes;
-use config::Committee;
+use config::{Committee, PK};
 use log::{error, warn};
-use mc_crypto_keys::Ed25519Public as PublicAddress;
+use mc_account_keys::PublicAddress;
 use mc_crypto_keys::tx_hash::TxHash;
 use network::SimpleSender;
 use store::Store;
@@ -16,7 +16,7 @@ pub struct Helper {
     /// The persistent storage.
     store: Store,
     /// Input channel to receive certificates requests.
-    rx_primaries: Receiver<(Vec<TxHash>, PublicAddress)>,
+    rx_primaries: Receiver<(Vec<TxHash>, PK)>,
     /// A network sender to reply to the sync requests.
     network: SimpleSender,
 }
@@ -25,7 +25,7 @@ impl Helper {
     pub fn spawn(
         committee: Committee,
         store: Store,
-        rx_primaries: Receiver<(Vec<TxHash>, PublicAddress)>,
+        rx_primaries: Receiver<(Vec<TxHash>, PK)>,
     ) {
         tokio::spawn(async move {
             Self {
