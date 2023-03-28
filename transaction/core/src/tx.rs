@@ -192,8 +192,8 @@ impl TxOut {
             target_key: tx_target_key.into(),
             public_key: tx_public_key.into(),
             //representative: shared_secret2.into(),
-            aux_receiver: ciphertext1,
-            aux_representative: ciphertext2,
+            aux_receiver: ciphertext2,
+            aux_representative: ciphertext1,
         })
     }
 
@@ -262,21 +262,6 @@ pub fn create_transaction(
     recipient: &PublicAddress,
     amount: u64,
 ) -> Transaction {
-    // Get the output value.
-    let tx_out_public_key = RistrettoPublic::try_from(&tx_out.public_key).unwrap();
-    let shared_secret = get_tx_out_shared_secret(sender.view_private_key(), &tx_out_public_key);
-    let (amount, _blinding) = tx_out
-        .get_masked_amount()
-        .get_value(&shared_secret)
-        .unwrap();
-
-    let spend_private_key = sender.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX);
-    let tx_out_public_key = RistrettoPublic::try_from(&tx_out.public_key).unwrap();
-    let onetime_private_key = recover_onetime_private_key(
-        &tx_out_public_key,
-        sender.view_private_key(),
-        &spend_private_key,
-    );
 
     let mut inputs = Vec::new();
 
@@ -289,7 +274,7 @@ pub fn create_transaction(
 
     let rep_account = AccountKey::default();
 
-    let output = TxOut::new(amount, recipient, &tx_private_key, rep_account.to_public_address()).unwrap();
+    let output = TxOut::new(Amount::new(amount), recipient, &tx_private_key, rep_account.to_public_address()).unwrap();
 
     let prefix = TxPrefix::new(inputs, vec![output]);
 

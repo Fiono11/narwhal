@@ -8,10 +8,11 @@ use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
 use bulletproofs_og::{PedersenGens, RangeProof};
 use bytes::Bytes;
-use chacha20poly1305::aead::Aead;
+use chacha20poly1305::aead::{Aead, OsRng};
 use chacha20poly1305::{Key, ChaCha20Poly1305, KeyInit, Nonce};
 use config::{Committee, Parameters, WorkerId, PK};
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
+use curve25519_dalek::ristretto::CompressedRistretto;
 use curve25519_dalek::traits::Identity;
 use mc_account_keys::{PublicAddress as PublicKey, AccountKey};
 use mc_crypto_keys::{RistrettoPublic, RistrettoPrivate, ReprBytes, GenericArray};
@@ -20,6 +21,7 @@ use futures::sink::SinkExt as _;
 use log::{error, info, warn, debug};
 use mc_crypto_ring_signature::onetime_keys::{create_shared_secret, recover_onetime_private_key};
 use mc_crypto_ring_signature::{Verify, KeyGen, RistrettoPoint, Scalar};
+use mc_transaction_core::range_proofs::check_range_proofs;
 use mc_transaction_types::constants::RING_SIZE;
 use network::{MessageHandler, Receiver, Writer};
 use primary::PrimaryWorkerMessage;
@@ -260,6 +262,7 @@ struct TxReceiverHandler {
 pub struct Block {
     pub txs: Vec<Transaction>,
     pub range_proof_bytes: Vec<u8>,
+    pub commitments: Vec<CompressedRistretto>,
 }
 
 #[async_trait]
@@ -310,6 +313,8 @@ impl MessageHandler for WorkerReceiverHandler {
                 for tx in block.txs {
                     Verify(&tx.signature, "msg", &R).unwrap();
                 }
+                check_range_proofs(&RangeProof::from_bytes(&block.range_proof_bytes).unwrap(), &block.commitments, &PedersenGens::default(), &mut OsRng).unwrap();
+
                 self
                     .tx_processor
                     .send(serialized.to_vec())

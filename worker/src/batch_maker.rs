@@ -152,10 +152,11 @@ impl BatchMaker {
             blindings.push(blinding);
         }
 
-        let (range_proof, _) = generate_range_proofs(&amounts, &blindings, &generators, &mut OsRng).unwrap();
+        let (range_proof, commitments) = generate_range_proofs(&amounts, &blindings, &generators, &mut OsRng).unwrap();
         let block = Block {
             txs: batch,
             range_proof_bytes: range_proof.to_bytes(),
+            commitments,
         };
         let message = WorkerMessage::Batch(block);
         let serialized = bincode::serialize(&message).expect("Failed to serialize our own batch");

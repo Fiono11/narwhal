@@ -115,7 +115,7 @@ impl Client {
 
         // Submit all transactions.
         //let burst = self.rate / PRECISION;
-        let burst = 512;
+        let burst = 64;
         info!("BURST: {}", self.rate / PRECISION);
         //let mut tx = BytesMut::with_capacity(self.size);
         let mut counter = 0;
@@ -217,7 +217,7 @@ impl Client {
                 let recipient = PublicAddress::default();
                 let tx_private_key = RistrettoPrivate::default();
                 let sender = AccountKey::default();
-                let tx_out = TxOut::new(amount, &recipient, &tx_private_key).unwrap(); 
+                let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address()).unwrap(); 
                 let tx = create_transaction(&tx_out, &sender, &recipient, amount.value);
                 //let tx = Transaction::random(id, balance.clone(), representative.compress(), public_key.clone(), signature.clone(), (ciphertext1, ciphertext2));
                 txs.push(tx);

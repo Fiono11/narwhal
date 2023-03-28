@@ -79,7 +79,7 @@ pub fn generate_range_proofs<T: RngCore + CryptoRng>(
 pub fn check_range_proofs<T: RngCore + CryptoRng>(
     range_proof: &RangeProof,
     commitments: &[CompressedRistretto],
-    pedersen_generators: &PedersenGens,
+    pedersen_generators: &BPPedersenGens,
     rng: &mut T,
 ) -> Result<(), Error> {
     // The length of `commitments` must be a power of 2. If not, resize it.
@@ -87,7 +87,7 @@ pub fn check_range_proofs<T: RngCore + CryptoRng>(
     range_proof
         .verify_multiple_with_rng(
             &BP_GENERATORS,
-            &convert_gens(pedersen_generators),
+            &pedersen_generators,
             &mut Transcript::new(BULLETPROOF_DOMAIN_TAG.as_ref()),
             &resized_commitments,
             64,
