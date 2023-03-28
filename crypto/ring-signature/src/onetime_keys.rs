@@ -215,7 +215,7 @@ mod tests {
     }
 
     // Get the account's i^th subaddress.
-    fn get_subaddress(
+    pub fn get_subaddress(
         account: &AccountKey,
         index: u64,
     ) -> (RistrettoPrivate, RistrettoPrivate, PublicAddress) {

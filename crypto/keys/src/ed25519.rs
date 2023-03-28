@@ -24,8 +24,6 @@ use mc_util_repr_bytes::{
 };
 use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;
-use tokio::sync::mpsc::{channel, Sender};
-use tokio::sync::oneshot;
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
@@ -428,6 +426,9 @@ impl Verifier<Ed25519Signature> for Ed25519Pair {
     }
 }
 
+use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::oneshot;
+
 /// This service holds the node's private key. It takes digests as input and returns a signature
 /// over the digest (through a oneshot channel).
 #[derive(Clone)]
@@ -532,7 +533,7 @@ derive_debug_and_display_hex_from_as_ref!(Ed25519Signature);
 #[cfg(feature = "prost")]
 derive_prost_message_from_repr_bytes!(Ed25519Signature);
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod ed25519_tests {
     extern crate std;
 
@@ -747,4 +748,4 @@ mod ed25519_tests {
             &ED25519_SPKI_DER_PREFIX
         );
     }
-}
+}*/

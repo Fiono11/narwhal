@@ -41,7 +41,7 @@ subtle = { version = "2", default-features = false }
 x25519-dalek = { version = "2.0.0-pre.2", default-features = false }
 zeroize = { version = "1", default-features = false }
 
-tokio = { version = "1.5.0" }
+tokio = { version = "1.5.0", features = ["sync", "rt", "macros"] }
 
 [dev-dependencies]
 mc-crypto-hashes = { path = "../hashes" }

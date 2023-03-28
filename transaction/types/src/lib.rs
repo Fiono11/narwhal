@@ -16,11 +16,7 @@ pub use crate::{
     token::TokenId,
     unmasked_amount::UnmaskedAmount,
 };
-#[cfg(feature = "alloc")]
-pub use crate::{
-    masked_amount::{MaskedAmount, MaskedAmountV2},
-    tx_summary::{TxInSummary, TxOutSummary, TxSummary},
-};
+pub use crate::masked_amount::MaskedAmount;
 
 pub mod constants;
 pub mod domain_separators;
@@ -29,7 +25,6 @@ pub mod proptest_fixtures;
 
 mod amount;
 mod block_version;
-#[cfg(feature = "alloc")]
 mod masked_amount;
 mod token;
 #[cfg(feature = "alloc")]

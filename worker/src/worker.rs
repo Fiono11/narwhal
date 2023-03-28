@@ -10,10 +10,12 @@ use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId, PK};
 use curve25519_dalek::traits::Identity;
-use mc_account_keys::PublicAddress as PublicKey;
+use mc_account_keys::{PublicAddress as PublicKey, AccountKey};
+use mc_crypto_keys::{RistrettoPublic, RistrettoPrivate};
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 use futures::sink::SinkExt as _;
 use log::{error, info, warn, debug};
+use mc_crypto_ring_signature::onetime_keys::{create_shared_secret, recover_onetime_private_key};
 use mc_crypto_ring_signature::{Verify, KeyGen, RistrettoPoint, Scalar};
 use mc_transaction_types::constants::RING_SIZE;
 use network::{MessageHandler, Receiver, Writer};
@@ -22,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
-use mc_transaction_core::tx::Transaction;
+use mc_transaction_core::tx::{Transaction, get_subaddress};
 
 #[cfg(test)]
 #[path = "tests/worker_tests.rs"]
@@ -264,43 +266,13 @@ impl MessageHandler for TxReceiverHandler {
         let mut rng = rand::rngs::OsRng;
         let generators = PedersenGens::default();
         let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
-        //let mut values = Vec::new();
-        //let mut blindings = Vec::new();
+        let account_rep = AccountKey::default();
 
-        /*let (range_proof, _commitment) = generate_range_proofs(
-            &values,
-            &blindings,
-            &generators,
-            &mut rng,
-        ).unwrap();*/
-
-        // Send the transaction to the batch maker.
-        //let block: Block = bincode::deserialize(&message).unwrap();
-        //let commitments: Vec<CompressedRistretto> = block.txs.iter(). map(|x| x.balance.c2).collect();
-        //debug!("Received!");
-        //check_range_proofs(&RangeProof::from_bytes(&&block.range_proof_bytes[..]).unwrap(), &commitments, &generators, &mut rand::rngs::OsRng).unwrap();
-        //let message: &[u8] = b"Hello, world!";
-        //let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
-        //let signatures: Vec<(PublicKey, Signature)> = block.txs.iter(). map(|x| (x.public_key, x.signature.clone())).collect();
-        //Signature::verify_batch(&digest, &signatures).unwrap();
-        
-        //let size = 64;
-        //let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
-        //let mut x: Scalar = Scalar::one();
-        //let index = 0;
-
-        //for i in 0..size {
-            //let (sk, pk) = KeyGen();
-           // R[i] = pk;
-
-            //if i == index {
-                //x = sk;
-            //}
-        //}
-        //let M = "This is a triptych signature test, lets see if it works or not";
         for tx in txs {
-            //let ss = create_shared_secret(&A, &self.address.spend_public_key());
-            //Verify(&tx.signature, &M, &R).unwrap();
+            let (_c, d, recipient) = get_subaddress(&account_rep, 787);
+            //let onetime_private_key =
+                //recover_onetime_private_key(&tx.prefix.outputs[0].public_key.into(), account_rep.view_private_key(), &d);
+
             self.tx_batch_maker
                 .send(tx)
                 .await

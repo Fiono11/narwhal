@@ -19,8 +19,10 @@ use mc_crypto_digestible::Digestible;
 use mc_crypto_hashes::{Blake2b512, Digest};
 use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_ring_signature::{generators, CompressedCommitment, Scalar};
+use prost::Message;
 #[cfg(feature = "prost")]
 use prost::Message;
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sha2::Sha512;
@@ -34,22 +36,22 @@ use zeroize::Zeroize;
 /// which is computed by hashing from "tx out shared secret". The purpose of
 /// this is to make it possible to selectively reveal the amount and token id of
 /// a TxOut, without revealing the memo and other things. (See also MCIP #42).
-#[derive(Clone, Digestible, Eq, Hash, PartialEq, Zeroize)]
-#[cfg_attr(feature = "prost", derive(Message))]
-#[cfg_attr(not(feature = "prost"), derive(Debug))]
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-pub struct MaskedAmountV2 {
+#[derive(Clone, Digestible, Eq, Hash, PartialEq, Zeroize, Message, Deserialize, Serialize)]
+//#[cfg_attr(feature = "prost", derive(Message))]
+//#[cfg_attr(not(feature = "prost"), derive(Debug))]
+//#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+pub struct MaskedAmount {
     /// A Pedersen commitment `v*H + b*G` to a quantity `v` of MobileCoin or a
     /// related token, with blinding `b`,
-    #[cfg_attr(feature = "prost", prost(message, required, tag = "1"))]
+    #[prost(message, required, tag = "1")]
     pub commitment: CompressedCommitment,
 
     /// `masked_value = value XOR_8 Blake2B(value_mask | shared_secret)`
-    #[cfg_attr(feature = "prost", prost(fixed64, required, tag = "2"))]
+    #[prost(fixed64, required, tag = "2")]
     pub masked_value: u64,
 }
 
-impl MaskedAmountV2 {
+impl MaskedAmount {
     /// Creates a commitment `value*H + blinding*G`, and "masks" the commitment
     /// secrets so that they can be recovered by the recipient.
     ///
@@ -256,7 +258,7 @@ mod amount_tests {
             token_id in any::<u64>(),
             tx_out_shared_secret in arbitrary_ristretto_public()) {
                 let amount = Amount { value };
-             assert!(MaskedAmountV2::new(amount, &tx_out_shared_secret).is_ok());
+             assert!(MaskedAmount::new(amount, &tx_out_shared_secret).is_ok());
         }
 
         #[test]
@@ -267,9 +269,9 @@ mod amount_tests {
             token_id in any::<u64>(),
             tx_out_shared_secret in arbitrary_ristretto_public()) {
                 let amount = Amount { value };
-                let amount = MaskedAmountV2::new(amount, &tx_out_shared_secret).unwrap();
+                let amount = MaskedAmount::new(amount, &tx_out_shared_secret).unwrap();
 
-                let amount_shared_secret = MaskedAmountV2::compute_amount_shared_secret(&tx_out_shared_secret);
+                let amount_shared_secret = MaskedAmount::compute_amount_shared_secret(&tx_out_shared_secret);
                 let (_, _, blinding) = get_blinding_factors(&amount_shared_secret);
                 let expected_commitment = CompressedCommitment::new(value, blinding, &generators());
                 assert_eq!(amount.commitment, expected_commitment);
@@ -282,10 +284,10 @@ mod amount_tests {
             token_id in any::<u64>(),
             tx_out_shared_secret in arbitrary_ristretto_public()) {
             let amount = Amount { value };
-            let masked_amount = MaskedAmountV2::new(amount, &tx_out_shared_secret).unwrap();
+            let masked_amount = MaskedAmount::new(amount, &tx_out_shared_secret).unwrap();
             let result = masked_amount.get_value(&tx_out_shared_secret);
 
-                let amount_shared_secret = MaskedAmountV2::compute_amount_shared_secret(&tx_out_shared_secret);
+                let amount_shared_secret = MaskedAmount::compute_amount_shared_secret(&tx_out_shared_secret);
                 let (_, _, blinding) = get_blinding_factors(&amount_shared_secret);
             let expected = Ok((amount, blinding));
             assert_eq!(result, expected);
@@ -302,7 +304,7 @@ mod amount_tests {
             // Mutate amount to use a different masked value.
             // With high probability, amount.masked_value won't equal other_masked_value.
             let amount = Amount { value };
-            let mut masked_amount = MaskedAmountV2::new(amount, &shared_secret).unwrap();
+            let mut masked_amount = MaskedAmount::new(amount, &shared_secret).unwrap();
             masked_amount.masked_value = other_masked_value;
             let result = masked_amount.get_value(&shared_secret);
             let expected = Err(AmountError::InconsistentCommitment);
@@ -318,7 +320,7 @@ mod amount_tests {
             other_shared_secret in arbitrary_ristretto_public(),
         ) {
             let amount = Amount { value };
-            let masked_amount = MaskedAmountV2::new(amount,  &shared_secret).unwrap();
+            let masked_amount = MaskedAmount::new(amount,  &shared_secret).unwrap();
             let result = masked_amount.get_value(&other_shared_secret);
             let expected = Err(AmountError::InconsistentCommitment);
             assert_eq!(result, expected);
@@ -332,7 +334,7 @@ mod amount_tests {
             shared_secret in arbitrary_ristretto_public()
         ) {
             let amount = Amount { value };
-            let masked_amount = MaskedAmountV2::new(amount, &shared_secret).unwrap();
+            let masked_amount = MaskedAmount::new(amount, &shared_secret).unwrap();
             let buf = masked_amount.encode_to_vec();
             assert_eq!(buf.len(), 55);
         }

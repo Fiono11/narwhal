@@ -101,10 +101,10 @@ impl TxPrefix {
     }
 
     /// Get all output commitments.
-    pub fn output_commitments(&self) -> Result<Vec<&CompressedCommitment>, TxOutConversionError> {
+    pub fn output_commitments(&self) -> Vec<CompressedCommitment> {
         self.outputs
             .iter()
-            .map(|output| output.get_masked_amount().map(|ma| ma.commitment()))
+            .map(|output| output.get_masked_amount().commitment)
             .collect()
     }
 }
@@ -123,9 +123,8 @@ pub struct TxIn {
 #[derive(Clone, Deserialize, Digestible, Eq, Hash, Message, PartialEq, Serialize, Zeroize)]
 pub struct TxOut {
     /// The amount being sent.
-    #[prost(oneof = "MaskedAmount", tags = "1, 6")]
-    #[digestible(name = "amount")]
-    pub masked_amount: Option<MaskedAmount>,
+    #[prost(message, required, tag = "1")]
+    pub masked_amount: MaskedAmount,
 
     /// The one-time public address of this output.
     #[prost(message, required, tag = "2")]
@@ -163,41 +162,33 @@ impl TxOut {
         amount: Amount,
         recipient: &PublicAddress,
         tx_private_key: &RistrettoPrivate,
+        representative: RistrettoPublic,
     ) -> Result<Self, NewTxError> {
-        let target_key = create_tx_out_target_key(tx_private_key, recipient).into();
-        let public_key = create_tx_out_public_key(tx_private_key, recipient.spend_public_key());
+        let account_rep = AccountKey::default();
+        let (_c, d, recipient) = get_subaddress(&account_rep, 787);
+
+        //let target_key = create_tx_out_target_key(tx_private_key, &recipient).into();
+        //let public_key = create_tx_out_public_key(tx_private_key, recipient.spend_public_key());
+
+        let (tx_target_key, tx_public_key) =
+                get_output_public_keys(&tx_private_key, &recipient);
 
         let shared_secret = create_shared_secret(recipient.view_public_key(), tx_private_key);
 
-        let masked_amount = Some(MaskedAmount::new(amount, &shared_secret)?);
+        let masked_amount = MaskedAmount::new(amount, &shared_secret).unwrap();
 
-        let representative = CompressedRistrettoPublic::default();
+        let aB = create_shared_secret(&tx_target_key, &tx_private_key);
+        let aC = create_shared_secret(&tx_target_key, &tx_private_key);
 
-        let mut rng = rand_core::OsRng;
-        let a = Scalar::random(&mut rng);
-        let A = a * RISTRETTO_BASEPOINT_POINT;
+        let shared_secret = Scalar::random(&mut rand_core::OsRng);
 
-        let b = Scalar::random(&mut rng);
-        let B = b * RISTRETTO_BASEPOINT_POINT;
-
-        let c = Scalar::random(&mut rng);
-        let C = c * RISTRETTO_BASEPOINT_POINT;
-
-        let aB = create_shared_secret(&RistrettoPublic(B), &RistrettoPrivate(a));
-        let aC = create_shared_secret(&RistrettoPublic(C), &RistrettoPrivate(a));
-
-        let bA = create_shared_secret(&RistrettoPublic(A), &RistrettoPrivate(b));
-        let cA = create_shared_secret(&RistrettoPublic(A), &RistrettoPrivate(c));
-
-        let shared_secret = Scalar::random(&mut rng);
-
-        let aB_bytes = bA.0.compress();
+        let aB_bytes = aB.0.compress();
         let key1 = Key::from_slice(aB_bytes.as_bytes());
         let cipher1 = ChaCha20Poly1305::new(&key1);
         let nonce1 = ChaCha20Poly1305::generate_nonce(&mut OsRng); 
         let ciphertext1 = cipher1.encrypt(&nonce1, shared_secret.as_bytes().as_ref()).unwrap();
 
-        let aC_bytes = cA.0.compress();
+        let aC_bytes = aC.0.compress();
         let key2 = Key::from_slice(aC_bytes.as_bytes());
         let cipher2 = ChaCha20Poly1305::new(&key2);
         let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); // 96-bits; unique per message
@@ -205,9 +196,9 @@ impl TxOut {
 
         Ok(TxOut {
             masked_amount,
-            target_key,
-            public_key: public_key.into(),
-            representative,
+            target_key: tx_target_key.into(),
+            public_key: tx_public_key.into(),
+            representative: representative.into(),
             aux_receiver: ciphertext1,
             aux_representative: ciphertext2,
         })
@@ -240,8 +231,6 @@ impl TxOut {
 
         let (amount, _scalar) = self
             .masked_amount
-            .as_ref()
-            .ok_or(ViewKeyMatchError::UnknownMaskedAmountVersion)?
             .get_value(&tx_out_shared_secret)?;
 
         Ok((amount, tx_out_shared_secret))
@@ -250,30 +239,8 @@ impl TxOut {
     /// Get the masked amount field, which is expected to be present in some
     /// version. Maps to a conversion error if the masked amount field is
     /// missing
-    pub fn get_masked_amount(&self) -> Result<&MaskedAmount, TxOutConversionError> {
-        self.masked_amount
-            .as_ref()
-            .ok_or(TxOutConversionError::UnknownMaskedAmountVersion)
-    }
-
-    /// Get the masked amount field, which is expected to be present in some
-    /// version. Maps to a conversion error if the masked amount field is
-    /// missing
-    pub fn get_masked_amount_mut(&mut self) -> Result<&mut MaskedAmount, TxOutConversionError> {
-        self.masked_amount
-            .as_mut()
-            .ok_or(TxOutConversionError::UnknownMaskedAmountVersion)
-    }
-
-    /// Check if a TxOut is equal to another TxOut, except possibly in the
-    /// masked_amount. This is used in MCIP #42 partial fills rules
-    /// verification.
-    pub fn eq_ignoring_amount(&self, other: &TxOut) -> bool {
-        let mut this = self.clone();
-        this.masked_amount = None;
-        let mut other = other.clone();
-        other.masked_amount = None;
-        this == other
+    pub fn get_masked_amount(&self) -> MaskedAmount {
+        self.masked_amount.clone()
     }
 }
 
@@ -283,7 +250,7 @@ impl TryFrom<&TxOut> for ReducedTxOut {
         Ok(Self {
             public_key: src.public_key,
             target_key: src.target_key,
-            commitment: *src.get_masked_amount()?.commitment(),
+            commitment: src.get_masked_amount().commitment,
         })
     }
 }
@@ -307,7 +274,6 @@ pub fn create_transaction(
     let shared_secret = get_tx_out_shared_secret(sender.view_private_key(), &tx_out_public_key);
     let (amount, _blinding) = tx_out
         .get_masked_amount()
-        .unwrap()
         .get_value(&shared_secret)
         .unwrap();
 
@@ -328,7 +294,7 @@ pub fn create_transaction(
     let mut rng = rand_core::OsRng;
     let tx_private_key = RistrettoPrivate::from_random(&mut rng);
 
-    let output = TxOut::new(amount, recipient, &tx_private_key).unwrap();
+    let output = TxOut::new(amount, recipient, &tx_private_key, RistrettoPublic::default()).unwrap();
 
     let prefix = TxPrefix::new(inputs, vec![output]);
 
@@ -347,6 +313,35 @@ pub fn create_transaction(
     let signature = Sign(&x, "msg", &R);
 
     Transaction { prefix, signature }
+}
+
+// Get the account's i^th subaddress.
+pub fn get_subaddress(
+    account: &AccountKey,
+    index: u64,
+) -> (RistrettoPrivate, RistrettoPrivate, PublicAddress) {
+    // (view, spend)
+    let (c, d) = (
+        account.subaddress_view_private(index),
+        account.subaddress_spend_private(index),
+    );
+
+    // (View, Spend)
+    let (C, D) = (RistrettoPublic::from(&c), RistrettoPublic::from(&d));
+    // Look out! The argument ordering here is weird.
+    let subaddress = PublicAddress::new(&D, &C);
+
+    (c, d, subaddress)
+}
+
+// Returns (tx_target_key, tx_public_key)
+fn get_output_public_keys(
+    tx_private_key: &RistrettoPrivate,
+    recipient: &PublicAddress,
+) -> (RistrettoPublic, RistrettoPublic) {
+    let tx_target_key = create_tx_out_target_key(tx_private_key, recipient);
+    let tx_public_key = create_tx_out_public_key(tx_private_key, recipient.spend_public_key());
+    (tx_target_key, tx_public_key)
 }
 
 #[cfg(test)]
