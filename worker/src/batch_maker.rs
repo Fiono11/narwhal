@@ -1,15 +1,24 @@
+use crate::Block;
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
+use bulletproofs_og::PedersenGens;
 use bytes::Bytes;
+use chacha20poly1305::aead::{Aead, OsRng};
+use chacha20poly1305::{Key, ChaCha20Poly1305, Nonce, KeyInit};
+use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 //#[cfg(feature = "benchmark")]
 //use crypto::Digest;
-use mc_account_keys::PublicAddress as PublicKey;
+use mc_account_keys::{PublicAddress as PublicKey, AccountKey};
+use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
 #[cfg(feature = "benchmark")]
 use log::info;
+use mc_crypto_ring_signature::Scalar;
+use mc_crypto_ring_signature::onetime_keys::create_shared_secret;
+use mc_transaction_core::range_proofs::generate_range_proofs;
 use mc_transaction_core::tx::Transaction;
 use network::ReliableSender;
 #[cfg(feature = "benchmark")]
@@ -117,7 +126,38 @@ impl BatchMaker {
         // Serialize the batch.
         self.current_batch_size = 0;
         let batch: Vec<Transaction> = self.current_batch.drain(..).collect();
-        let message = WorkerMessage::Batch(batch);
+
+        // create range proofs
+        let mut rng = rand::rngs::OsRng;
+        let generators = PedersenGens::default();
+        let rep_account = AccountKey::default();
+        let mut amounts = Vec::new();
+        let mut blindings = Vec::new();
+
+        for tx in &batch {
+            let ss = create_shared_secret(&RistrettoPublic::from(tx.prefix.outputs[0].public_key.0.decompress().unwrap()), rep_account.spend_private_key());
+            let aC_bytes = ss.0.compress();
+            let key2 = Key::from_slice(aC_bytes.as_bytes());
+            let cipher2 = ChaCha20Poly1305::new(&key2);
+            let nonce = Nonce::default();
+            let plaintext2 = cipher2.decrypt(&nonce, tx.prefix.outputs[0].aux_representative.as_ref()).unwrap();
+
+            let mut bytes = [0; 32];
+            bytes.copy_from_slice(&plaintext2[..]);
+
+            let ss = Scalar::from_bits(bytes) * RISTRETTO_BASEPOINT_POINT;
+
+            let (amount, blinding) = tx.prefix.outputs[0].masked_amount.get_value(&RistrettoPublic::from(ss)).unwrap();
+            amounts.push(amount.value);
+            blindings.push(blinding);
+        }
+
+        let (range_proof, _) = generate_range_proofs(&amounts, &blindings, &generators, &mut OsRng).unwrap();
+        let block = Block {
+            txs: batch,
+            range_proof_bytes: range_proof.to_bytes(),
+        };
+        let message = WorkerMessage::Batch(block);
         let serialized = bincode::serialize(&message).expect("Failed to serialize our own batch");
 
         #[cfg(feature = "benchmark")]

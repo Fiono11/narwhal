@@ -470,7 +470,7 @@ impl KexSecret for RistrettoSecret {}
 /// usable in a key-exchange.
 #[derive(Clone, Copy, Default, Digestible, Zeroize)]
 #[digestible(transparent)]
-pub struct CompressedRistrettoPublic(pub(crate) CompressedRistretto);
+pub struct CompressedRistrettoPublic(pub CompressedRistretto);
 
 impl CompressedRistrettoPublic {
     pub fn as_bytes(&self) -> &[u8; 32] {

@@ -6,12 +6,15 @@ use crate::processor::{Processor, SerializedBatchMessage};
 use crate::quorum_waiter::QuorumWaiter;
 use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
-use bulletproofs::{PedersenGens, RangeProof};
+use bulletproofs_og::{PedersenGens, RangeProof};
 use bytes::Bytes;
+use chacha20poly1305::aead::Aead;
+use chacha20poly1305::{Key, ChaCha20Poly1305, KeyInit, Nonce};
 use config::{Committee, Parameters, WorkerId, PK};
+use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 use curve25519_dalek::traits::Identity;
 use mc_account_keys::{PublicAddress as PublicKey, AccountKey};
-use mc_crypto_keys::{RistrettoPublic, RistrettoPrivate};
+use mc_crypto_keys::{RistrettoPublic, RistrettoPrivate, ReprBytes, GenericArray};
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 use futures::sink::SinkExt as _;
 use log::{error, info, warn, debug};
@@ -43,7 +46,7 @@ pub type SerializedBatchDigestMessage = Vec<u8>;
 /// The message exchanged between workers.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WorkerMessage {
-    Batch(Batch),
+    Batch(Block),
     BatchRequest(Vec<Digest>, /* origin */ PublicKey),
 }
 
@@ -262,24 +265,14 @@ pub struct Block {
 #[async_trait]
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
-        // create range proofs
-        let mut rng = rand::rngs::OsRng;
-        let generators = PedersenGens::default();
         let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
-        let account_rep = AccountKey::default();
 
         for tx in txs {
-            let (_c, d, recipient) = get_subaddress(&account_rep, 787);
-            //let onetime_private_key =
-                //recover_onetime_private_key(&tx.prefix.outputs[0].public_key.into(), account_rep.view_private_key(), &d);
-
             self.tx_batch_maker
                 .send(tx)
                 .await
                 .expect("Failed to send transaction");
         }
-
-        
 
         // Give the change to schedule other tasks.
         tokio::task::yield_now().await;
@@ -302,7 +295,7 @@ impl MessageHandler for WorkerReceiverHandler {
 
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized) {
-            Ok(WorkerMessage::Batch(txs)) => { 
+            Ok(WorkerMessage::Batch(block)) => { 
                 let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
                 let mut x: Scalar = Scalar::one();
 
@@ -314,14 +307,14 @@ impl MessageHandler for WorkerReceiverHandler {
                         x = sk;
                     }
                 }
-                for tx in txs {
+                for tx in block.txs {
                     Verify(&tx.signature, "msg", &R).unwrap();
                 }
                 self
-                .tx_processor
-                .send(serialized.to_vec())
-                .await
-                .expect("Failed to send batch")
+                    .tx_processor
+                    .send(serialized.to_vec())
+                    .await
+                    .expect("Failed to send batch")
             }
             Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
                 .tx_helper

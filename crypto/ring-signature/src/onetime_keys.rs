@@ -125,8 +125,8 @@ pub fn create_tx_out_public_key(
     recipient_spend_key: &RistrettoPublic,
 ) -> RistrettoPublic {
     let r: &Scalar = tx_out_private_key.as_ref();
-    let D = recipient_spend_key.as_ref();
-    RistrettoPublic::from(r * D)
+    //let D = recipient_spend_key.as_ref();
+    RistrettoPublic::from(r * RISTRETTO_BASEPOINT_POINT)
 }
 
 /// Recovers the subaddress spend key D_i that an output was sent to.

@@ -3,11 +3,11 @@
 //! Definition of a MobileCoin transaction and a MobileCoin TxOut
 
 use std::{fmt, array::TryFromSliceError};
-use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, AeadCore, aead::Aead};
-use curve25519_dalek::{traits::Identity, constants::RISTRETTO_BASEPOINT_POINT};
+use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, AeadCore, aead::Aead, Nonce};
+use curve25519_dalek::{traits::Identity, constants::RISTRETTO_BASEPOINT_POINT, ristretto::CompressedRistretto};
 use mc_account_keys::{PublicAddress, AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{tx_hash::TxHash, CompressedRistrettoPublic, RistrettoPublic, RistrettoPrivate, PublicKey};
+use mc_crypto_keys::{tx_hash::TxHash, CompressedRistrettoPublic, RistrettoPublic, RistrettoPrivate, PublicKey, ReprBytes};
 use mc_crypto_ring_signature::{KeyImage, get_tx_out_shared_secret, onetime_keys::{create_shared_secret, create_tx_out_public_key, create_tx_out_target_key, recover_onetime_private_key}, ReducedTxOut, CompressedCommitment, TriptychSignature, Sign, Scalar, KeyGen, RistrettoPoint};
 use mc_transaction_types::{MaskedAmount, Amount, constants::RING_SIZE};
 use mc_util_from_random::FromRandom;
@@ -130,13 +130,13 @@ pub struct TxOut {
     #[prost(message, required, tag = "2")]
     pub target_key: CompressedRistrettoPublic,
 
-    /// The per output tx public key
+    /// The per output tx public key rG
     #[prost(message, required, tag = "3")]
     pub public_key: CompressedRistrettoPublic,
 
-    /// Representative
-    #[prost(message, required, tag = "4")]
-    pub representative: CompressedRistrettoPublic,
+    // Representative
+    //#[prost(message, required, tag = "4")]
+    //pub representative: CompressedRistrettoPublic,
 
     /// Auxilliary information to get the shared secret to open the output commitment
     #[prost(bytes, tag = "5")]
@@ -162,43 +162,36 @@ impl TxOut {
         amount: Amount,
         recipient: &PublicAddress,
         tx_private_key: &RistrettoPrivate,
-        representative: RistrettoPublic,
+        representative: PublicAddress,
     ) -> Result<Self, NewTxError> {
-        let account_rep = AccountKey::default();
-        let (_c, d, recipient) = get_subaddress(&account_rep, 787);
-
-        //let target_key = create_tx_out_target_key(tx_private_key, &recipient).into();
-        //let public_key = create_tx_out_public_key(tx_private_key, recipient.spend_public_key());
-
         let (tx_target_key, tx_public_key) =
                 get_output_public_keys(&tx_private_key, &recipient);
 
-        let shared_secret = create_shared_secret(recipient.view_public_key(), tx_private_key);
-
-        let masked_amount = MaskedAmount::new(amount, &shared_secret).unwrap();
-
-        let aB = create_shared_secret(&tx_target_key, &tx_private_key);
-        let aC = create_shared_secret(&tx_target_key, &tx_private_key);
+        let shared_secret1 = create_shared_secret(recipient.view_public_key(), tx_private_key);
+        let shared_secret2 = create_shared_secret(&representative.view_public_key(), tx_private_key);
 
         let shared_secret = Scalar::random(&mut rand_core::OsRng);
 
-        let aB_bytes = aB.0.compress();
+        let aB_bytes = shared_secret1.0.compress();
         let key1 = Key::from_slice(aB_bytes.as_bytes());
         let cipher1 = ChaCha20Poly1305::new(&key1);
-        let nonce1 = ChaCha20Poly1305::generate_nonce(&mut OsRng); 
-        let ciphertext1 = cipher1.encrypt(&nonce1, shared_secret.as_bytes().as_ref()).unwrap();
+        let ciphertext1 = cipher1.encrypt(&Nonce::default(), shared_secret.to_bytes().as_ref()).unwrap();
 
-        let aC_bytes = aC.0.compress();
+        let aC_bytes = shared_secret2.0.compress();
         let key2 = Key::from_slice(aC_bytes.as_bytes());
         let cipher2 = ChaCha20Poly1305::new(&key2);
         let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); // 96-bits; unique per message
-        let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();
+        let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.to_bytes().as_ref()).unwrap();
+        
+        let ss = (shared_secret * RISTRETTO_BASEPOINT_POINT);
+
+        let masked_amount = MaskedAmount::new(amount, &RistrettoPublic(ss)).unwrap();
 
         Ok(TxOut {
             masked_amount,
             target_key: tx_target_key.into(),
             public_key: tx_public_key.into(),
-            representative: representative.into(),
+            //representative: shared_secret2.into(),
             aux_receiver: ciphertext1,
             aux_representative: ciphertext2,
         })
@@ -294,7 +287,9 @@ pub fn create_transaction(
     let mut rng = rand_core::OsRng;
     let tx_private_key = RistrettoPrivate::from_random(&mut rng);
 
-    let output = TxOut::new(amount, recipient, &tx_private_key, RistrettoPublic::default()).unwrap();
+    let rep_account = AccountKey::default();
+
+    let output = TxOut::new(amount, recipient, &tx_private_key, rep_account.to_public_address()).unwrap();
 
     let prefix = TxPrefix::new(inputs, vec![output]);
 

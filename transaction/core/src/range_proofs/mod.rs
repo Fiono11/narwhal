@@ -43,7 +43,7 @@ lazy_static! {
 pub fn generate_range_proofs<T: RngCore + CryptoRng>(
     values: &[u64],
     blindings: &[Scalar],
-    pedersen_generators: &PedersenGens,
+    pedersen_generators: &BPPedersenGens,
     rng: &mut T,
 ) -> Result<(RangeProof, Vec<CompressedRistretto>), Error> {
     // Most of this comes directly from the example at
@@ -57,7 +57,7 @@ pub fn generate_range_proofs<T: RngCore + CryptoRng>(
     // Create a 64-bit RangeProof and corresponding commitments.
     RangeProof::prove_multiple_with_rng(
         &BP_GENERATORS,
-        &convert_gens(pedersen_generators),
+        &pedersen_generators,
         &mut Transcript::new(BULLETPROOF_DOMAIN_TAG.as_ref()),
         &values_padded,
         &blindings_padded,

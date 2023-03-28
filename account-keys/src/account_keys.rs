@@ -18,7 +18,7 @@ use core::{
     hash::{Hash, Hasher},
 };
 use alloc::string::String;
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
+use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, constants::RISTRETTO_BASEPOINT_POINT};
 use mc_core::{
     keys::{
         RootSpendPrivate, RootSpendPublic, RootViewPrivate, SubaddressSpendPublic,
@@ -276,6 +276,12 @@ impl AccountKey {
             &RistrettoPrivate::from_random(rng),
             &RistrettoPrivate::from_random(rng),
         )
+    }
+
+    /// Get the account's default subaddress.
+    #[inline]
+    pub fn to_public_address(&self) -> PublicAddress {
+        PublicAddress { view_public_key: RistrettoPublic(self.view_private_key.0 * RISTRETTO_BASEPOINT_POINT), spend_public_key: RistrettoPublic(self.spend_private_key.0 * RISTRETTO_BASEPOINT_POINT) }
     }
 
     /// Get the account's default subaddress.
