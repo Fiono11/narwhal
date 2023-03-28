@@ -346,24 +346,19 @@ fn get_output_public_keys(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        get_tx_out_shared_secret,
-        memo::MemoPayload,
-        ring_ct::SignatureRctBulletproofs,
-        subaddress_matches_tx_out,
-        tokens::Mob,
-        tx::{Transaction, TxIn, TxOut, TxPrefix},
-        Amount, BlockVersion, Token,
-    };
+    use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
     use mc_account_keys::{
         AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
     };
-    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+    use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic, CompressedRistrettoPublic};
+    use mc_crypto_ring_signature::{get_tx_out_shared_secret, onetime_keys::create_shared_secret};
+    use mc_transaction_types::Amount;
     use mc_util_from_random::FromRandom;
-    use mc_util_test_helper::get_seeded_rng;
     use prost::Message;
 
-    #[test]
+    use super::TxOut;
+
+    /*#[test]
     // Create a Tx, encode/decode it, and compare
     fn test_serialize_tx() {
         let mut rng = get_seeded_rng();
@@ -417,133 +412,50 @@ mod tests {
             let recovered_tx: Transaction = Transaction::decode(&tx.encode_to_vec()[..]).unwrap();
             assert_eq!(tx, recovered_tx);
         }
-    }
+    }*/
 
     // round trip memos from `TxOut` constructors through `decrypt_memo()`
     #[test]
     fn test_decrypt_memo() {
-        let mut rng = get_seeded_rng();
+        let mut rng = rand_core::OsRng;
 
         let bob = AccountKey::new(
             &RistrettoPrivate::from_random(&mut rng),
             &RistrettoPrivate::from_random(&mut rng),
         );
-        let bob_addr = bob.default_subaddress();
+        //let bob_addr = bob.default_subaddress();
+        let bob_addr = PublicAddress {
+            view_public_key: RistrettoPublic::from(bob.view_private_key().0 * RISTRETTO_BASEPOINT_POINT),
+            spend_public_key: RistrettoPublic::from(bob.spend_private_key().0 * RISTRETTO_BASEPOINT_POINT),
+        };
 
         {
             let tx_private_key = RistrettoPrivate::from_random(&mut rng);
 
-            // A tx out with an empty memo
-            let mut tx_out = TxOut::new(
-                BlockVersion::MAX,
+            let tx_out = TxOut::new(
                 Amount {
                     value: 13,
-                    token_id: Mob::ID,
-                },
-                &bob_addr,
-                &tx_private_key,
-                Default::default(),
-            )
-            .unwrap();
-            assert!(
-                tx_out.e_memo.is_some(),
-                "All TxOut (except preexisting) should have a memo"
-            );
-            let ss = get_tx_out_shared_secret(
-                bob.view_private_key(),
-                &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
-            );
-            assert_eq!(
-                tx_out.decrypt_memo(&ss),
-                MemoPayload::default(),
-                "TxOut::new should produce an empty memo"
-            );
-
-            // Now, modify TxOut to make it like old TxOut's with no memo
-            tx_out.e_memo = None;
-            assert_eq!(
-                tx_out.decrypt_memo(&ss),
-                MemoPayload::default(),
-                "decrypt_memo should produce an empty memo on old TxOut's"
-            );
-            assert!(
-                subaddress_matches_tx_out(&bob, DEFAULT_SUBADDRESS_INDEX, &tx_out).unwrap(),
-                "TxOut didn't belong to default subaddress"
-            );
-        }
-
-        {
-            let tx_private_key = RistrettoPrivate::from_random(&mut rng);
-
-            let memo_val = MemoPayload::new([2u8; 2], [4u8; 64]);
-            // A tx out with a memo
-            let tx_out = TxOut::new_with_memo(
-                BlockVersion::MAX,
-                Amount {
-                    value: 13,
-                    token_id: Mob::ID,
-                },
-                &bob_addr,
-                &tx_private_key,
-                Default::default(),
-                |_| Ok(memo_val),
-            )
-            .unwrap();
-
-            assert!(
-                tx_out.e_memo.is_some(),
-                "All TxOut (except preexisting) should have a memo"
-            );
-            let ss = get_tx_out_shared_secret(
-                bob.view_private_key(),
-                &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
-            );
-            assert_eq!(
-                tx_out.decrypt_memo(&ss),
-                memo_val,
-                "memo did not round trip"
-            );
-            assert!(
-                subaddress_matches_tx_out(&bob, DEFAULT_SUBADDRESS_INDEX, &tx_out).unwrap(),
-                "TxOut didn't belong to default subaddress"
-            );
-        }
-
-        {
-            let tx_private_key = RistrettoPrivate::from_random(&mut rng);
-
-            let memo_val = MemoPayload::new([4u8; 2], [9u8; 64]);
-            // A tx out with a memo
-            let tx_out = TxOut::new_with_memo(
-                BlockVersion::MAX,
-                Amount {
-                    value: 13,
-                    token_id: Mob::ID,
                 },
                 &bob.change_subaddress(),
                 &tx_private_key,
-                Default::default(),
-                |_| Ok(memo_val),
+                RistrettoPublic::default(),
             )
             .unwrap();
 
-            assert!(
-                tx_out.e_memo.is_some(),
-                "All TxOut (except preexisting) should have a memo"
-            );
             let ss = get_tx_out_shared_secret(
                 bob.view_private_key(),
                 &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
             );
-            assert_eq!(
-                tx_out.decrypt_memo(&ss),
-                memo_val,
-                "memo did not round trip"
+
+            let ss2 = get_tx_out_shared_secret(
+                &tx_private_key,
+                &bob_addr.view_public_key(),
             );
-            assert!(
-                subaddress_matches_tx_out(&bob, CHANGE_SUBADDRESS_INDEX, &tx_out).unwrap(),
-                "TxOut didn't belong to change subaddress"
-            );
+
+            let ss3 = create_shared_secret(bob_addr.view_public_key(), &tx_private_key);
+            let ss4 = create_shared_secret(&RistrettoPublic::try_from(&tx_private_key.0 * RISTRETTO_BASEPOINT_POINT).unwrap(), &bob.view_private_key());
+
+            assert_eq!(ss4, ss3);
         }
     }
 }

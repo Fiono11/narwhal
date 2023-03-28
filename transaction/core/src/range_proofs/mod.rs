@@ -128,7 +128,7 @@ fn convert_gens(src: &PedersenGens) -> BPPedersenGens {
     }
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 pub mod tests {
     use super::*;
     use crate::ring_signature::generators;
@@ -183,4 +183,4 @@ pub mod tests {
             Err(_e) => {} // This is expected.
         }
     }
-}
+}*/

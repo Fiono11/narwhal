@@ -52,11 +52,11 @@ pub use mc_core::{
 pub struct PublicAddress {
     /// The user's public subaddress view key 'C'.
     #[cfg_attr(feature = "prost", prost(message, required, tag = "1"))]
-    view_public_key: RistrettoPublic,
+    pub view_public_key: RistrettoPublic,
 
     /// The user's public subaddress spend key `D`.
     #[cfg_attr(feature = "prost", prost(message, required, tag = "2"))]
-    spend_public_key: RistrettoPublic,
+    pub spend_public_key: RistrettoPublic,
 }
 
 impl fmt::Display for PublicAddress {
