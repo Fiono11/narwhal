@@ -9,13 +9,13 @@ use async_trait::async_trait;
 use bulletproofs::{PedersenGens, RangeProof};
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId, PK};
+use curve25519_dalek::traits::Identity;
 use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
-use curve25519_dalek_ng::ristretto::{CompressedRistretto, RistrettoPoint};
-use curve25519_dalek_ng::scalar::Scalar;
-use curve25519_dalek_ng::traits::Identity;
 use futures::sink::SinkExt as _;
 use log::{error, info, warn, debug};
+use mc_crypto_ring_signature::{Verify, KeyGen, RistrettoPoint, Scalar};
+use mc_transaction_types::constants::RING_SIZE;
 use network::{MessageHandler, Receiver, Writer};
 use primary::PrimaryWorkerMessage;
 use serde::{Deserialize, Serialize};
@@ -307,6 +307,8 @@ impl MessageHandler for TxReceiverHandler {
                 .expect("Failed to send transaction");
         }
 
+        
+
         // Give the change to schedule other tasks.
         tokio::task::yield_now().await;
         Ok(())
@@ -328,11 +330,27 @@ impl MessageHandler for WorkerReceiverHandler {
 
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized) {
-            Ok(WorkerMessage::Batch(..)) => self
+            Ok(WorkerMessage::Batch(txs)) => { 
+                let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
+                let mut x: Scalar = Scalar::one();
+
+                for i in 0..RING_SIZE {
+                    let (sk, pk) = KeyGen();
+                    R[i] = pk;
+
+                    if i == 0 {
+                        x = sk;
+                    }
+                }
+                for tx in txs {
+                    Verify(&tx.signature, "msg", &R).unwrap();
+                }
+                self
                 .tx_processor
                 .send(serialized.to_vec())
                 .await
-                .expect("Failed to send batch"),
+                .expect("Failed to send batch")
+            }
             Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
                 .tx_helper
                 .send((missing, requestor))

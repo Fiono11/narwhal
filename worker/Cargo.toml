@@ -22,11 +22,13 @@ primary = { path = "../primary" }
 
 bulletproofs = "3"
 rand = "0.7.3"
-curve25519-dalek-ng = "3"
+curve25519-dalek = { version = "4.0.0-pre.2", default-features = false, features = ["nightly"] }
 
 mc-account-keys = { path = "../account-keys" }
 mc-crypto-keys = { path = "../crypto/keys" }
+mc-crypto-ring-signature = { path = "../crypto/ring-signature" }
 mc-transaction-core = { path = "../transaction/core" }
+mc-transaction-types = { path = "../transaction/types" }
 
 [dev-dependencies]
 rand = "0.7.3"

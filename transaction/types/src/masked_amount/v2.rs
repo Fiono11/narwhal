@@ -9,11 +9,9 @@ use crate::{
     amount::{Amount, AmountError},
     domain_separators::{
         AMOUNT_BLINDING_DOMAIN_TAG, AMOUNT_BLINDING_FACTORS_DOMAIN_TAG,
-        AMOUNT_SHARED_SECRET_DOMAIN_TAG, AMOUNT_TOKEN_ID_DOMAIN_TAG, AMOUNT_VALUE_DOMAIN_TAG,
+        AMOUNT_SHARED_SECRET_DOMAIN_TAG, AMOUNT_VALUE_DOMAIN_TAG,
     },
-    TokenId,
 };
-use alloc::vec::Vec;
 use core::convert::TryInto;
 use crc::Crc;
 use hkdf::Hkdf;
@@ -73,7 +71,7 @@ impl MaskedAmountV2 {
         amount: Amount,
         amount_shared_secret: &[u8; 32],
     ) -> Result<Self, AmountError> {
-        let (value_mask, token_id_mask, blinding) = get_blinding_factors(amount_shared_secret);
+        let (value_mask, blinding) = get_blinding_factors(amount_shared_secret);
 
         // Pedersen generators
         let generator = generators();
@@ -193,7 +191,7 @@ impl MaskedAmountV2 {
         masked_value: u64,
         amount_shared_secret: &[u8; 32],
     ) -> Result<(CompressedCommitment, Amount, Scalar), AmountError> {
-        let (value_mask, token_id_mask, blinding) = get_blinding_factors(amount_shared_secret);
+        let (value_mask, blinding) = get_blinding_factors(amount_shared_secret);
 
         let value = masked_value ^ value_mask;
 
@@ -210,13 +208,13 @@ impl MaskedAmountV2 {
     }
 }
 
-/// Computes the value mask, token id mask, and blinding factor for the
+/// Computes the value mask and blinding factor for the
 /// commitment, in a masked amount.
 ///
 /// # Arguments
 /// * `amount_shared_secret` - The amount shared secret, derived as a hash of
 ///   `rB`.
-fn get_blinding_factors(amount_shared_secret: &[u8; 32]) -> (u64, u64, Scalar) {
+fn get_blinding_factors(amount_shared_secret: &[u8; 32]) -> (u64, Scalar) {
     // Use HKDF-SHA512 to produce blinding factors for value, token id, and
     // commitment
     let kdf = Hkdf::<Sha512>::new(
@@ -228,10 +226,6 @@ fn get_blinding_factors(amount_shared_secret: &[u8; 32]) -> (u64, u64, Scalar) {
     kdf.expand(AMOUNT_VALUE_DOMAIN_TAG.as_bytes(), &mut value_mask)
         .expect("Digest output size is insufficient");
 
-    let mut token_id_mask = [0u8; 8];
-    kdf.expand(AMOUNT_TOKEN_ID_DOMAIN_TAG.as_bytes(), &mut token_id_mask)
-        .expect("Digest output size is insufficient");
-
     let mut scalar_blinding_bytes = [0u8; 64];
     kdf.expand(
         AMOUNT_BLINDING_DOMAIN_TAG.as_bytes(),
@@ -241,7 +235,6 @@ fn get_blinding_factors(amount_shared_secret: &[u8; 32]) -> (u64, u64, Scalar) {
 
     (
         u64::from_le_bytes(value_mask),
-        u64::from_le_bytes(token_id_mask),
         Scalar::from_bytes_mod_order_wide(&scalar_blinding_bytes),
     )
 }

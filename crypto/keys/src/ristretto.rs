@@ -261,7 +261,7 @@ impl Debug for RistrettoEphemeralPrivate {
 /// A Ristretto-format curve point for use as a public key
 #[derive(Clone, Copy, Default, Digestible, Zeroize)]
 #[digestible(transparent)]
-pub struct RistrettoPublic(pub(crate) RistrettoPoint);
+pub struct RistrettoPublic(pub RistrettoPoint);
 
 impl AsRef<RistrettoPoint> for RistrettoPublic {
     fn as_ref(&self) -> &RistrettoPoint {
