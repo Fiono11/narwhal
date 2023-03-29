@@ -217,7 +217,7 @@ impl MaskedAmount {
 /// * `amount_shared_secret` - The amount shared secret, derived as a hash of
 ///   `rB`.
 fn get_blinding_factors(amount_shared_secret: &[u8; 32]) -> (u64, Scalar) {
-    // Use HKDF-SHA512 to produce blinding factors for value, token id, and
+    // Use HKDF-SHA512 to produce blinding factors for value and
     // commitment
     let kdf = Hkdf::<Sha512>::new(
         Some(AMOUNT_BLINDING_FACTORS_DOMAIN_TAG),

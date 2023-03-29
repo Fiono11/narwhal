@@ -24,7 +24,7 @@ lazy_static! {
     /// The `party_capacity` is the maximum number of values in one proof. It should
     /// be at least 2 * MAX_INPUTS + MAX_OUTPUTS, which allows for inputs, pseudo outputs, and outputs.
     pub static ref BP_GENERATORS: BulletproofGens =
-        BulletproofGens::new(64, 64);
+        BulletproofGens::new(512, 512);
 }
 
 /// Create an aggregated 64-bit rangeproof for a set of values.

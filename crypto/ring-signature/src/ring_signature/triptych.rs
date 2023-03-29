@@ -15,7 +15,6 @@ use prost::Message;
 use sha2::Sha512;
 use std::convert::TryInto;
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
-use log::info;
 use serde::{Deserialize, Serialize};
 use crate::Error::InvalidSignature;
 use crate::ring_signature::util;
@@ -275,7 +274,6 @@ pub fn base_verify(
 	m: &usize,
 	message: &str,
 ) -> Result<(), Error> {
-	info!("111111111");
 	// The key image must decompress.
 	// This ensures that the key image encodes a valid Ristretto point.
 	sgn
@@ -368,17 +366,13 @@ pub fn base_verify(
 	}
 	let fourthRHS = U * fourthRHSScalar;
 
-	info!("22222222");
-
 	if firstLHS == comFirst
 		&& secondLHS == comSecond
 		&& thirdLHS == thirdRHS
 		&& fourthLHS == fourthRHS
 	{
-		info!("333333333");
 		return Ok(());
 	} else {
-		info!("44444444");
 		return Err(InvalidSignature);
 	}
 }

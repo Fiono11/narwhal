@@ -99,7 +99,7 @@ struct Client {
 impl Client {
     pub async fn send(&self) -> Result<()> {
         const PRECISION: u64 = 1; // Sample precision.
-        const BURST_DURATION: u64 = 2000 / PRECISION;
+        const BURST_DURATION: u64 = 1500 / PRECISION;
 
         // The transaction size must be at least 16 bytes to ensure all txs are different.
         if self.size < 9 {
@@ -114,12 +114,9 @@ impl Client {
             .context(format!("failed to connect to {}", self.target))?;
 
         // Submit all transactions.
-        //let burst = self.rate / PRECISION;
-        let burst = 64;
-        info!("BURST: {}", self.rate / PRECISION);
-        //let mut tx = BytesMut::with_capacity(self.size);
+        let burst = self.rate / PRECISION;
+        let mut tx = BytesMut::with_capacity(self.size);
         let mut counter = 0;
-        //let mut r = rand::thread_rng().gen();
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -127,111 +124,28 @@ impl Client {
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
 
-        /*for i in 0..500 {
-            let mut tx = Transaction::random();
-            txs.push(tx.clone());
-        }*/
-
-        //let mut rng = rand::rngs::OsRng;
-        /*let representative = RistrettoPoint::random(&mut rng);
-        let balance = rand::thread_rng().gen_range(0, u64::MAX);
-        let random = Scalar::random(&mut rng);
-        let generators = PedersenGens::default();
-        
-        let (range_proof, _commitment) = generate_range_proofs(
-            &vec![balance; burst as usize],
-            &vec![random; burst as usize],
-            &generators,
-            &mut rng,
-        )
-        .unwrap();
-    
-        let range_proof_bytes = range_proof.to_bytes().to_vec();
-
-        let balance = TwistedElGamal::new(&representative, &Scalar::from(balance), &random);
-
-        let mut rng = StdRng::from_seed([0; 32]);
-        let (public_key, secret_key) = generate_keypair(&mut rng);
-        let message: &[u8] = b"Hello, world!";
-        let digest = Digest(Sha512::digest(message).as_slice()[..32].try_into().unwrap());
-        //let signature = Signature::new(&digest, &secret_key);
-        
-        let size = 64;
-        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
-        let mut x: Scalar = Scalar::one();
-        let index = 0;
-
-        for i in 0..size {
-            let (sk, pk) = KeyGen();
-            R[i] = pk;
-
-            if i == index {
-                x = sk;
-            }
-        }
-        let M = "This is a triptych signature test, lets see if it works or not";
-
-        let signature = Sign(&x, &M, &R);
-
-        let a = Scalar::from(1u8);
-        let A = a * RISTRETTO_BASEPOINT_POINT;
-
-        let b = Scalar::from(2u8);
-        let B = b * RISTRETTO_BASEPOINT_POINT;
-
-        let c = Scalar::from(3u8);
-        let C = c * RISTRETTO_BASEPOINT_POINT;
-
-        let aB = create_shared_secret(&B, &a);
-        let aC = create_shared_secret(&C, &a);
-
-        let bA = create_shared_secret(&A, &b);
-        let cA = create_shared_secret(&A, &c);
-
-        assert_eq!(aB, bA);
-        assert_eq!(aC, cA);
-
-        let shared_secret = Scalar::from(4u8);
-
-        let aB_bytes = bA.compress();
-        let key1 = Key::from_slice(aB_bytes.as_bytes());
-        let cipher1 = ChaCha20Poly1305::new(&key1);
-        let nonce1 = ChaCha20Poly1305::generate_nonce(&mut OsRng); 
-        let ciphertext1 = cipher1.encrypt(&nonce1, shared_secret.as_bytes().as_ref()).unwrap();
-
-        let aC_bytes = cA.compress();
-        let key2 = Key::from_slice(aC_bytes.as_bytes());
-        let cipher2 = ChaCha20Poly1305::new(&key2);
-        let nonce2 = ChaCha20Poly1305::generate_nonce(&mut OsRng); 
-        let ciphertext2 = cipher2.encrypt(&nonce2, shared_secret.as_bytes().as_ref()).unwrap();*/
+        let amount = Amount::new(1);
+        let recipient = PublicAddress::default();
+        let tx_private_key = RistrettoPrivate::default();
+        let sender = AccountKey::default();
+        let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address()).unwrap(); 
+        let tx = create_transaction(&tx_out, &sender, &recipient, amount.value);
             
         'main: loop {
-            let mut txs = Vec::new();
+            //let mut txs = Vec::new();
 
             interval.as_mut().tick().await;
             let now = Instant::now();
 
             for x in 0..burst {
-                let id = thread_rng().gen_range(0, u128::MAX);
-                let amount = Amount::new(1);
-                let recipient = PublicAddress::default();
-                let tx_private_key = RistrettoPrivate::default();
-                let sender = AccountKey::default();
-                let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address()).unwrap(); 
-                let tx = create_transaction(&tx_out, &sender, &recipient, amount.value);
-                //let tx = Transaction::random(id, balance.clone(), representative.compress(), public_key.clone(), signature.clone(), (ciphertext1, ciphertext2));
-                txs.push(tx);
-            }
-    
-            //let block = Block {
-                //txs, range_proof_bytes: range_proof_bytes.clone(),
-            //};
-            let message = bincode::serialize(&txs).unwrap();
+                //txs.push(tx.clone());
+                let message = bincode::serialize(&tx.clone()).unwrap();
 
-            let bytes = Bytes::from(message);
-            if let Err(e) = transport.send(bytes).await {
-                warn!("Failed to send transaction: {}", e);
-                //break 'main;
+                let bytes = Bytes::from(message);
+                if let Err(e) = transport.send(bytes).await {
+                    warn!("Failed to send transaction: {}", e);
+                    //break 'main;
+                }
             }
             if now.elapsed().as_millis() > BURST_DURATION as u128 {
                 // NOTE: This log entry is used to compute performance.

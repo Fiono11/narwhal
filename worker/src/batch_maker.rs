@@ -148,6 +148,7 @@ impl BatchMaker {
             let ss = Scalar::from_bits(bytes) * RISTRETTO_BASEPOINT_POINT;
 
             let (amount, blinding) = tx.prefix.outputs[0].masked_amount.get_value(&RistrettoPublic::from(ss)).unwrap();
+            assert_eq!(amount.value, 1);
             amounts.push(amount.value);
             blindings.push(blinding);
         }

@@ -495,7 +495,7 @@ pub fn generate_range_proofs<T: RngCore + CryptoRng>(
 
     // Create a 64-bit RangeProof and corresponding commitments.
     RangeProof::prove_multiple_with_rng(
-        &BulletproofGens::new(64, 512),
+        &BulletproofGens::new(128, 128),
         pedersen_generators,
         &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
         &values_padded,
@@ -531,7 +531,7 @@ pub fn check_range_proofs<T: RngCore + CryptoRng>(
     let resized_commitments = resize_slice_to_pow2::<CompressedRistretto>(commitments).unwrap();
     range_proof
         .verify_multiple_with_rng(
-            &BulletproofGens::new(64, 512),
+            &BulletproofGens::new(128, 128),
             pedersen_generators,
             &mut Transcript::new("BULLETPROOF_DOMAIN_TAG".as_ref()),
             &resized_commitments,

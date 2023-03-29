@@ -268,14 +268,15 @@ pub struct Block {
 #[async_trait]
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
-        let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
+        //let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
+        let tx: Transaction = bincode::deserialize(&message).unwrap();
 
-        for tx in txs {
+        //for tx in txs {
             self.tx_batch_maker
                 .send(tx)
                 .await
                 .expect("Failed to send transaction");
-        }
+        //}
 
         // Give the change to schedule other tasks.
         tokio::task::yield_now().await;
