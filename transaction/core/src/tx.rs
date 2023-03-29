@@ -53,7 +53,7 @@ impl Transaction {
         self.prefix
             .outputs
             .iter()
-            .map(|tx_out| tx_out.public_key)
+            .map(|tx_out| tx_out.aux)
             .collect()
     }
 
@@ -130,21 +130,17 @@ pub struct TxOut {
     #[prost(message, required, tag = "2")]
     pub target_key: CompressedRistrettoPublic,
 
-    /// The per output tx public key rG
+    /// Auxilliary information for the representative to get the two-way shared secret to decrypt the cipher
     #[prost(message, required, tag = "3")]
-    pub public_key: CompressedRistrettoPublic,
+    pub aux: CompressedRistrettoPublic,
 
-    // Representative
-    //#[prost(message, required, tag = "4")]
-    //pub representative: CompressedRistrettoPublic,
+    /// Cipher that encrypts the three-way shared secret that opens the output commitment
+    #[prost(bytes, tag = "4")]
+    pub cipher_receiver: Vec<u8>,
 
-    /// Auxilliary information to get the shared secret to open the output commitment
+    /// Cipher that encrypts the three-way shared secret that opens the output commitment
     #[prost(bytes, tag = "5")]
-    pub aux_receiver: Vec<u8>,
-
-    /// Auxilliary information to get the shared secret to open the output commitment
-    #[prost(bytes, tag = "6")]
-    pub aux_representative: Vec<u8>,
+    pub cipher_representative: Vec<u8>,
 }
 
 impl TxOut {
@@ -190,10 +186,9 @@ impl TxOut {
         Ok(TxOut {
             masked_amount,
             target_key: tx_target_key.into(),
-            public_key: tx_public_key.into(),
-            //representative: shared_secret2.into(),
-            aux_receiver: ciphertext2,
-            aux_representative: ciphertext1,
+            aux: tx_public_key.into(),
+            cipher_receiver: ciphertext2,
+            cipher_representative: ciphertext1,
         })
     }
 
@@ -218,7 +213,7 @@ impl TxOut {
     ) -> Result<(Amount, RistrettoPublic), ViewKeyMatchError> {
         // Reconstruct compressed commitment based on our view key.
         // The first step is reconstructing the TxOut shared secret
-        let public_key = RistrettoPublic::try_from(&self.public_key)?;
+        let public_key = RistrettoPublic::try_from(&self.aux)?;
 
         let tx_out_shared_secret = get_tx_out_shared_secret(view_private_key, &public_key);
 
@@ -241,7 +236,7 @@ impl TryFrom<&TxOut> for ReducedTxOut {
     type Error = TxOutConversionError;
     fn try_from(src: &TxOut) -> Result<Self, Self::Error> {
         Ok(Self {
-            public_key: src.public_key,
+            public_key: src.aux,
             target_key: src.target_key,
             commitment: src.get_masked_amount().commitment,
         })
@@ -424,7 +419,7 @@ mod tests {
 
             let ss = get_tx_out_shared_secret(
                 bob.view_private_key(),
-                &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
+                &RistrettoPublic::try_from(&tx_out.aux).unwrap(),
             );
 
             let ss2 = get_tx_out_shared_secret(

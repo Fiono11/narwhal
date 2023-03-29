@@ -135,12 +135,12 @@ impl BatchMaker {
         let mut blindings = Vec::new();
 
         for tx in &batch {
-            let ss = create_shared_secret(&RistrettoPublic::from(tx.prefix.outputs[0].public_key.0.decompress().unwrap()), rep_account.spend_private_key());
+            let ss = create_shared_secret(&RistrettoPublic::from(tx.prefix.outputs[0].aux.0.decompress().unwrap()), rep_account.spend_private_key());
             let aC_bytes = ss.0.compress();
             let key2 = Key::from_slice(aC_bytes.as_bytes());
             let cipher2 = ChaCha20Poly1305::new(&key2);
             let nonce = Nonce::default();
-            let plaintext2 = cipher2.decrypt(&nonce, tx.prefix.outputs[0].aux_representative.as_ref()).unwrap();
+            let plaintext2 = cipher2.decrypt(&nonce, tx.prefix.outputs[0].cipher_representative.as_ref()).unwrap();
 
             let mut bytes = [0; 32];
             bytes.copy_from_slice(&plaintext2[..]);
