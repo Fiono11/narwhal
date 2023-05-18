@@ -14,7 +14,7 @@ def local(ctx, debug=True):
     ''' Run benchmarks on localhost '''
     bench_params = {
         'faults': 0,
-        'nodes': 4,
+        'nodes': [4, 10],
         'workers': 1,
         'rate': 50_000,
         'tx_size': 512,
@@ -29,11 +29,18 @@ def local(ctx, debug=True):
         'batch_size': 500_000,  # bytes
         'max_batch_delay': 1000  # ms
     }
-    try:
+    '''try:
         ret = LocalBench(bench_params, node_params).run(debug)
         print(ret.result())
     except BenchError as e:
-        Print.error(e)
+        Print.error(e)'''
+    for node_count in bench_params['nodes']:  # Iterate over each node count
+        try:
+            bench_params['nodes'] = node_count  # Update the node count
+            ret = LocalBench(bench_params, node_params).run(debug)
+            print(ret.result())
+        except BenchError as e:
+            Print.error(e)
 
 
 @task

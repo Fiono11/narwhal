@@ -123,12 +123,12 @@ class LocalBench:
 
             logger = LogParser.process(PathMaker.logs_path(), faults=self.faults)
             logger.print(PathMaker.result_file(
-                self.faults,
-                4,
-                1,
-                0,
-                True,
-                512,
+                self.bench_parameters.faults,
+                self.bench_parameters.nodes[0],
+                self.bench_parameters.workers,
+                self.bench_parameters.collocate,
+                self.bench_parameters.rate[0],
+                self.bench_parameters.tx_size,
             ))
 
             return LogParser.process(PathMaker.logs_path(), faults=self.faults)
