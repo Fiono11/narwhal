@@ -199,5 +199,5 @@ class Ploter:
                     )
                 )
 
-        cls.plot_latency(latency_files, params.scalability())
+        #cls.plot_latency(latency_files, params.scalability())
         cls.plot_tps(tps_files, params.scalability())
