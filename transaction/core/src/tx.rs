@@ -20,15 +20,19 @@ use mc_common::Hash;
 use crate::tx_error::{TxOutConversionError, ViewKeyMatchError, NewTxError};
 
 /// A CryptoNote-style transaction.
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Message, Digestible)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Digestible, Debug)]
 pub struct Transaction {
     /// The transaction contents.
-    #[prost(message, required, tag = "1")]
+    //#[prost(message, required, tag = "1")]
     pub prefix: TxPrefix,
 
     /// The transaction signature.
-    #[prost(message, required, tag = "2")]
+    //#[prost(message, required, tag = "2")]
     pub signature: TriptychSignature,
+
+    /// The transaction id.
+    //#[prost(message, repeated, tag = "3")]
+    pub id: Vec<u8>,
 }
 
 impl fmt::Display for Transaction {
@@ -256,6 +260,7 @@ pub fn create_transaction(
     sender: &AccountKey,
     recipient: &PublicAddress,
     amount: u64,
+    id: Vec<u8>, 
 ) -> Transaction {
 
     let mut inputs = Vec::new();
@@ -287,7 +292,7 @@ pub fn create_transaction(
 
     let signature = Sign(&x, "msg", &R);
 
-    Transaction { prefix, signature }
+    Transaction { prefix, signature, id }
 }
 
 // Get the account's i^th subaddress.

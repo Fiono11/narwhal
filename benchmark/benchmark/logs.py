@@ -1,6 +1,7 @@
 # Copyright(C) Facebook, Inc. and its affiliates.
 from datetime import datetime
 from glob import glob
+import io
 from multiprocessing import Pool
 from os.path import join
 from re import findall, search
@@ -177,14 +178,25 @@ class LogParser:
         return tps, bps, duration
 
     def _end_to_end_latency(self):
+        #start_time = min(self.start)
+        #latency = [c - start_time for c in self.commits.values()]
+        #return mean(latency) if latency else 0
         latency = []
         for sent, received in zip(self.sent_samples, self.received_samples):
+            print("Sent: ", sent)
+            print("Received: ", received)
             for tx_id, batch_id in received.items():
+                print("tx_id: ", tx_id)
+                print("batch_id: ", batch_id)
                 if batch_id in self.commits:
                     assert tx_id in sent  # We receive txs that we sent.
                     start = sent[tx_id]
                     end = self.commits[batch_id]
+                    print("start: ", start)
+                    print("end: ", end)
                     latency += [end-start]
+                    print("Latency for this transaction: ", end-start)
+        print("Latencies: ", latency)
         return mean(latency) if latency else 0
 
     def result(self):
@@ -234,10 +246,14 @@ class LogParser:
             '-----------------------------------------\n'
         )
 
-    def print(self, filename):
-        assert isinstance(filename, str)
-        with open(filename, 'a') as f:
-            f.write(self.result())
+    def print(self, file):
+        if isinstance(file, str):
+            with open(file, 'a') as f:
+                f.write(self.result())
+        elif isinstance(file, io.StringIO):
+            file.write(self.result())
+        else:
+            raise ValueError("Expected a filename or StringIO. Got %s" % type(file))
 
     @classmethod
     def process(cls, directory, faults=0):

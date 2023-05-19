@@ -98,8 +98,8 @@ struct Client {
 
 impl Client {
     pub async fn send(&self) -> Result<()> {
-        const PRECISION: u64 = 1; // Sample precision.
-        const BURST_DURATION: u64 = 1500 / PRECISION;
+        const PRECISION: u64 = 20; // Sample precision.
+        const BURST_DURATION: u64 = 1000 / PRECISION;
 
         // The transaction size must be at least 16 bytes to ensure all txs are different.
         if self.size < 9 {
@@ -115,8 +115,9 @@ impl Client {
 
         // Submit all transactions.
         let burst = self.rate / PRECISION;
-        let mut tx = BytesMut::with_capacity(self.size);
+        let size = 16;
         let mut counter = 0;
+        let mut r = rand::thread_rng().gen();
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -129,15 +130,55 @@ impl Client {
         let tx_private_key = RistrettoPrivate::default();
         let sender = AccountKey::default();
         let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address()).unwrap(); 
-        let tx = create_transaction(&tx_out, &sender, &recipient, amount.value);
+        let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
+        let mut id = BytesMut::with_capacity(size);
             
         'main: loop {
             //let mut txs = Vec::new();
 
             interval.as_mut().tick().await;
             let now = Instant::now();
+    
+                for x in 0..burst {
+                    if x == counter % burst {
+                        // NOTE: This log entry is used to compute performance.
+                        info!("Sending sample transaction {}", counter);
+                        info!("id: {:?}", id);
+                        id.put_u8(0u8); // Sample txs start with 0.
+                        id.put_u64(counter); // This counter identifies the tx.
+                        //info!("id1: {:?}", id);
+                    } else {
+                        r += 1;
+                        id.put_u8(1u8); // Standard txs start with 1.
+                        id.put_u64(r); // Ensures all clients send different txs.
+                        //info!("id2: {:?}", id);
+                    };
+    
+                    //info!("id3: {:?}", id);
+                    tx.id = id.to_vec();
+                    let message = bincode::serialize(&tx.clone()).unwrap();
+                    id.resize(size, 0u8);
+                    id.split();
+                    //info!("id4: {:?}", id);
 
-            for x in 0..burst {
+                    let bytes = Bytes::from(message);
+                    if let Err(e) = transport.send(bytes).await {
+                        warn!("Failed to send transaction: {}", e);
+                        break 'main;
+                    }
+                }
+                if now.elapsed().as_millis() > BURST_DURATION as u128 {
+                    // NOTE: This log entry is used to compute performance.
+                    warn!("Transaction rate too high for this client");
+                }
+                counter += 1;
+    
+        }
+
+            /*for x in 0..burst {
+                // NOTE: This log entry is used to compute performance.
+                tx.id = 
+                info!("Sending sample transaction {}", counter);
                 //txs.push(tx.clone());
                 let message = bincode::serialize(&tx.clone()).unwrap();
 
@@ -146,13 +187,14 @@ impl Client {
                     warn!("Failed to send transaction: {}", e);
                     //break 'main;
                 }
+                counter += 1;
             }
             if now.elapsed().as_millis() > BURST_DURATION as u128 {
                 // NOTE: This log entry is used to compute performance.
                 warn!("Transaction rate too high for this client");
             }
-            counter += 1;
-        }
+            //counter += 1;
+        }*/
         Ok(())
     }
 

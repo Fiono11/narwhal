@@ -114,14 +114,16 @@ impl BatchMaker {
         #[cfg(feature = "benchmark")]
         let size = self.current_batch_size;
 
+        //info!("Txs: {:?}", self.current_batch);
+
         // Look for sample txs (they all start with 0) and gather their txs id (the next 8 bytes).
-        /*#[cfg(feature = "benchmark")]
+        #[cfg(feature = "benchmark")]
         let tx_ids: Vec<_> = self
             .current_batch
             .iter()
-            .filter(|tx| tx[0] == 0u8 && tx.len() > 8)
-            .filter_map(|tx| tx[1..9].try_into().ok())
-            .collect();*/
+            .filter(|tx| tx.id[0] == 0u8 && tx.id.len() > 8)
+            .filter_map(|tx| tx.id[1..9].try_into().ok())
+            .collect();
 
         // Serialize the batch.
         self.current_batch_size = 0;
@@ -171,10 +173,14 @@ impl BatchMaker {
                     .unwrap(),
             );
 
-            //for id in tx_ids {
-            // NOTE: This log entry is used to compute performance.
-            //info!("Batch {:?} contains sample tx {:#?}", digest, id,);
-            //}
+            for id in tx_ids {
+                // NOTE: This log entry is used to compute performance.
+                info!(
+                    "Batch {:?} contains sample tx {}",
+                    digest,
+                    u64::from_be_bytes(id)
+                );
+            }
 
             // NOTE: This log entry is used to compute performance.
             info!("Batch {:?} contains {} B", digest, size,);

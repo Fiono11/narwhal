@@ -14,11 +14,12 @@ def local(ctx, debug=True):
     ''' Run benchmarks on localhost '''
     bench_params = {
         'faults': 0,
-        'nodes': [4, 10],
+        'nodes': [4],#, 20, 50, 100],
         'workers': 1,
         'rate': 50_000,
         'tx_size': 512,
-        'duration': 5,
+        'duration': 60,
+        'runs': 1,
     }
     node_params = {
         'header_size': 1_000,  # bytes
@@ -38,7 +39,7 @@ def local(ctx, debug=True):
         try:
             bench_params['nodes'] = node_count  # Update the node count
             ret = LocalBench(bench_params, node_params).run(debug)
-            print(ret.result())
+            #print(ret.result())
         except BenchError as e:
             Print.error(e)
 

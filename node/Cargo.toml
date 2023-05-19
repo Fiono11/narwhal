@@ -10,7 +10,7 @@ tokio-util = { version = "0.6.2", features= ["codec"] }
 clap = "2.33.3"
 env_logger = "0.7.1"
 log = "0.4.11"
-bytes = "1.0.1"
+bytes = "1.4"
 bincode = "1.3.1"
 anyhow = "1.0.40"
 rand = "0.7.3"
