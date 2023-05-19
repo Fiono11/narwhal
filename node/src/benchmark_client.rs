@@ -143,7 +143,7 @@ impl Client {
                 for x in 0..burst {
                     if x == counter % burst {
                         // NOTE: This log entry is used to compute performance.
-                        //info!("Sending sample transaction {}", counter);
+                        info!("Sending sample transaction {}", counter);
                         id.put_u8(0u8); // Sample txs start with 0.
                         id.put_u64(counter); // This counter identifies the tx.
                     } else {
@@ -157,7 +157,7 @@ impl Client {
                     id.resize(size, 0u8);
                     id.split();
 
-                    info!("Sending transaction {}", tx.tx_hash());
+                    //info!("Sending transaction {}", tx.tx_hash());
                     let bytes = Bytes::from(message);
                     if let Err(e) = transport.send(bytes).await {
                         warn!("Failed to send transaction: {}", e);
