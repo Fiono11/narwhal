@@ -5,9 +5,9 @@ use config::{Committee, WorkerId};
 use mc_crypto_keys::SignatureService;
 use mc_account_keys::PublicAddress as PublicKey;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
-use log::debug;
-#[cfg(feature = "benchmark")]
-use log::info;
+use log::{debug, info};
+//#[cfg(feature = "benchmark")]
+//use log::info;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, Duration, Instant};
 
@@ -120,7 +120,9 @@ impl Proposer {
             let enough_parents = !self.last_parents.is_empty();
             let enough_digests = self.payload_size >= self.header_size;
             let timer_expired = timer.is_elapsed();
-            if (timer_expired || enough_digests) && enough_parents {
+            //info!("Digests: {:?}", self.digests);
+
+            if enough_digests && enough_parents {
                 // Make a new header.
                 self.make_header().await;
                 self.payload_size = 0;
@@ -146,6 +148,8 @@ impl Proposer {
                 Some((digest, worker_id)) = self.rx_workers.recv() => {
                     self.payload_size += digest.size();
                     self.digests.push((digest, worker_id));
+                    info!("Size: {:?}", self.payload_size);
+                    info!("Digests: {:?}", self.digests);
                 }
                 () = &mut timer => {
                     // Nothing to do.

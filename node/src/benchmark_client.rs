@@ -132,6 +132,7 @@ impl Client {
         let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address()).unwrap(); 
         let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
         let mut id = BytesMut::with_capacity(size);
+        let mut tx_counter = 0;
             
         'main: loop {
             //let mut txs = Vec::new();
@@ -142,25 +143,21 @@ impl Client {
                 for x in 0..burst {
                     if x == counter % burst {
                         // NOTE: This log entry is used to compute performance.
-                        info!("Sending sample transaction {}", counter);
-                        //info!("id: {:?}", id);
+                        //info!("Sending sample transaction {}", counter);
                         id.put_u8(0u8); // Sample txs start with 0.
                         id.put_u64(counter); // This counter identifies the tx.
-                        //info!("id1: {:?}", id);
                     } else {
                         r += 1;
                         id.put_u8(1u8); // Standard txs start with 1.
                         id.put_u64(r); // Ensures all clients send different txs.
-                        //info!("id2: {:?}", id);
                     };
     
-                    //info!("id3: {:?}", id);
                     tx.id = id.to_vec();
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     id.resize(size, 0u8);
                     id.split();
-                    //info!("id4: {:?}", id);
 
+                    info!("Sending transaction {}", tx.tx_hash());
                     let bytes = Bytes::from(message);
                     if let Err(e) = transport.send(bytes).await {
                         warn!("Failed to send transaction: {}", e);

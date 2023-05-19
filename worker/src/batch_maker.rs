@@ -96,12 +96,12 @@ impl BatchMaker {
                 },
 
                 // If the timer triggers, seal the batch even if it contains few transactions.
-                () = &mut timer => {
+                /*() = &mut timer => {
                     if !self.current_batch.is_empty() {
                         self.seal().await;
                     }
                     timer.as_mut().reset(Instant::now() + Duration::from_millis(self.max_batch_delay));
-                }
+                }*/
             }
 
             // Give the change to schedule other tasks.
@@ -111,10 +111,10 @@ impl BatchMaker {
 
     /// Seal and broadcast the current batch.
     async fn seal(&mut self) {
+        //info!("Current batch: {:?}", self.current_batch);
+
         #[cfg(feature = "benchmark")]
         let size = self.current_batch_size;
-
-        //info!("Txs: {:?}", self.current_batch);
 
         // Look for sample txs (they all start with 0) and gather their txs id (the next 8 bytes).
         #[cfg(feature = "benchmark")]
@@ -124,6 +124,8 @@ impl BatchMaker {
             .filter(|tx| tx.id[0] == 0u8 && tx.id.len() > 8)
             .filter_map(|tx| tx.id[1..9].try_into().ok())
             .collect();
+
+        info!("tx_ids: {:?}", tx_ids);
 
         // Serialize the batch.
         self.current_batch_size = 0;
