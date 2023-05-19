@@ -115,7 +115,7 @@ impl Client {
 
         // Submit all transactions.
         let burst = self.rate / PRECISION;
-        let size = 16;
+        let size = 9;
         let mut counter = 0;
         let mut r = rand::thread_rng().gen();
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
@@ -143,7 +143,7 @@ impl Client {
                     if x == counter % burst {
                         // NOTE: This log entry is used to compute performance.
                         info!("Sending sample transaction {}", counter);
-                        info!("id: {:?}", id);
+                        //info!("id: {:?}", id);
                         id.put_u8(0u8); // Sample txs start with 0.
                         id.put_u64(counter); // This counter identifies the tx.
                         //info!("id1: {:?}", id);
