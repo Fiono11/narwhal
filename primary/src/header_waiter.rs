@@ -130,7 +130,7 @@ impl HeaderWaiter {
                 Some(message) = self.rx_synchronizer.recv() => {
                     match message {
                         WaiterMessage::SyncBatches(missing, header) => {
-                            debug!("Synching the payload of {}", header);
+                            //debug!("Synching the payload of {}", header);
                             let header_id = header.id.clone();
                             let round = header.round;
                             let author = header.author.clone();
@@ -175,7 +175,7 @@ impl HeaderWaiter {
                         }
 
                         WaiterMessage::SyncParents(missing, header) => {
-                            debug!("Synching the parents of {}", header);
+                            //debug!("Synching the parents of {}", header);
                             let header_id = header.id.clone();
                             let round = header.round;
                             let author = header.author.clone();
@@ -256,7 +256,7 @@ impl HeaderWaiter {
                     let mut retry = Vec::new();
                     for (digest, (_, timestamp)) in &self.parent_requests {
                         if timestamp + (self.sync_retry_delay as u128) < now {
-                            debug!("Requesting sync for certificate {} (retry)", digest);
+                            //debug!("Requesting sync for certificate {} (retry)", digest);
                             retry.push(digest.clone());
                         }
                     }

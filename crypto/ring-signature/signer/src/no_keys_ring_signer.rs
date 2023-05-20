@@ -41,7 +41,7 @@ impl RingSigner for NoKeysRingSigner {
             }
         };
 
-        debug!("NO KEYS SIGNER");
+        //debug!("NO KEYS SIGNER");
         // Check if this is the correct one-time private key
         if RistrettoPublic::from(&onetime_private_key) != target_key {
             return Err(Error::TrueInputNotOwned);

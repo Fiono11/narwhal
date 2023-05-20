@@ -14,11 +14,11 @@ def local(ctx, debug=True):
     ''' Run benchmarks on localhost '''
     bench_params = {
         'faults': 0,
-        'nodes': [4],
+        'nodes': [10],
         'workers': 1,
         'rate': 500,
-        'tx_size': 1121,
-        'duration': 60,
+        'tx_size': 1833,
+        'duration': 120,
         'runs': 1,
     }
     node_params = {
@@ -134,7 +134,7 @@ def plot(ctx):
         'nodes': [4,5,6,7,8,9,10],
         'workers': [1],
         'collocate': True,
-        'tx_size': 1121,
+        'tx_size': 1833,
         'max_latency': [600000]
     }
     try:
