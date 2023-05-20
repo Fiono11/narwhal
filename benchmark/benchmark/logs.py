@@ -56,9 +56,12 @@ class LogParser:
         except (ValueError, IndexError, AttributeError) as e:
             raise ParseError(f'Failed to parse workers\' logs: {e}')
         sizes, self.received_samples, workers_ips = zip(*results)
+        #print("comits: ", self.commits)
         self.sizes = {
             k: v for x in sizes for k, v in x.items() if k in self.commits
         }
+
+        #print("sizes: ", self.sizes)
 
         # Determine whether the primary and the workers are collocated.
         self.collocate = set(primary_ips) == set(workers_ips)
@@ -142,6 +145,8 @@ class LogParser:
         tmp = findall(r'Batch ([^ ]+) contains (\d+) B', log)
         sizes = {d: int(s) for d, s in tmp}
 
+        #print("sizes: ", sizes.values())
+
         tmp = findall(r'Batch ([^ ]+) contains sample tx (\d+)', log)
         samples = {int(s): d for d, s in tmp}
 
@@ -159,6 +164,10 @@ class LogParser:
         start, end = min(self.proposals.values()), max(self.commits.values())
         duration = end - start
         bytes = sum(self.sizes.values())
+        #print("proposals: ", self.proposals)
+        #print("commits: ", self.commits)
+        print("bytes: ", bytes)
+        print("duration: ", duration)
         bps = bytes / duration
         tps = bps / self.size[0]
         return tps, bps, duration

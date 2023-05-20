@@ -8,6 +8,7 @@ use bytes::Bytes;
 use chacha20poly1305::aead::{Aead, OsRng};
 use chacha20poly1305::{Key, ChaCha20Poly1305, Nonce, KeyInit};
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
+use log::info;
 //#[cfg(feature = "benchmark")]
 //use crypto::Digest;
 use mc_account_keys::{PublicAddress as PublicKey, AccountKey};
@@ -15,8 +16,8 @@ use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_keys::tx_hash::TxHash as Digest;
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
-#[cfg(feature = "benchmark")]
-use log::info;
+//#[cfg(feature = "benchmark")]
+//use log::info;
 use mc_crypto_ring_signature::Scalar;
 use mc_crypto_ring_signature::onetime_keys::create_shared_secret;
 use mc_transaction_core::range_proofs::generate_range_proofs;
@@ -175,6 +176,8 @@ impl BatchMaker {
         };
         let message = WorkerMessage::Batch(block);
         let serialized = bincode::serialize(&message).expect("Failed to serialize our own batch");
+
+        //info!("serialized: {:?}", serialized);
 
         #[cfg(feature = "benchmark")]
         {

@@ -10,7 +10,7 @@ use log::{debug, error, warn};
 use mc_account_keys::PublicAddress;
 use mc_crypto_keys::SignatureService;
 use mc_crypto_keys::tx_hash::TxHash;
-use network::{CancelHandler, ReliableSender};
+use network::{CancelHandler, ReliableSender, SimpleSender};
 use std::collections::{HashMap, HashSet, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -52,10 +52,10 @@ pub struct Core {
     /// The last header we proposed (for which we are waiting votes).
     current_header: Header,
     /// A network sender to send the batches to the other workers.
-    network: ReliableSender,
+    network: SimpleSender,
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
-    elections: HashMap<TxHash, BTreeSet<PublicAddress>>,
+    elections: HashMap<TxHash, (BTreeSet<PublicAddress>, bool)>,
 }
 
 impl Core {
@@ -86,7 +86,7 @@ impl Core {
                 last_voted: HashMap::with_capacity(2 * gc_depth as usize),
                 processing: HashMap::with_capacity(2 * gc_depth as usize),
                 current_header: Header::default(),
-                network: ReliableSender::new(),
+                network: SimpleSender::new(),
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 elections: HashMap::new(),
             }
@@ -97,24 +97,13 @@ impl Core {
 
     #[async_recursion]
     async fn process_header(&mut self, header: &Header) -> DagResult<()> {
-        for (tx, _) in &header.payload {
-            match self.elections.get_mut(&tx) {
-                Some(votes) => {
-                    votes.insert(header.author.clone());
-
-                    if votes.len() >= QUORUM {
-                        #[cfg(not(feature = "benchmark"))]
-                        info!("Committed {}", header);
-
-                        #[cfg(feature = "benchmark")]
-                        // NOTE: This log entry is used to compute performance.
-                        info!("Committed {} -> {:?}", header, tx);
-                    }
-
+        //info!("name: {:?}", self.name);
+        //info!("Received {:?} from {:?}", header, header.author);
+            match self.elections.get_mut(&header.id) {
+                Some((votes, committed)) => {
                     if !votes.contains(&self.name) {
                         let mut own_header = header.clone();
                         own_header.author = self.name.clone();
-
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
@@ -122,36 +111,55 @@ impl Core {
                             .iter()
                             .map(|(_, x)| x.primary_to_primary)
                             .collect();
-                        let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
+                        let bytes = bincode::serialize(&PrimaryMessage::Header(own_header))
                             .expect("Failed to serialize our own header");
-                        let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
-                        self.cancel_handlers
-                            .entry(header.round)
-                            .or_insert_with(Vec::new)
-                            .extend(handlers);
+                        self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                    }
+                    //info!("1");
+                    votes.insert(header.author.clone());
+
+                    //info!("votes: {:?}", votes);
+
+                    if votes.len() >= QUORUM && !*committed {
+                        #[cfg(not(feature = "benchmark"))]
+                        info!("Committed {}", header);
+
+                        for tx in &header.payload {
+                            #[cfg(feature = "benchmark")]
+                            // NOTE: This log entry is used to compute performance.
+                            info!("Committed {} -> {:?}", header, header.id);
+                        }
+                        *committed = true;
                     }
                 },
                 None => {
+                    if header.author != self.name {
+                        #[cfg(feature = "benchmark")]
+                        for digest in &header.payload {
+                            // NOTE: This log entry is used to compute performance.
+                            info!("Created {} -> {:?}", header, header.id);
+                        }
+                    }
+                    //info!("3");
                     let mut votes = BTreeSet::new();
                     votes.insert(header.author.clone());
-                    self.elections.insert(tx.clone(), votes);
+                    self.elections.insert(header.id.clone(), (votes, false));
+
+                    let mut own_header = header.clone();
+                    own_header.author = self.name.clone();
+                    // Broadcast the new header in a reliable manner.
+                    let addresses = self
+                        .committee
+                        .others_primaries(&PK(self.name.to_bytes()))
+                        .iter()
+                        .map(|(_, x)| x.primary_to_primary)
+                        .collect();
+                    let bytes = bincode::serialize(&PrimaryMessage::Header(own_header))
+                        .expect("Failed to serialize our own header");
+                    self.network.broadcast(addresses, Bytes::from(bytes)).await;
                 }
             }
-        }
-        Ok(())
-    }
-
-    fn sanitize_header(&mut self, header: &Header) -> DagResult<()> {
-        ensure!(
-            self.gc_round <= header.round,
-            DagError::TooOld(header.id.clone(), header.round)
-        );
-
-        // Verify the header's signature.
-        header.verify(&self.committee)?;
-
-        // TODO [issue #3]: Prevent bad nodes from sending junk headers with high round numbers.
-
+            //info!("Election of {:?}: {:?}", &header, self.elections.get(&header.id).unwrap());
         Ok(())
     }
 
@@ -162,13 +170,7 @@ impl Core {
                 // We receive here messages from other primaries.
                 Some(message) = self.rx_primaries.recv() => {
                     match message {
-                        PrimaryMessage::Header(header) => {
-                            match self.sanitize_header(&header) {
-                                Ok(()) => self.process_header(&header).await,
-                                error => error
-                            }
-
-                        },
+                        PrimaryMessage::Header(header) => self.process_header(&header).await,
                         _ => panic!("Unexpected core message")
                     }
                 },

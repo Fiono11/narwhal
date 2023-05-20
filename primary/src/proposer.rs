@@ -123,7 +123,7 @@ impl Proposer {
 
             if enough_digests && enough_parents {
                 // Make a new header.
-                self.make_header().await;
+                //self.make_header().await;
                 self.payload_size = 0;
 
                 // Reschedule the timer.
@@ -145,8 +145,10 @@ impl Proposer {
                     self.last_parents = parents;
                 }
                 Some((digest, worker_id)) = self.rx_workers.recv() => {
+                    info!("Received digest {:?}", digest);
                     self.payload_size += digest.size();
                     self.digests.push((digest, worker_id));
+                    self.make_header().await;
                     //info!("Size: {:?}", self.payload_size);
                     //info!("Digests: {:?}", self.digests);
                 }

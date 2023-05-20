@@ -106,7 +106,7 @@ impl fmt::Debug for Header {
 
 impl fmt::Display for Header {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "B{}({})", self.round, self.author)
+        write!(f, "B{}({})", self.round, self.id)
     }
 }
 
