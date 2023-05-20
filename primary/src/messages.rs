@@ -16,7 +16,6 @@ pub trait Hash {
     fn digest(&self) -> TxHash;
 }
 
-
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Header {
     pub author: PublicAddress,

@@ -1,4 +1,5 @@
 use crate::Block;
+use crate::processor::SerializedBatchMessage;
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
@@ -52,6 +53,10 @@ pub struct BatchMaker {
     current_batch_size: usize,
     /// A network sender to broadcast the batches to the other workers.
     network: ReliableSender,
+    /// The primary network address.
+    primary_address: SocketAddr,
+    /// Channel to deliver batches for which we have enough acknowledgements.
+    tx_batch: Sender<SerializedBatchMessage>,
 }
 
 impl BatchMaker {
@@ -61,6 +66,8 @@ impl BatchMaker {
         rx_transaction: Receiver<Transaction>,
         tx_message: Sender<QuorumWaiterMessage>,
         workers_addresses: Vec<(PublicKey, SocketAddr)>,
+        primary_address: SocketAddr,
+        tx_batch: Sender<SerializedBatchMessage>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -72,6 +79,8 @@ impl BatchMaker {
                 current_batch: Batch::with_capacity(batch_size * 2),
                 current_batch_size: 0,
                 network: ReliableSender::new(),
+                primary_address,
+                tx_batch,
             }
             .run()
             .await;
@@ -194,13 +203,18 @@ impl BatchMaker {
         let bytes = Bytes::from(serialized.clone());
         let handlers = self.network.broadcast(addresses, bytes).await;
 
+        self.tx_batch
+            .send(serialized)
+            .await
+            .expect("Failed to deliver batch");
+
         // Send the batch through the deliver channel for further processing.
-        self.tx_message
+        /*self.tx_message
             .send(QuorumWaiterMessage {
                 batch: serialized,
                 handlers: names.into_iter().zip(handlers.into_iter()).collect(),
             })
             .await
-            .expect("Failed to deliver batch");
+            .expect("Failed to deliver batch");*/
     }
 }

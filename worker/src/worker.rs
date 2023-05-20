@@ -27,6 +27,7 @@ use network::{MessageHandler, Receiver, Writer};
 use primary::PrimaryWorkerMessage;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::net::SocketAddr;
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
 use mc_transaction_core::tx::{Transaction, get_subaddress};
@@ -82,10 +83,16 @@ impl Worker {
             store,
         };
 
+        let primary_address = worker
+            .committee
+            .primary(&PK(worker.name.to_bytes()))
+            .expect("Our public key is not in the committee")
+            .worker_to_primary;
+
         // Spawn all worker tasks.
         let (tx_primary, rx_primary) = channel(CHANNEL_CAPACITY);
         worker.handle_primary_messages();
-        worker.handle_clients_transactions(tx_primary.clone());
+        worker.handle_clients_transactions(tx_primary.clone(), primary_address);
         worker.handle_workers_messages(tx_primary);
 
         // The `PrimaryConnector` allows the worker to send messages to its primary.
@@ -148,7 +155,7 @@ impl Worker {
     }
 
     /// Spawn all tasks responsible to handle clients transactions.
-    fn handle_clients_transactions(&self, tx_primary: Sender<SerializedBatchDigestMessage>) {
+    fn handle_clients_transactions(&self, tx_primary: Sender<SerializedBatchDigestMessage>, primary_address: SocketAddr) {
         let (tx_batch_maker, rx_batch_maker) = channel(CHANNEL_CAPACITY);
         let (tx_quorum_waiter, rx_quorum_waiter) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
@@ -179,16 +186,18 @@ impl Worker {
                 .iter()
                 .map(|(name, addresses)| (PublicKey::from_bytes(name.0), addresses.worker_to_worker))
                 .collect(),
+            primary_address,
+            tx_processor
         );
 
         // The `QuorumWaiter` waits for 2f authorities to acknowledge reception of the batch. It then forwards
         // the batch to the `Processor`.
-        QuorumWaiter::spawn(
+        /*QuorumWaiter::spawn(
             self.committee.clone(),
             /* stake */ self.committee.stake(&PK(self.name.to_bytes())),
             /* rx_message */ rx_quorum_waiter,
             /* tx_batch */ tx_processor,
-        );
+        );*/
 
         // The `Processor` hashes and stores the batch. It then forwards the batch's digest to the `PrimaryConnector`
         // that will send it to our primary machine.
