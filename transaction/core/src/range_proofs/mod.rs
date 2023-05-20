@@ -67,6 +67,33 @@ pub fn generate_range_proofs<T: RngCore + CryptoRng>(
     .map_err(Error::from)
 }
 
+pub fn generate_range_proof<T: RngCore + CryptoRng>(
+    value: &u64,
+    blinding: &Scalar,
+    pedersen_generators: &BPPedersenGens,
+    rng: &mut T,
+) -> Result<(RangeProof, CompressedRistretto), Error> {
+    // Most of this comes directly from the example at
+    // https://doc-internal.dalek.rs/bulletproofs/struct.RangeProof.html#example-1
+
+    // Aggregated rangeproofs operate on sets of `m` values, where `m` must be a
+    // power of 2. If the number of inputs is not a power of 2, pad them.
+    //let values_padded: Vec<u64> = resize_slice_to_pow2::<u64>(values)?;
+    //let blindings_padded: Vec<Scalar> = resize_slice_to_pow2::<Scalar>(blindings)?;
+
+    // Create a 64-bit RangeProof and corresponding commitments.
+    RangeProof::prove_single_with_rng(
+        &BP_GENERATORS,
+        &pedersen_generators,
+        &mut Transcript::new(BULLETPROOF_DOMAIN_TAG.as_ref()),
+        *value,
+        blinding,
+        64,
+        rng,
+    )
+    .map_err(Error::from)
+}
+
 /// Verifies an aggregated 64-bit RangeProof for the given value commitments.
 ///
 /// Proves that the corresponding values lie in the range [0,2^64).
@@ -90,6 +117,26 @@ pub fn check_range_proofs<T: RngCore + CryptoRng>(
             &pedersen_generators,
             &mut Transcript::new(BULLETPROOF_DOMAIN_TAG.as_ref()),
             &resized_commitments,
+            64,
+            rng,
+        )
+        .map_err(Error::from)
+}
+
+pub fn check_range_proof<T: RngCore + CryptoRng>(
+    range_proof: &RangeProof,
+    commitment: &CompressedRistretto,
+    pedersen_generators: &BPPedersenGens,
+    rng: &mut T,
+) -> Result<(), Error> {
+    // The length of `commitments` must be a power of 2. If not, resize it.
+    //let resized_commitments = resize_slice_to_pow2::<CompressedRistretto>(commitments)?;
+    range_proof
+        .verify_single_with_rng(
+            &BP_GENERATORS,
+            &pedersen_generators,
+            &mut Transcript::new(BULLETPROOF_DOMAIN_TAG.as_ref()),
+            &commitment,
             64,
             rng,
         )

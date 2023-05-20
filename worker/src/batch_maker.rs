@@ -125,14 +125,14 @@ impl BatchMaker {
             .filter_map(|tx| tx.id[1..9].try_into().ok())
             .collect();
 
-        info!("tx_ids: {:?}", tx_ids);
+        //info!("tx_ids: {:?}", tx_ids);
 
         // Serialize the batch.
         self.current_batch_size = 0;
         let batch: Vec<Transaction> = self.current_batch.drain(..).collect();
 
         // create range proofs
-        let mut rng = rand::rngs::OsRng;
+        /*let mut rng = rand::rngs::OsRng;
         let generators = PedersenGens::default();
         let rep_account = AccountKey::default();
         let mut amounts = Vec::new();
@@ -155,13 +155,13 @@ impl BatchMaker {
             assert_eq!(amount.value, 1);
             amounts.push(amount.value);
             blindings.push(blinding);
-        }
+        }*/
 
-        let (range_proof, commitments) = generate_range_proofs(&amounts, &blindings, &generators, &mut OsRng).unwrap();
+        //let (range_proof, commitments) = generate_range_proofs(&amounts, &blindings, &generators, &mut OsRng).unwrap();
         let block = Block {
             txs: batch,
-            range_proof_bytes: range_proof.to_bytes(),
-            commitments,
+            //range_proof_bytes: range_proof.to_bytes(),
+            //commitments,
         };
         let message = WorkerMessage::Batch(block);
         let serialized = bincode::serialize(&message).expect("Failed to serialize our own batch");

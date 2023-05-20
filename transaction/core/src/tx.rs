@@ -16,8 +16,9 @@ use serde::{Deserialize, Serialize};
 use prost::Message;
 use zeroize::Zeroize;
 use mc_common::Hash;
-
+use crate::range_proofs::{generate_range_proof, check_range_proof, self};
 use crate::tx_error::{TxOutConversionError, ViewKeyMatchError, NewTxError};
+use bulletproofs_og::PedersenGens;
 
 /// A CryptoNote-style transaction.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Digestible, Debug)]
@@ -29,6 +30,10 @@ pub struct Transaction {
     /// The transaction signature.
     //#[prost(message, required, tag = "2")]
     pub signature: TriptychSignature,
+
+    pub range_proof_bytes: Vec<u8>,
+
+    pub commitment: CompressedRistretto,
 
     /// The transaction id.
     //#[prost(message, repeated, tag = "3")]
@@ -163,6 +168,7 @@ impl TxOut {
         recipient: &PublicAddress,
         tx_private_key: &RistrettoPrivate,
         representative: PublicAddress,
+        shared_secret: Scalar,
     ) -> Result<Self, NewTxError> {
         let (tx_target_key, tx_public_key) =
                 get_output_public_keys(&tx_private_key, &recipient);
@@ -170,7 +176,7 @@ impl TxOut {
         let shared_secret1 = create_shared_secret(recipient.view_public_key(), tx_private_key);
         let shared_secret2 = create_shared_secret(&representative.view_public_key(), tx_private_key);
 
-        let shared_secret = Scalar::random(&mut rand_core::OsRng);
+        //let shared_secret = Scalar::random(&mut rand_core::OsRng);
 
         let aB_bytes = shared_secret1.0.compress();
         let key1 = Key::from_slice(aB_bytes.as_bytes());
@@ -186,6 +192,9 @@ impl TxOut {
         let ss = (shared_secret * RISTRETTO_BASEPOINT_POINT);
 
         let masked_amount = MaskedAmount::new(amount, &RistrettoPublic(ss)).unwrap();
+
+        //let amount_shared_secret = Self::compute_amount_shared_secret(ss);
+        //get_blinding_factors(amount_shared_secret);
 
         Ok(TxOut {
             masked_amount,
@@ -274,7 +283,9 @@ pub fn create_transaction(
 
     let rep_account = AccountKey::default();
 
-    let output = TxOut::new(Amount::new(amount), recipient, &tx_private_key, rep_account.to_public_address()).unwrap();
+    let shared_secret = Scalar::random(&mut rand_core::OsRng);
+
+    let output = TxOut::new(Amount::new(amount), recipient, &tx_private_key, rep_account.to_public_address(), shared_secret).unwrap();
 
     let prefix = TxPrefix::new(inputs, vec![output]);
 
@@ -290,9 +301,14 @@ pub fn create_transaction(
         }
     }
 
+    let generators = PedersenGens::default();
+
+    let (range_proof, commitment) = generate_range_proof(&amount, &shared_secret, &generators, &mut OsRng).unwrap();
+    let range_proof_bytes = range_proof.to_bytes();
+
     let signature = Sign(&x, "msg", &R);
 
-    Transaction { prefix, signature, id }
+    Transaction { prefix, signature, range_proof_bytes, commitment, id }
 }
 
 // Get the account's i^th subaddress.
@@ -331,7 +347,7 @@ mod tests {
         AccountKey, PublicAddress, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
     };
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic, CompressedRistrettoPublic};
-    use mc_crypto_ring_signature::{get_tx_out_shared_secret, onetime_keys::create_shared_secret};
+    use mc_crypto_ring_signature::{get_tx_out_shared_secret, onetime_keys::create_shared_secret, Scalar};
     use mc_transaction_types::Amount;
     use mc_util_from_random::FromRandom;
     use prost::Message;
@@ -419,6 +435,7 @@ mod tests {
                 &bob.change_subaddress(),
                 &tx_private_key,
                 RistrettoPublic::default(),
+                Scalar::one(), // fix this
             )
             .unwrap();
 

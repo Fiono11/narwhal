@@ -5,6 +5,7 @@ use bulletproofs::RangeProof;
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
+use curve25519_dalek::scalar::Scalar;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
@@ -118,6 +119,7 @@ impl Client {
         let size = 9;
         let mut counter = 0;
         let mut r = rand::thread_rng().gen();
+        let mut rng = rand_core::OsRng;
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -129,7 +131,8 @@ impl Client {
         let recipient = PublicAddress::default();
         let tx_private_key = RistrettoPrivate::default();
         let sender = AccountKey::default();
-        let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address()).unwrap(); 
+        let coin_key = Scalar::random(&mut rng);
+        let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address(), coin_key).unwrap(); 
         let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
         let mut id = BytesMut::with_capacity(size);
         let mut tx_counter = 0;
@@ -171,27 +174,6 @@ impl Client {
                 counter += 1;
     
         }
-
-            /*for x in 0..burst {
-                // NOTE: This log entry is used to compute performance.
-                tx.id = 
-                info!("Sending sample transaction {}", counter);
-                //txs.push(tx.clone());
-                let message = bincode::serialize(&tx.clone()).unwrap();
-
-                let bytes = Bytes::from(message);
-                if let Err(e) = transport.send(bytes).await {
-                    warn!("Failed to send transaction: {}", e);
-                    //break 'main;
-                }
-                counter += 1;
-            }
-            if now.elapsed().as_millis() > BURST_DURATION as u128 {
-                // NOTE: This log entry is used to compute performance.
-                warn!("Transaction rate too high for this client");
-            }
-            //counter += 1;
-        }*/
         Ok(())
     }
 
