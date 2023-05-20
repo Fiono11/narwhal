@@ -52,7 +52,7 @@ pub struct Core {
     /// The last header we proposed (for which we are waiting votes).
     current_header: Header,
     /// A network sender to send the batches to the other workers.
-    network: SimpleSender,
+    network: ReliableSender,
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
     elections: HashMap<TxHash, (BTreeSet<PublicAddress>, bool)>,
@@ -86,7 +86,7 @@ impl Core {
                 last_voted: HashMap::with_capacity(2 * gc_depth as usize),
                 processing: HashMap::with_capacity(2 * gc_depth as usize),
                 current_header: Header::default(),
-                network: SimpleSender::new(),
+                network: ReliableSender::new(),
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 elections: HashMap::new(),
             }
@@ -113,7 +113,11 @@ impl Core {
                             .collect();
                         let bytes = bincode::serialize(&PrimaryMessage::Header(own_header))
                             .expect("Failed to serialize our own header");
-                        self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                        let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                        self.cancel_handlers
+                            .entry(header.round)
+                            .or_insert_with(Vec::new)
+                            .extend(handlers);
                     }
                     //info!("1");
                     votes.insert(header.author.clone());
@@ -156,7 +160,11 @@ impl Core {
                         .collect();
                     let bytes = bincode::serialize(&PrimaryMessage::Header(own_header))
                         .expect("Failed to serialize our own header");
-                    self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                    let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                    self.cancel_handlers
+                        .entry(header.round)
+                        .or_insert_with(Vec::new)
+                        .extend(handlers);
                 }
             }
             //info!("Election of {:?}: {:?}", &header, self.elections.get(&header.id).unwrap());
