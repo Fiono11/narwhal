@@ -124,10 +124,10 @@ impl Core {
                         #[cfg(not(feature = "benchmark"))]
                         info!("Committed {}", header);
 
-                        for tx in &header.payload {
+                        for digest in &header.payload {
                             #[cfg(feature = "benchmark")]
                             // NOTE: This log entry is used to compute performance.
-                            info!("Committed {} -> {:?}", header, header.id);
+                            info!("Committed {} -> {:?}", header, digest.0);
                         }
                         *committed = true;
                     }
@@ -137,7 +137,7 @@ impl Core {
                         #[cfg(feature = "benchmark")]
                         for digest in &header.payload {
                             // NOTE: This log entry is used to compute performance.
-                            info!("Created {} -> {:?}", header, header.id);
+                            info!("Created {} -> {:?}", header, digest.0);
                         }
                     }
                     //info!("3");
