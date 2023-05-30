@@ -202,9 +202,9 @@ impl BatchMaker {
         }
 
         // Broadcast the batch through the network.
-        let (names, addresses): (Vec<_>, _) = self.workers_addresses.iter().cloned().unzip();
-        let bytes = Bytes::from(serialized.clone());
-        let handlers = self.network.broadcast(addresses, bytes).await;
+        //let (names, addresses): (Vec<_>, _) = self.workers_addresses.iter().cloned().unzip();
+        //let bytes = Bytes::from(serialized.clone());
+        //let handlers = self.network.broadcast(addresses, bytes).await;
 
         self.tx_batch
             .send(serialized)

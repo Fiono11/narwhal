@@ -4,7 +4,6 @@ members = [
     "account-keys/types",
     "common",
     "config", 
-    "consensus", 
     "crypto/digestible",
     "crypto/digestible/derive/test",
     "crypto/digestible/signature",

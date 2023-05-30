@@ -1,7 +1,5 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use anyhow::{Context, Result};
-use bulletproofs::PedersenGens;
-use bulletproofs::RangeProof;
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
@@ -9,7 +7,6 @@ use curve25519_dalek::scalar::Scalar;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
-use log::debug;
 use log::{info, warn};
 use mc_account_keys::AccountKey;
 use mc_account_keys::PublicAddress;
@@ -18,16 +15,11 @@ use mc_transaction_core::tx::TxOut;
 use mc_transaction_core::tx::create_transaction;
 use mc_transaction_types::Amount;
 use rand::Rng;
-use rand::SeedableRng;
-use rand::rngs::StdRng;
-use worker::Block;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use bytes::Bytes;
-use rand::thread_rng;
-use std::convert::TryInto;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -109,18 +101,23 @@ impl Client {
             ));
         }
 
-        // Connect to the mempool.
-        let stream = TcpStream::connect(self.target)
+        let mut transports = Vec::new();
+
+        for target in &self.nodes {
+            // Connect to the mempool.
+            let stream = TcpStream::connect(self.target)
             .await
             .context(format!("failed to connect to {}", self.target))?;
-
+            let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
+            transports.push(transport);
+        }
+        
         // Submit all transactions.
         let burst = self.rate / PRECISION;
         let size = 9;
         let mut counter = 0;
         let mut r = rand::thread_rng().gen();
         let mut rng = rand_core::OsRng;
-        let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
 
@@ -135,11 +132,8 @@ impl Client {
         let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address(), coin_key).unwrap(); 
         let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
         let mut id = BytesMut::with_capacity(size);
-        let mut tx_counter = 0;
             
         'main: loop {
-            //let mut txs = Vec::new();
-
             interval.as_mut().tick().await;
             let now = Instant::now();
     
@@ -160,11 +154,12 @@ impl Client {
                     id.resize(size, 0u8);
                     id.split();
 
-                    //info!("Sending transaction {}", tx.tx_hash());
                     let bytes = Bytes::from(message);
-                    if let Err(e) = transport.send(bytes).await {
-                        warn!("Failed to send transaction: {}", e);
-                        break 'main;
+                    for mut transport in transports.iter_mut() {
+                        if let Err(e) = transport.send(bytes.clone()).await {
+                            warn!("Failed to send transaction: {}", e);
+                            break 'main;
+                        }
                     }
                 }
                 if now.elapsed().as_millis() > BURST_DURATION as u128 {
@@ -185,6 +180,7 @@ impl Client {
                 while TcpStream::connect(address).await.is_err() {
                     sleep(Duration::from_millis(10)).await;
                 }
+                info!("Successfully connected to {}", address); 
             })
         }))
         .await;
