@@ -145,7 +145,7 @@ impl Proposer {
                     self.last_parents = parents;
                 }
                 Some((digest, worker_id)) = self.rx_workers.recv() => {
-                    info!("Received digest {:?}", digest);
+                    //info!("Received digest {:?}", digest);
                     self.payload_size += digest.size();
                     self.digests.push((digest, worker_id));
                     self.make_header().await;

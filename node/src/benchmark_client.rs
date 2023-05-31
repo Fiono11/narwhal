@@ -101,16 +101,16 @@ impl Client {
             ));
         }
 
-        let mut transports = Vec::new();
+        //let mut transports = Vec::new();
 
-        for target in &self.nodes {
+        //for target in &self.nodes {
             // Connect to the mempool.
             let stream = TcpStream::connect(self.target)
-            .await
-            .context(format!("failed to connect to {}", self.target))?;
+                .await
+                .context(format!("failed to connect to {}", self.target))?;
             let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
-            transports.push(transport);
-        }
+            //transports.push(transport);
+        //}
         
         // Submit all transactions.
         let burst = self.rate / PRECISION;
@@ -155,12 +155,12 @@ impl Client {
                     id.split();
 
                     let bytes = Bytes::from(message);
-                    for mut transport in transports.iter_mut() {
+                    //for mut transport in transports.iter_mut() {
                         if let Err(e) = transport.send(bytes.clone()).await {
                             warn!("Failed to send transaction: {}", e);
                             break 'main;
                         }
-                    }
+                    //}
                 }
                 if now.elapsed().as_millis() > BURST_DURATION as u128 {
                     // NOTE: This log entry is used to compute performance.
