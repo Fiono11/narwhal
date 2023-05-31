@@ -425,13 +425,15 @@ pub fn Link(sgn_a: &TriptychSignature, sgn_b: &TriptychSignature) -> bool {
 
 #[cfg(test)]
 mod triptych_test {
-	use alloc::vec;
+	use std::time::{Instant, Duration};
+
+use alloc::vec;
 	use alloc::vec::Vec;
 	use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
 	use curve25519_dalek::ristretto::RistrettoPoint;
 	use curve25519_dalek::scalar::Scalar;
 	use curve25519_dalek::traits::Identity;
-	use crate::ring_signature::{triptych, util};
+	use crate::{ring_signature::{triptych, util}, TriptychSignature};
 
 	#[test]
 	pub fn test_base_signature() {
@@ -462,7 +464,7 @@ mod triptych_test {
 
 	#[test]
 	pub fn test_signature() {
-		let size = 64;
+		let size = 32;
 		let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
 		let mut x: Scalar = Scalar::one();
 		let index = 14;
@@ -477,10 +479,38 @@ mod triptych_test {
 		}
 		let M = "This is a triptych signature test, lets see if it works or not";
 
-		let sgn = triptych::Sign(&x, &M, &R);
+		let start1 = Instant::now();
 
-		let result = triptych::Verify(&sgn, &M, &R);
+		let signature = triptych::Sign(&x, &M, &R);
+
+		let end1 = Instant::now();
+
+		let duration1 = Duration::as_millis(&(end1-start1));
+
+		println!("proof: {:?} ms", duration1);
+
+		let start2 = Instant::now();
+
+		let result = triptych::Verify(&signature, &M, &R);
+
+		let end2 = Instant::now();
+
+		let duration2 = Duration::as_millis(&(end2-start2));
+
+		println!("verification: {:?} ms", duration2);
 
 		assert!(result.is_ok());
+
+		let compressed_commitment_size = 32;
+		let curve_scalar_size = 32;
+		let key_image_size = 32;
+
+		let triptych_elliptic_curve_state_size = 5 * compressed_commitment_size + 
+												2 * signature.a.X.len() * compressed_commitment_size;
+
+		let triptych_scalar_state_size = 3 * curve_scalar_size +
+										signature.z.f.len() * signature.z.f[0].scalars.len() * curve_scalar_size;
+
+		println!("size: {:?} bytes", triptych_elliptic_curve_state_size + triptych_scalar_state_size + key_image_size);
 	}
 }
