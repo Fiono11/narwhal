@@ -61,7 +61,6 @@ class CommandMaker:
 
     @staticmethod
     def alias_binaries(origin):
-        print("running...")
         assert isinstance(origin, str)
         node, client = join(origin, 'node'), join(origin, 'benchmark_client')
         return f'rm node ; rm benchmark_client ; ln -s {node} . ; ln -s {client} .'

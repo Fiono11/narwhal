@@ -1,3 +1,4 @@
+use std::env;
 use std::thread::sleep;
 
 // Copyright(C) Facebook, Inc. and its affiliates.
@@ -28,6 +29,12 @@ pub const CHANNEL_CAPACITY: usize = 100_000;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Get the current directory.
+    let current_dir = env::current_dir().unwrap();
+    
+    // Print the current directory.
+    println!("Current directory: {}", current_dir.display());
+    
     let matches = App::new(crate_name!())
         .version(crate_version!())
         .about("A research implementation of Narwhal and Tusk.")

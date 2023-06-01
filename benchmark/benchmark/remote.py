@@ -9,6 +9,7 @@ from time import sleep
 from math import ceil
 from copy import deepcopy
 import subprocess
+from os.path import join
 
 from benchmark.config import Committee, Key, NodeParameters, BenchParameters, ConfigError
 from benchmark.utils import BenchError, Print, PathMaker, progress_bar
@@ -85,7 +86,7 @@ class Bench:
     def kill(self, hosts=[], delete_logs=False):
         assert isinstance(hosts, list)
         assert isinstance(delete_logs, bool)
-        hosts = hosts if hosts else self.manager.hosts(flat=True)
+        hosts = hosts if hosts else self.manager.hosts()
         delete_logs = CommandMaker.clean_logs() if delete_logs else 'true'
         cmd = [delete_logs, f'({CommandMaker.kill()} || true)']
         try:
@@ -131,7 +132,8 @@ class Bench:
 
     def _background_run(self, host, command, log_file):
         name = splitext(basename(log_file))[0]
-        cmd = f'tmux new -d -s "{name}" "{command} |& tee {log_file}"'
+        cmd = f'(cd /home/fiono/DelegatedRingCT/benchmark && tmux new -d -s "{name}" "{command} |& tee {log_file}")'
+        print("cmd: ", cmd)
         c = Connection(host, user='fiono', connect_kwargs=self.connect)
         output = c.run(cmd, hide=True)
         self._check_stderr(output)
@@ -204,9 +206,9 @@ class Bench:
             for ip in committee.ips(name):
                 c = Connection(ip, user='fiono', connect_kwargs=self.connect)
                 c.run(f'{CommandMaker.cleanup()} || true', hide=True)
-                c.put(PathMaker.committee_file(), '.')
-                c.put(PathMaker.key_file(i), '.')
-                c.put(PathMaker.parameters_file(), '.')
+                c.put(PathMaker.committee_file(), '/home/fiono/DelegatedRingCT/benchmark/')
+                c.put(PathMaker.key_file(i), '/home/fiono/DelegatedRingCT/benchmark/')
+                c.put(PathMaker.parameters_file(), '/home/fiono/DelegatedRingCT/benchmark/')
 
         return committee
 
@@ -283,12 +285,12 @@ class Bench:
             for id, address in addresses:
                 host = Committee.ip(address)
                 c = Connection(host, user='fiono', connect_kwargs=self.connect)
-                c.get(
-                    PathMaker.client_log_file(i, id), 
+                c.get( 
+                    f'/home/fiono/DelegatedRingCT/benchmark/logs/client-{i}-{id}.log',
                     local=PathMaker.client_log_file(i, id)
                 )
                 c.get(
-                    PathMaker.worker_log_file(i, id), 
+                    f'/home/fiono/DelegatedRingCT/benchmark/logs/worker-{i}-{id}.log',
                     local=PathMaker.worker_log_file(i, id)
                 )
 
@@ -298,7 +300,7 @@ class Bench:
             host = Committee.ip(address)
             c = Connection(host, user='fiono', connect_kwargs=self.connect)
             c.get(
-                PathMaker.primary_log_file(i), 
+                f'/home/fiono/DelegatedRingCT/benchmark/logs/primary-{i}.log',
                 local=PathMaker.primary_log_file(i)
             )
 
@@ -322,11 +324,11 @@ class Bench:
             return
 
         # Update nodes.
-        try:
+        '''try:
             self._update(selected_hosts, bench_parameters.collocate)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)
+            raise BenchError('Failed to update nodes', e)'''
 
         # Upload all configuration files.
         try:
