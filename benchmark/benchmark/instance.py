@@ -218,6 +218,9 @@ class InstanceManager:
 
     def hosts(self):
         return self.settings.hosts
+    
+    def ips(self):
+        return self.settings.ips
 
     def print_info(self):
         hosts = self.hosts()

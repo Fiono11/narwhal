@@ -72,7 +72,8 @@ class Bench:
             'sudo apt-get install -y clang',
 
             # Clone the repo.
-            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull))'
+            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .))'
+            f'(cd {self.settings.repo_name}/benchmark ; mkdir logs)'
         ]
         hosts = self.manager.hosts()
         try:
@@ -95,41 +96,6 @@ class Bench:
         except GroupException as e:
             raise BenchError('Failed to kill nodes', FabricError(e))
 
-    '''def _select_hosts(self, bench_parameters):
-        # Collocate the primary and its workers on the same machine.
-        if bench_parameters.collocate:
-            nodes = max(bench_parameters.nodes)
-
-            # Ensure there are enough hosts.
-            hosts = self.manager.hosts()
-            if sum(len(x) for x in hosts) < nodes:
-                return []
-
-            # Select the hosts in different data centers.
-            ordered = zip(*hosts)
-            ordered = [x for y in ordered for x in y]
-            return ordered[:nodes]
-
-        # Spawn the primary and each worker on a different machine. Each
-        # authority runs in a single data center.
-        else:
-            primaries = max(bench_parameters.nodes)
-
-            # Ensure there are enough hosts.
-            hosts = self.manager.hosts()
-            if len(hosts.keys()) < primaries:
-                return []
-            for ips in hosts:
-                if len(ips) < bench_parameters.workers + 1:
-                    return []
-
-            # Ensure the primary and its workers are in the same region.
-            selected = []
-            for region in list(hosts.keys())[:primaries]:
-                ips = list(hosts[region])[:bench_parameters.workers + 1]
-                selected.append(ips)
-            return selected'''
-
     def _background_run(self, host, command, log_file):
         name = splitext(basename(log_file))[0]
         cmd = f'(cd /home/fiono/DelegatedRingCT/benchmark && tmux new -d -s "{name}" "{command} |& tee {log_file}")'
@@ -148,19 +114,19 @@ class Bench:
             f'Updating {len(ips)} machines (branch "{self.settings.branch}")...'
         )
         cmd = [
-            f'(cd {self.settings.repo_name} && git fetch -f)',
-            f'(cd {self.settings.repo_name} && git checkout -f -b {self.settings.branch})',
-            f'(cd {self.settings.repo_name} && git pull -f)',
+            #f'(cd {self.settings.repo_name} && git fetch -f)',
+            #f'(cd {self.settings.repo_name} && git checkout -f -b {self.settings.branch})',
+            #f'(cd {self.settings.repo_name} && git pull -f)',
             'source $HOME/.cargo/env',
-            f'(cd {self.settings.repo_name}/node && {CommandMaker.compile()})',
+            f'(cd {self.settings.repo_name} && {CommandMaker.compile()})',
             CommandMaker.alias_binaries(
-                f'./{self.settings.repo_name}/target/release/'
+                f'{self.settings.repo_name}/target/release/'
             )
         ]
-        g = Group(*ips, user='fiono', connect_kwargs=self.connect)
+        g = Group(*hosts, user='fiono', connect_kwargs=self.connect)
         g.run(' && '.join(cmd), hide=True)
 
-    def _config(self, hosts, node_parameters, bench_parameters):
+    def _config(self, hosts, ips, node_parameters, bench_parameters):
         Print.info('Generating configuration files...')
 
         # Cleanup all local configuration files.
@@ -172,7 +138,7 @@ class Bench:
         subprocess.run(cmd, check=True, cwd=PathMaker.node_crate_path())
 
         # Create alias for the client and nodes binary.
-        cmd = CommandMaker.alias_binaries(PathMaker.binary_path())
+        cmd = CommandMaker.alias_binaries(PathMaker.binary_path(), True)
         subprocess.run([cmd], shell=True)
 
         # Generate configuration files.
@@ -188,11 +154,11 @@ class Bench:
         if bench_parameters.collocate:
             workers = bench_parameters.workers
             addresses = OrderedDict(
-                (x, [y] * (workers + 1)) for x, y in zip(names, hosts)
+                (x, [y] * (workers + 1)) for x, y in zip(names, ips)
             )
         else:
             addresses = OrderedDict(
-                (x, y) for x, y in zip(names, hosts)
+                (x, y) for x, y in zip(names, ips)
             )
         committee = Committee(addresses, self.settings.base_port)
         committee.print(PathMaker.committee_file())
@@ -203,7 +169,8 @@ class Bench:
         names = names[:len(names)-bench_parameters.faults]
         progress = progress_bar(names, prefix='Uploading config files:')
         for i, name in enumerate(progress):
-            for ip in committee.ips(name):
+            #for ip in committee.ips(name):
+            for ip in hosts:
                 c = Connection(ip, user='fiono', connect_kwargs=self.connect)
                 c.run(f'{CommandMaker.cleanup()} || true', hide=True)
                 c.put(PathMaker.committee_file(), '/home/fiono/DelegatedRingCT/benchmark/')
@@ -216,7 +183,8 @@ class Bench:
         faults = bench_parameters.faults
 
         # Kill any potentially unfinished run and delete logs.
-        hosts = committee.ips()
+        #hosts = committee.ips()
+        hosts = self.manager.hosts()
         self.kill(hosts=hosts, delete_logs=True)
 
         # Run the clients (they will wait for the nodes to be ready).
@@ -227,7 +195,7 @@ class Bench:
         rate_share = ceil(rate / committee.workers())
         for i, addresses in enumerate(workers_addresses):
             for (id, address) in addresses:
-                host = Committee.ip(address)
+                #host = Committee.ip(address)
                 cmd = CommandMaker.run_client(
                     address,
                     bench_parameters.tx_size,
@@ -235,12 +203,12 @@ class Bench:
                     [x for y in workers_addresses for _, x in y]
                 )
                 log_file = PathMaker.client_log_file(i, id)
-                self._background_run(host, cmd, log_file)
+                self._background_run(hosts[i], cmd, log_file)
 
         # Run the primaries (except the faulty ones).
         Print.info('Booting primaries...')
         for i, address in enumerate(committee.primary_addresses(faults)):
-            host = Committee.ip(address)
+            #host = Committee.ip(address)
             cmd = CommandMaker.run_primary(
                 PathMaker.key_file(i),
                 PathMaker.committee_file(),
@@ -249,13 +217,13 @@ class Bench:
                 debug=debug
             )
             log_file = PathMaker.primary_log_file(i)
-            self._background_run(host, cmd, log_file)
+            self._background_run(hosts[i], cmd, log_file)
 
         # Run the workers (except the faulty ones).
         Print.info('Booting workers...')
         for i, addresses in enumerate(workers_addresses):
             for (id, address) in addresses:
-                host = Committee.ip(address)
+                #host = Committee.ip(address)
                 cmd = CommandMaker.run_worker(
                     PathMaker.key_file(i),
                     PathMaker.committee_file(),
@@ -265,7 +233,7 @@ class Bench:
                     debug=debug
                 )
                 log_file = PathMaker.worker_log_file(i, id)
-                self._background_run(host, cmd, log_file)
+                self._background_run(hosts[i], cmd, log_file)
 
         # Wait for all transactions to be processed.
         duration = bench_parameters.duration
@@ -278,13 +246,15 @@ class Bench:
         cmd = CommandMaker.clean_logs()
         subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
 
+        hosts = self.manager.hosts()
+
         # Download log files.
         workers_addresses = committee.workers_addresses(faults)
         progress = progress_bar(workers_addresses, prefix='Downloading workers logs:')
         for i, addresses in enumerate(progress):
             for id, address in addresses:
-                host = Committee.ip(address)
-                c = Connection(host, user='fiono', connect_kwargs=self.connect)
+                #host = Committee.ip(address)
+                c = Connection(hosts[i], user='fiono', connect_kwargs=self.connect)
                 c.get( 
                     f'/home/fiono/DelegatedRingCT/benchmark/logs/client-{i}-{id}.log',
                     local=PathMaker.client_log_file(i, id)
@@ -297,8 +267,8 @@ class Bench:
         primary_addresses = committee.primary_addresses(faults)
         progress = progress_bar(primary_addresses, prefix='Downloading primaries logs:')
         for i, address in enumerate(progress):
-            host = Committee.ip(address)
-            c = Connection(host, user='fiono', connect_kwargs=self.connect)
+            #host = Committee.ip(address)
+            c = Connection(hosts[i], user='fiono', connect_kwargs=self.connect)
             c.get(
                 f'/home/fiono/DelegatedRingCT/benchmark/logs/primary-{i}.log',
                 local=PathMaker.primary_log_file(i)
@@ -324,16 +294,18 @@ class Bench:
             return
 
         # Update nodes.
-        '''try:
+        try:
             self._update(selected_hosts, bench_parameters.collocate)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)'''
+            raise BenchError('Failed to update nodes', e)
+        
+        ips = self.manager.ips()
 
         # Upload all configuration files.
         try:
             committee = self._config(
-                selected_hosts, node_parameters, bench_parameters
+                selected_hosts, ips, node_parameters, bench_parameters
             )
         except (subprocess.SubprocessError, GroupException) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
