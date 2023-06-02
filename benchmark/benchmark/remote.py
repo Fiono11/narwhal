@@ -72,10 +72,10 @@ class Bench:
             'sudo apt-get install -y clang',
 
             # Clone the repo.
-            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .))'
+            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) &&'
             f'(cd {self.settings.repo_name}/benchmark ; mkdir logs)'
         ]
-        hosts = self.manager.hosts()
+        hosts = [self.manager.hosts()[3]]
         try:
             g = Group(*hosts, user='fiono', connect_kwargs=self.connect)
             g.run(' && '.join(cmd), hide=True)
@@ -99,7 +99,7 @@ class Bench:
     def _background_run(self, host, command, log_file):
         name = splitext(basename(log_file))[0]
         cmd = f'(cd /home/fiono/DelegatedRingCT/benchmark && tmux new -d -s "{name}" "{command} |& tee {log_file}")'
-        print("cmd: ", cmd)
+        #print("cmd: ", cmd)
         c = Connection(host, user='fiono', connect_kwargs=self.connect)
         output = c.run(cmd, hide=True)
         self._check_stderr(output)
@@ -114,16 +114,16 @@ class Bench:
             f'Updating {len(ips)} machines (branch "{self.settings.branch}")...'
         )
         cmd = [
-            #f'(cd {self.settings.repo_name} && git fetch -f)',
+            f'(cd {self.settings.repo_name} && git fetch -f)',
             #f'(cd {self.settings.repo_name} && git checkout -f -b {self.settings.branch})',
-            #f'(cd {self.settings.repo_name} && git pull -f)',
+            f'(cd {self.settings.repo_name} && git pull -f)',
             'source $HOME/.cargo/env',
             f'(cd {self.settings.repo_name} && {CommandMaker.compile()})',
             CommandMaker.alias_binaries(
                 f'{self.settings.repo_name}/target/release/'
             )
         ]
-        g = Group(*hosts, user='fiono', connect_kwargs=self.connect)
+        g = Group([*hosts][3], user='fiono', connect_kwargs=self.connect)
         g.run(' && '.join(cmd), hide=True)
 
     def _config(self, hosts, ips, node_parameters, bench_parameters):
@@ -154,11 +154,11 @@ class Bench:
         if bench_parameters.collocate:
             workers = bench_parameters.workers
             addresses = OrderedDict(
-                (x, [y] * (workers + 1)) for x, y in zip(names, ips)
+                (x, [y] * (workers + 1)) for x, y in zip(names, hosts)
             )
         else:
             addresses = OrderedDict(
-                (x, y) for x, y in zip(names, ips)
+                (x, y) for x, y in zip(names, hosts)
             )
         committee = Committee(addresses, self.settings.base_port)
         committee.print(PathMaker.committee_file())
@@ -294,11 +294,11 @@ class Bench:
             return
 
         # Update nodes.
-        try:
+        '''try:
             self._update(selected_hosts, bench_parameters.collocate)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)
+            raise BenchError('Failed to update nodes', e)'''
         
         ips = self.manager.ips()
 
