@@ -151,9 +151,9 @@ impl Client {
     
                     tx.id = id.to_vec();
                     let message = bincode::serialize(&tx.clone()).unwrap();
-                    if counter == 0 {
-                        info!("TX SIZE: {:?}", message.len());
-                    }   
+                    //if counter == 0 {
+                        //info!("TX SIZE: {:?}", message.len());
+                    //}   
                     id.resize(size, 0u8);
                     id.split();
 
