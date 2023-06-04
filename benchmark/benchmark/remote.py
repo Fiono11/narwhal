@@ -72,12 +72,12 @@ class Bench:
             'sudo apt-get install -y clang',
 
             # Clone the repo.
-            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .))'
+            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) &&'
             f'(cd {self.settings.repo_name}/benchmark ; mkdir logs)'
         ]
         hosts = self.manager.hosts()
         try:
-            g = Group(*hosts, user='fiono', connect_kwargs=self.connect)
+            g = Group(*hosts[4:], user='fiono', connect_kwargs=self.connect)
             g.run(' && '.join(cmd), hide=True)
             Print.heading(f'Initialized testbed of {len(hosts)} nodes')
         except (GroupException, ExecutionError) as e:
@@ -114,9 +114,9 @@ class Bench:
             f'Updating {len(ips)} machines (branch "{self.settings.branch}")...'
         )
         cmd = [
-            #f'(cd {self.settings.repo_name} && git fetch -f)',
+            f'(cd {self.settings.repo_name} && git fetch -f)',
             #f'(cd {self.settings.repo_name} && git checkout -f -b {self.settings.branch})',
-            #f'(cd {self.settings.repo_name} && git pull -f)',
+            f'(cd {self.settings.repo_name} && git pull -f)',
             'source $HOME/.cargo/env',
             f'(cd {self.settings.repo_name} && {CommandMaker.compile()})',
             CommandMaker.alias_binaries(
@@ -294,11 +294,11 @@ class Bench:
             return
 
         # Update nodes.
-        try:
+        '''try:
             self._update(selected_hosts, bench_parameters.collocate)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)
+            raise BenchError('Failed to update nodes', e)'''
         
         ips = self.manager.ips()
 
