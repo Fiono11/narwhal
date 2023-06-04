@@ -281,6 +281,22 @@ impl MessageHandler for TxReceiverHandler {
         //let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
         let tx: Transaction = bincode::deserialize(&message).unwrap();
 
+        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
+                let mut x: Scalar = Scalar::one();
+
+                for i in 0..RING_SIZE {
+                    let (sk, pk) = KeyGen();
+                    R[i] = pk;
+
+                    if i == 0 {
+                        x = sk;
+                    }
+                }
+                //for tx in block.txs {
+                    Verify(&tx.signature, "msg", &R).unwrap();
+                    check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
+                //}
+
         //for tx in txs {
             self.tx_batch_maker
                 .send(tx)
@@ -310,6 +326,8 @@ impl MessageHandler for WorkerReceiverHandler {
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized) {
             Ok(WorkerMessage::Batch(block)) => { 
+                info!("Received block: {:?}", block);
+
                 let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
                 let mut x: Scalar = Scalar::one();
 
@@ -322,8 +340,8 @@ impl MessageHandler for WorkerReceiverHandler {
                     }
                 }
                 for tx in block.txs {
-                    Verify(&tx.signature, "msg", &R).unwrap();
-                    check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
+                    //Verify(&tx.signature, "msg", &R).unwrap();
+                    //check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
                 }
 
                 self
