@@ -20,8 +20,9 @@ pub trait Hash {
 pub struct Header {
     pub author: PublicAddress,
     pub round: Round,
-    pub payload: BTreeMap<TxHash, WorkerId>,
-    pub parents: BTreeSet<TxHash>,
+    //pub payload: BTreeMap<TxHash, WorkerId>,
+    //pub parents: BTreeSet<TxHash>,
+    pub payload: BTreeSet<TxHash>,
     pub id: TxHash,
     pub signature: RistrettoSignature,
     pub commit: bool,
@@ -30,9 +31,10 @@ pub struct Header {
 impl Header {
     pub async fn new(
         author: PublicAddress,
-        round: Round,
-        payload: BTreeMap<TxHash, WorkerId>,
-        parents: BTreeSet<TxHash>,
+        round: Round,        
+        payload: BTreeSet<TxHash>,
+        //payload: BTreeMap<TxHash, WorkerId>,
+        //parents: BTreeSet<TxHash>,
         signature_service: &mut SignatureService,
         commit: bool,
     ) -> Self {
@@ -40,7 +42,7 @@ impl Header {
             author,
             round,
             payload,
-            parents,
+            //parents,
             id: TxHash::default(),
             signature: RistrettoSignature::default(),
             commit,
@@ -63,11 +65,11 @@ impl Header {
         ensure!(voting_rights > 0, DagError::UnknownAuthority(self.author.clone()));
 
         // Ensure all worker ids are correct.
-        for worker_id in self.payload.values() {
+        /*for worker_id in self.payload.values() {
             committee
                 .worker(&PK(self.author.to_bytes()), &worker_id)
                 .map_err(|_| DagError::MalformedHeader(self.id.clone()))?;
-        }
+        }*/
 
         Ok(())
 
@@ -82,14 +84,14 @@ impl Hash for Header {
     fn digest(&self) -> TxHash {
         let mut hasher = Sha512::new();
         hasher.update(self.author.to_bytes());
-        hasher.update(self.round.to_le_bytes());
-        for (x, y) in &self.payload {
+        //hasher.update(self.round.to_le_bytes());
+        for x in &self.payload {
             hasher.update(x);
-            hasher.update(y.to_le_bytes());
+            //hasher.update(y.to_le_bytes());
         }
-        for x in &self.parents {
-            hasher.update(x);
-        }
+        //for x in &self.parents {
+            //hasher.update(x);
+        //}
         TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }
@@ -102,7 +104,7 @@ impl fmt::Debug for Header {
             self.id,
             self.round,
             self.author,
-            self.payload.keys().map(|x| x.size()).sum::<usize>(),
+            self.payload.iter().map(|x| x.size()).sum::<usize>(),
         )
     }
 }

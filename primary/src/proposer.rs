@@ -37,7 +37,7 @@ pub struct Proposer {
     /// Holds the certificates' ids waiting to be included in the next header.
     last_parents: Vec<Digest>,
     /// Holds the batches' digests waiting to be included in the next header.
-    digests: Vec<(Digest, WorkerId)>,
+    digests: Vec<Digest>,
     /// Keeps track of the size (in bytes) of batches' digests that we received so far.
     payload_size: usize,
 }
@@ -84,7 +84,7 @@ impl Proposer {
             self.name.clone(),
             self.round,
             self.digests.drain(..).collect(),
-            self.last_parents.drain(..).collect(),
+            //self.last_parents.drain(..).collect(),
             &mut self.signature_service,
             false,
         )
@@ -92,9 +92,9 @@ impl Proposer {
         //debug!("Created {:?}", header);
         
         #[cfg(feature = "benchmark")]
-        for digest in header.payload.keys() {
+        for digest in &header.payload {
             // NOTE: This log entry is used to compute performance.
-            info!("Created {} -> {:?}", header, digest.0);
+            info!("Created {} -> {:?}", &header, digest.0);
         }
 
         // Send the new header to the `Core` that will broadcast and process it.
@@ -124,7 +124,7 @@ impl Proposer {
 
             if enough_digests && enough_parents {
                 // Make a new header.
-                //self.make_header().await;
+                self.make_header().await;
                 self.payload_size = 0;
 
                 // Reschedule the timer.
@@ -148,8 +148,8 @@ impl Proposer {
                 Some((digest, worker_id)) = self.rx_workers.recv() => {
                     //info!("Received digest {:?}", digest);
                     self.payload_size += digest.size();
-                    self.digests.push((digest, worker_id));
-                    self.make_header().await;
+                    self.digests.push(digest);
+                    //self.make_header().await;
                     //info!("Size: {:?}", self.payload_size);
                     //info!("Digests: {:?}", self.digests);
                 }

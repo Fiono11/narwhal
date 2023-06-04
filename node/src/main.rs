@@ -9,7 +9,7 @@ use config::Import as _;
 use config::PK;
 use config::SK;
 use config::{Committee, KeyPair, Parameters, WorkerId};
-use consensus::Consensus;
+//use consensus::Consensus;
 use curve25519_dalek::scalar::Scalar;
 use env_logger::Env;
 use mc_account_keys::AccountKey;

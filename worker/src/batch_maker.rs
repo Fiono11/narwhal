@@ -98,7 +98,7 @@ impl BatchMaker {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
                     self.current_batch_size += transaction.len();
-                    //info!("tx size: {:?}", transaction.len());
+                    info!("tx: {:?}", transaction);
                     self.current_batch.push(transaction);
                     if self.current_batch_size >= self.batch_size {
                         self.seal().await;
@@ -107,12 +107,12 @@ impl BatchMaker {
                 },
 
                 // If the timer triggers, seal the batch even if it contains few transactions.
-                /*() = &mut timer => {
+                () = &mut timer => {
                     if !self.current_batch.is_empty() {
                         self.seal().await;
                     }
                     timer.as_mut().reset(Instant::now() + Duration::from_millis(self.max_batch_delay));
-                }*/
+                }
             }
 
             // Give the change to schedule other tasks.

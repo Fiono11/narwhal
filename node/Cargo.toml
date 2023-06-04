@@ -20,7 +20,6 @@ config = { path = "../config" }
 store = { path = "../store" }
 primary = { path = "../primary" }
 worker = { path = "../worker" }
-consensus = { path = "../consensus" }
 
 bulletproofs = "3"
 curve25519-dalek = { version = "4.0.0-pre.2", default-features = false }
@@ -34,7 +33,7 @@ mc-transaction-types = { path = "../transaction/types" }
 mc-util-from-random = { path = "../util/from-random" }
 
 [features]
-benchmark = ["worker/benchmark", "primary/benchmark", "consensus/benchmark"]
+benchmark = ["worker/benchmark", "primary/benchmark"]
 
 [[bin]]         
 name = "benchmark_client"   
