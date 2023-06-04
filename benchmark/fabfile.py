@@ -14,15 +14,15 @@ def local(ctx, debug=True):
     ''' Run benchmarks on localhost '''
     bench_params = {
         'faults': 0,
-        'nodes': [2],
+        'nodes': [10],
         'workers': 1,
         'rate': 500,
         'tx_size': 1833,
-        'duration': 10,
+        'duration': 30,
         'runs': 1,
     }
     node_params = {
-        'header_size': 50,  # bytes
+        'header_size': 3200,  # bytes
         'max_header_delay': 1000,  # ms
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms
