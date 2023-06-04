@@ -106,7 +106,7 @@ impl Core {
         //info!("Received {:?} from {:?}", header, header.author);
 
         if !header.commit {
-            info!("Received vote: {:?}", header);
+            //info!("Received vote: {:?}", header);
             match self.elections.get_mut(&header.id) {
                 Some(election) => {
                     election.votes.insert(header.author.clone());
@@ -126,7 +126,7 @@ impl Core {
                             .entry(header.round)
                             .or_insert_with(Vec::new)
                             .extend(handlers);
-                        info!("Sending vote: {:?}", header);
+                        //info!("Sending vote: {:?}", header);
                     }
                     if !election.votes.contains(&self.name) && !election.decided {
                         let mut own_header = header.clone();
@@ -149,7 +149,7 @@ impl Core {
                             .or_insert_with(Vec::new)
                             .extend(handlers);
                         election.votes.insert(own_header.author.clone());
-                        info!("Sending vote: {:?}", own_header);
+                        //info!("Sending vote: {:?}", own_header);
                     }
                     if election.votes.len() >= QUORUM && !election.commits.contains(&self.name) && !election.decided {
                         let mut own_header = header.clone();
@@ -173,7 +173,7 @@ impl Core {
                             .entry(header.round)
                             .or_insert_with(Vec::new)
                             .extend(handlers);
-                        info!("Sending commit: {:?}", own_header);
+                        //info!("Sending commit: {:?}", own_header);
                     }
                 }
                 None => {
@@ -181,7 +181,7 @@ impl Core {
                         #[cfg(feature = "benchmark")]
                         for digest in &header.payload {
                             // NOTE: This log entry is used to compute performance.
-                            info!("Created {} -> {:?}", header, digest.0);
+                            info!("Created {} -> {:?}", header, digest);
                         }
                     }
                     let mut election = Election::new();
@@ -202,7 +202,7 @@ impl Core {
                             .entry(header.round)
                             .or_insert_with(Vec::new)
                             .extend(handlers);
-                        info!("Sending vote: {:?}", header);
+                        //info!("Sending vote: {:?}", header);
                     }
                     if !election.votes.contains(&self.name) {
                         let mut own_header = header.clone();
@@ -222,14 +222,14 @@ impl Core {
                             .or_insert_with(Vec::new)
                             .extend(handlers);
                         election.votes.insert(own_header.author.clone());
-                        info!("Sending vote: {:?}", own_header);
+                        //info!("Sending vote: {:?}", own_header);
                     }
                     self.elections.insert(header.id, election);
                 }
             }
         }
         else {
-            info!("Received commit: {:?}", header);
+            //info!("Received commit: {:?}", header);
             match self.elections.get_mut(&header.id) {
                 Some(election) => {
                     election.commits.insert(header.author.clone());
@@ -251,7 +251,7 @@ impl Core {
                             .entry(header.round)
                             .or_insert_with(Vec::new)
                             .extend(handlers);
-                        info!("Sending commit: {:?}", own_header);
+                        //info!("Sending commit: {:?}", own_header);
                         election.commits.insert(own_header.author.clone());
                     }
                     if election.commits.len() >= QUORUM {
@@ -262,7 +262,7 @@ impl Core {
                             for digest in self.payloads.get(&payload).unwrap() {
                                 #[cfg(feature = "benchmark")]
                                 // NOTE: This log entry is used to compute performance.
-                                info!("Committed {} -> {:?}", header, digest.0);
+                                info!("Committed {} -> {:?}", header, digest);
                             }
                         }
                         election.decided = true;
@@ -275,7 +275,7 @@ impl Core {
                 }
             }
         }
-        info!("Election of {:?}: {:?}", &header, self.elections.get(&header.id).unwrap());
+        //info!("Election of {:?}: {:?}", &header, self.elections.get(&header.id).unwrap());
         Ok(())
     }
 

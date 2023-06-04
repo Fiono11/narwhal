@@ -133,12 +133,12 @@ impl Client {
         let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
         let mut id = BytesMut::with_capacity(size);
             
-        //'main: loop {
-        for x in 0..2 {
+        'main: loop {
+        //for x in 0..2 {
             interval.as_mut().tick().await;
             let now = Instant::now();
     
-                for x in 0..1 {
+                for x in 0..burst {
                     if x == counter % burst {
                         // NOTE: This log entry is used to compute performance.
                         info!("Sending sample transaction {}", counter);
@@ -151,7 +151,7 @@ impl Client {
                     };
     
                     tx.id = id.to_vec();
-                    info!("Sending transaction {:?}", tx);
+                    //info!("Sending transaction {:?}", tx);
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());
@@ -164,7 +164,7 @@ impl Client {
                     //for mut transport in transports.iter_mut() {
                         if let Err(e) = transport.send(bytes.clone()).await {
                             warn!("Failed to send transaction: {}", e);
-                            //break 'main;
+                            break 'main;
                         }
                     //}
                 }

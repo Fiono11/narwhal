@@ -94,7 +94,7 @@ impl Proposer {
         #[cfg(feature = "benchmark")]
         for digest in &header.payload {
             // NOTE: This log entry is used to compute performance.
-            info!("Created {} -> {:?}", &header, digest.0);
+            info!("Created {} -> {:?}", &header, digest);
         }
 
         // Send the new header to the `Core` that will broadcast and process it.
