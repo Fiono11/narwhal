@@ -123,7 +123,7 @@ class Bench:
                 f'{self.settings.repo_name}/target/release/'
             )
         ]
-        g = Group([*hosts][3], user='fiono', connect_kwargs=self.connect)
+        g = Group(*hosts, user='fiono', connect_kwargs=self.connect)
         g.run(' && '.join(cmd), hide=True)
 
     def _config(self, hosts, ips, node_parameters, bench_parameters):
@@ -294,11 +294,11 @@ class Bench:
             return
 
         # Update nodes.
-        '''try:
+        try:
             self._update(selected_hosts, bench_parameters.collocate)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)'''
+            raise BenchError('Failed to update nodes', e)
         
         ips = self.manager.ips()
 

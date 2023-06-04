@@ -64,6 +64,6 @@ class CommandMaker:
         assert isinstance(origin, str)
         node, client = join(origin, 'node'), join(origin, 'benchmark_client')
         if local == False:
-            return f'rm node ; rm benchmark_client ; ln -s {node} /home/fiono/DelegatedRingCT/benchmark ; ln -s {client} /home/fiono/DelegatedRingCT/benchmark'
+            return f'cp {node} /home/fiono/DelegatedRingCT/benchmark ; cp {client} /home/fiono/DelegatedRingCT/benchmark'
         else:
-            return f'rm node ; rm benchmark_client ; ln -s {node} /Users/ruimorais/DelegatedRingCT/benchmark ; ln -s {client} /Users/ruimorais/DelegatedRingCT/benchmark'
+            return f'cp {node} /Users/ruimorais/DelegatedRingCT/benchmark ; cp {client} /Users/ruimorais/DelegatedRingCT/benchmark'
