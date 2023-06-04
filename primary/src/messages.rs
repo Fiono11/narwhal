@@ -24,6 +24,7 @@ pub struct Header {
     pub parents: BTreeSet<TxHash>,
     pub id: TxHash,
     pub signature: RistrettoSignature,
+    pub commit: bool,
 }
 
 impl Header {
@@ -33,6 +34,7 @@ impl Header {
         payload: BTreeMap<TxHash, WorkerId>,
         parents: BTreeSet<TxHash>,
         signature_service: &mut SignatureService,
+        commit: bool,
     ) -> Self {
         let header = Self {
             author,
@@ -41,6 +43,7 @@ impl Header {
             parents,
             id: TxHash::default(),
             signature: RistrettoSignature::default(),
+            commit,
         };
         let id = header.digest();
         let signature = signature_service.request_signature(id.clone()).await;

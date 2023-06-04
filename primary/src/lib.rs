@@ -11,6 +11,7 @@ mod messages;
 mod payload_receiver;
 mod primary;
 mod proposer;
+mod election;
 //mod synchronizer;
 mod constants;
 

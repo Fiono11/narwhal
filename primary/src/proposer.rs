@@ -86,6 +86,7 @@ impl Proposer {
             self.digests.drain(..).collect(),
             self.last_parents.drain(..).collect(),
             &mut self.signature_service,
+            false,
         )
         .await;
         //debug!("Created {:?}", header);
