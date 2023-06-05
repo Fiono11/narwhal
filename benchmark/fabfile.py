@@ -16,7 +16,7 @@ def local(ctx, debug=True):
         'faults': 0,
         'nodes': [10],
         'workers': 1,
-        'rate': 400,
+        'rate': 1000,
         'tx_size': 3041,
         'duration': 60,
         'runs': 1,
