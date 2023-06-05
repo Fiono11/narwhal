@@ -17,7 +17,7 @@ def local(ctx, debug=True):
         'nodes': [10],
         'workers': 1,
         'rate': 400,
-        'tx_size': 1665,
+        'tx_size': 3041,
         'duration': 60,
         'runs': 1,
     }
@@ -107,7 +107,7 @@ def remote(ctx, debug=False):
         'workers': 1,
         'collocate': True,
         'rate': [400],
-        'tx_size': 1665,
+        'tx_size': 3041,
         'duration': 60,
         'runs': 1,
     }

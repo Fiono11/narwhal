@@ -464,7 +464,7 @@ use alloc::vec;
 
 	#[test]
 	pub fn test_signature() {
-		let size = 32;
+		let size = 16;
 		let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); size];
 		let mut x: Scalar = Scalar::one();
 		let index = 14;

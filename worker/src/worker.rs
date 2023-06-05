@@ -28,6 +28,7 @@ use primary::PrimaryWorkerMessage;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::net::SocketAddr;
+use std::time::{Instant, Duration};
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
 use mc_transaction_core::tx::{Transaction, get_subaddress};
@@ -167,7 +168,7 @@ impl Worker {
                     let (sk, pk) = KeyGen();
                     R[i] = pk;
 
-                    if i == 0 {
+                    if i == RING_SIZE {
                         x = sk;
                     }
                 }
@@ -294,8 +295,16 @@ impl MessageHandler for TxReceiverHandler {
         //let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
         let tx: Transaction = bincode::deserialize(&message).unwrap();
 
+        //let start2 = Instant::now();
+
                 //for tx in block.txs {
                     Verify(&tx.signature, "msg", &self.R).unwrap();
+
+		//let end2 = Instant::now();
+
+		//let duration2 = Duration::as_millis(&(end2-start2));
+
+		//info!("verification: {:?} ms", duration2);
                     check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
                 //}
 

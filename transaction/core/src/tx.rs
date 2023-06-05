@@ -296,7 +296,7 @@ pub fn create_transaction(
         let (sk, pk) = KeyGen();
         R[i] = pk;
 
-        if i == 0 {
+        if i == RING_SIZE {
             x = sk;
         }
     }
@@ -434,7 +434,7 @@ mod tests {
                 },
                 &bob.change_subaddress(),
                 &tx_private_key,
-                RistrettoPublic::default(),
+                PublicAddress::default(),
                 Scalar::one(), // fix this
             )
             .unwrap();
