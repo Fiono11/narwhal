@@ -75,9 +75,9 @@ class Bench:
             f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) &&'
             f'(cd {self.settings.repo_name}/benchmark ; mkdir logs)'
         ]
-        hosts = [self.manager.hosts()[3]]
+        hosts = self.manager.hosts()
         try:
-            g = Group(*hosts[4:], user='fiono', connect_kwargs=self.connect)
+            g = Group(*hosts[10:], user='fiono', connect_kwargs=self.connect)
             g.run(' && '.join(cmd), hide=True)
             Print.heading(f'Initialized testbed of {len(hosts)} nodes')
         except (GroupException, ExecutionError) as e:
