@@ -16,7 +16,7 @@ def local(ctx, debug=True):
         'faults': 0,
         'nodes': [10],
         'workers': 1,
-        'rate': 500,
+        'rate': 400,
         'tx_size': 1665,
         'duration': 60,
         'runs': 1,
@@ -106,18 +106,18 @@ def remote(ctx, debug=False):
         'nodes': [10],
         'workers': 1,
         'collocate': True,
-        'rate': [500],
+        'rate': [400],
         'tx_size': 1665,
         'duration': 60,
         'runs': 1,
     }
     node_params = {
-        'header_size': 31,  # bytes
+        'header_size': 3200,  # bytes
         'max_header_delay': 1000,  # ms
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms
         'sync_retry_nodes': 3,  # number of nodes
-        'batch_size': 1833,  # bytes
+        'batch_size': 1000,  # bytes
         'max_batch_delay': 1000  # ms
     }
     try:
