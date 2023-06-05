@@ -107,7 +107,7 @@ def remote(ctx, debug=False):
         'workers': 1,
         'collocate': True,
         'rate': [400],
-        'tx_size': 1833,
+        'tx_size': 4169,
         'duration': 60,
         'runs': 1,
     }
