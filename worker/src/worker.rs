@@ -160,6 +160,18 @@ impl Worker {
         let (tx_quorum_waiter, rx_quorum_waiter) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 
+        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
+                let mut x: Scalar = Scalar::one();
+
+                for i in 0..RING_SIZE {
+                    let (sk, pk) = KeyGen();
+                    R[i] = pk;
+
+                    if i == 0 {
+                        x = sk;
+                    }
+                }
+
         // We first receive clients' transactions from the network.
         let mut address = self
             .committee
@@ -169,7 +181,7 @@ impl Worker {
         address.set_ip("0.0.0.0".parse().unwrap());
         Receiver::spawn(
             address,
-            /* handler */ TxReceiverHandler { tx_batch_maker },
+            /* handler */ TxReceiverHandler { tx_batch_maker, R },
         );
 
         // The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
@@ -265,6 +277,7 @@ impl Worker {
 #[derive(Clone)]
 struct TxReceiverHandler {
     tx_batch_maker: Sender<Transaction>,
+    R: Vec<RistrettoPoint>,
 }
 
 #[derive(Default, Clone, Deserialize, Serialize, Debug)]
@@ -281,19 +294,8 @@ impl MessageHandler for TxReceiverHandler {
         //let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
         let tx: Transaction = bincode::deserialize(&message).unwrap();
 
-        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
-                let mut x: Scalar = Scalar::one();
-
-                for i in 0..RING_SIZE {
-                    let (sk, pk) = KeyGen();
-                    R[i] = pk;
-
-                    if i == 0 {
-                        x = sk;
-                    }
-                }
                 //for tx in block.txs {
-                    Verify(&tx.signature, "msg", &R).unwrap();
+                    Verify(&tx.signature, "msg", &self.R).unwrap();
                     check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
                 //}
 
