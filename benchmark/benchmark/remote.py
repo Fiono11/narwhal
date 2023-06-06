@@ -77,7 +77,7 @@ class Bench:
         ]
         hosts = self.manager.hosts()
         try:
-            g = Group(*hosts[10:], user='fiono', connect_kwargs=self.connect)
+            g = Group(*hosts[13:], user='fiono', connect_kwargs=self.connect)
             g.run(' && '.join(cmd), hide=True)
             Print.heading(f'Initialized testbed of {len(hosts)} nodes')
         except (GroupException, ExecutionError) as e:
@@ -169,13 +169,11 @@ class Bench:
         names = names[:len(names)-bench_parameters.faults]
         progress = progress_bar(names, prefix='Uploading config files:')
         for i, name in enumerate(progress):
-            #for ip in committee.ips(name):
-            for ip in hosts:
-                c = Connection(ip, user='fiono', connect_kwargs=self.connect)
-                c.run(f'{CommandMaker.cleanup()} || true', hide=True)
-                c.put(PathMaker.committee_file(), '/home/fiono/DelegatedRingCT/benchmark/')
-                c.put(PathMaker.key_file(i), '/home/fiono/DelegatedRingCT/benchmark/')
-                c.put(PathMaker.parameters_file(), '/home/fiono/DelegatedRingCT/benchmark/')
+            c = Connection(hosts[i], user='fiono', connect_kwargs=self.connect)
+            c.run(f'{CommandMaker.cleanup()} || true', hide=True)
+            c.put(PathMaker.committee_file(), '/home/fiono/DelegatedRingCT/benchmark/')
+            c.put(PathMaker.key_file(i), '/home/fiono/DelegatedRingCT/benchmark/')
+            c.put(PathMaker.parameters_file(), '/home/fiono/DelegatedRingCT/benchmark/')
 
         return committee
 
@@ -294,11 +292,11 @@ class Bench:
             return
 
         # Update nodes.
-        '''try:
+        try:
             self._update(selected_hosts, bench_parameters.collocate)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)'''
+            raise BenchError('Failed to update nodes', e)
         
         ips = self.manager.ips()
 
