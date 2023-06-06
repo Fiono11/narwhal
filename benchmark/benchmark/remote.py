@@ -294,11 +294,11 @@ class Bench:
             return
 
         # Update nodes.
-        '''try:
+        try:
             self._update(selected_hosts, bench_parameters.collocate)
         except (GroupException, ExecutionError) as e:
             e = FabricError(e) if isinstance(e, GroupException) else e
-            raise BenchError('Failed to update nodes', e)'''
+            raise BenchError('Failed to update nodes', e)
         
         ips = self.manager.ips()
 
