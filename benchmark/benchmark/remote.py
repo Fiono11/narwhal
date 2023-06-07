@@ -77,7 +77,7 @@ class Bench:
         ]
         hosts = self.manager.hosts()
         try:
-            g = Group(*hosts[13:], user='fiono', connect_kwargs=self.connect)
+            g = Group(*hosts[16:], user='fiono', connect_kwargs=self.connect)
             g.run(' && '.join(cmd), hide=True)
             Print.heading(f'Initialized testbed of {len(hosts)} nodes')
         except (GroupException, ExecutionError) as e:
