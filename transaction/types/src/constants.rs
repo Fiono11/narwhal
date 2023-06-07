@@ -8,7 +8,7 @@ use mc_crypto_ring_signature::Scalar;
 pub const MAX_TRANSACTIONS_PER_BLOCK: usize = 5000;
 
 /// Each input ring must contain this many elements.
-pub const RING_SIZE: usize = 32;
+pub const RING_SIZE: usize = 64;
 
 /// Each transaction must contain no more than this many inputs (rings).
 pub const MAX_INPUTS: u64 = 16;
