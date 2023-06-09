@@ -14,6 +14,7 @@ use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use bytes::Bytes;
+use primary::Hash;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -112,7 +113,7 @@ impl Client {
         let mut tx = Transaction::new();
         tx.data = data;
         let mut counter = 0;
-        let mut r: u64 = rand::thread_rng().gen();
+        let mut r: u64 = 0;
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -138,7 +139,7 @@ impl Client {
                 };
 
                 tx.id = id.to_vec();
-                    //info!("Sending transaction {:?}", tx);
+                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());

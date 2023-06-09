@@ -1,17 +1,19 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::core::Core;
 use crate::error::DagError;
-use crate::messages::{Certificate, Header};
+use crate::messages::{Certificate, Header, Hash};
 use crate::payload_receiver::PayloadReceiver;
 use crate::proposer::Proposer;
 use async_trait::async_trait;
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
 use crypto::{Digest, PublicKey, SignatureService, SecretKey};
+use ed25519_dalek::{Digest as _, Sha512};
 use futures::sink::SinkExt as _;
 use log::info;
 use network::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use std::error::Error;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
@@ -223,6 +225,15 @@ impl Transaction {
             data: Vec::new(),
             id: Vec::new(),
         }
+    }
+}
+
+impl Hash for Transaction {
+    fn digest(&self) -> Digest {
+        let mut hasher = Sha512::new();
+        hasher.update(&self.data);
+        hasher.update(&self.id);
+        hasher.finalize().as_slice()[..32].try_into().unwrap()
     }
 }
 
