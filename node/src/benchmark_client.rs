@@ -3,23 +3,15 @@ use anyhow::{Context, Result};
 use bytes::BufMut as _;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
-use curve25519_dalek::scalar::Scalar;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
 use log::{info, warn};
-use mc_account_keys::AccountKey;
-use mc_account_keys::PublicAddress;
-use mc_crypto_keys::RistrettoPrivate;
-use mc_transaction_core::tx::TxOut;
-use mc_transaction_core::tx::create_transaction;
-use mc_transaction_types::Amount;
 use rand::Rng;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use bytes::Bytes;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -101,77 +93,55 @@ impl Client {
             ));
         }
 
-        //let mut transports = Vec::new();
+        // Connect to the mempool.
+        let stream = TcpStream::connect(self.target)
+            .await
+            .context(format!("failed to connect to {}", self.target))?;
 
-        //for target in &self.nodes {
-            // Connect to the mempool.
-            let stream = TcpStream::connect(self.target)
-                .await
-                .context(format!("failed to connect to {}", self.target))?;
-            let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
-            //transports.push(transport);
-        //}
-        
         // Submit all transactions.
         let burst = self.rate / PRECISION;
-        let size = 9;
+        let mut tx = BytesMut::with_capacity(self.size);
         let mut counter = 0;
-        let mut r = rand::thread_rng().gen();
-        let mut rng = rand_core::OsRng;
+        let mut r: u64 = rand::thread_rng().gen();
+        let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
 
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
 
-        let amount = Amount::new(1);
-        let recipient = PublicAddress::default();
-        let tx_private_key = RistrettoPrivate::default();
-        let sender = AccountKey::default();
-        let coin_key = Scalar::random(&mut rng);
-        let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address(), coin_key).unwrap(); 
-        //let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
-        let mut tx = BytesMut::with_capacity(self.size);
-        //let mut id = BytesMut::with_capacity(size);
-            
         'main: loop {
-        //for x in 0..2 {
             interval.as_mut().tick().await;
             let now = Instant::now();
-    
-                for x in 0..burst {
-                    if x == counter % burst {
-                        // NOTE: This log entry is used to compute performance.
-                        info!("Sending sample transaction {}", counter);
-                        tx.put_u8(0u8); // Sample txs start with 0.
-                        tx.put_u64(counter); // This counter identifies the tx.
-                    } else {
-                        r += 1;
-                        tx.put_u8(1u8); // Standard txs start with 1.
-                        tx.put_u64(r); // Ensures all clients send different txs.
-                    };
-    
-                    //tx.id = id.to_vec();
-                    //info!("Sending transaction {:?}", tx);
-                    //let message = bincode::serialize(&tx.clone()).unwrap();
-                    //if counter == 0 {
-                        //info!("TX SIZE: {:?}", message.len());
-                    //}   
-                    let bytes = tx.split().freeze();
 
-                    //if counter == 0 {
-                    //for mut transport in transports.iter_mut() {
-                        if let Err(e) = transport.send(bytes).await {
-                            warn!("Failed to send transaction: {}", e);
-                            break 'main;
-                        }
-                    //}
-                }
-                if now.elapsed().as_millis() > BURST_DURATION as u128 {
+            for x in 0..burst {
+                if x == counter % burst {
                     // NOTE: This log entry is used to compute performance.
-                    warn!("Transaction rate too high for this client");
+                    info!("Sending sample transaction {}", counter);
+
+                    tx.put_u8(0u8); // Sample txs start with 0.
+                    tx.put_u64(counter); // This counter identifies the tx.
+                    info!("tx1: {:?}", tx);
+                } else {
+                    r += 1;
+                    tx.put_u8(1u8); // Standard txs start with 1.
+                    tx.put_u64(r); // Ensures all clients send different txs.
+                    info!("tx2: {:?}", tx);
+                };
+
+                tx.resize(self.size, 0u8);
+                info!("tx3: {:?}", tx);
+                let bytes = tx.split().freeze();
+                if let Err(e) = transport.send(bytes).await {
+                    warn!("Failed to send transaction: {}", e);
+                    break 'main;
                 }
-                counter += 1;
+            }
+            if now.elapsed().as_millis() > BURST_DURATION as u128 {
+                // NOTE: This log entry is used to compute performance.
+                warn!("Transaction rate too high for this client");
+            }
+            counter += 1;
         }
         Ok(())
     }
@@ -184,10 +154,8 @@ impl Client {
                 while TcpStream::connect(address).await.is_err() {
                     sleep(Duration::from_millis(10)).await;
                 }
-                info!("Successfully connected to {}", address); 
             })
         }))
         .await;
     }
 }
-
