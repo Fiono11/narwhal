@@ -87,7 +87,7 @@ impl BatchMaker {
             tokio::select! {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
-                    self.current_batch_size += transaction.len();
+                    self.current_batch_size += transaction.data.len() + 32;
                     //info!("tx: {:?}", transaction);
                     self.current_batch.push(transaction);
                     if self.current_batch_size >= self.batch_size {
@@ -122,8 +122,8 @@ impl BatchMaker {
         let tx_ids: Vec<_> = self
             .current_batch
             .iter()
-            .filter(|tx| tx[0] == 0u8 && tx.len() > 8)
-            .filter_map(|tx| tx[1..9].try_into().ok())
+            .filter(|tx| tx.id[0] == 0u8 && tx.id.len() > 8)
+            .filter_map(|tx| tx.id[1..9].try_into().ok())
             .collect();
 
         //info!("tx_ids: {:?}", tx_ids);

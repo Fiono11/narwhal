@@ -209,6 +209,21 @@ impl MessageHandler for WorkerReceiverHandler {
     }
 }
 
-pub type Transaction = Vec<u8>;
+//pub type Transaction = Vec<u8>;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Transaction {
+    pub data: Vec<u8>,
+    pub id: Vec<u8>,
+}
+
+impl Transaction {
+    pub fn new() -> Self {
+        Self {
+            data: Vec::new(),
+            id: Vec::new(),
+        }
+    }
+}
 
 pub type Batch = Vec<Transaction>;

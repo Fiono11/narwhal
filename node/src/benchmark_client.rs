@@ -7,11 +7,13 @@ use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
 use log::{info, warn};
+use primary::Transaction;
 use rand::Rng;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use bytes::Bytes;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -93,6 +95,8 @@ impl Client {
             ));
         }
 
+        let size = 9;
+
         // Connect to the mempool.
         let stream = TcpStream::connect(self.target)
             .await
@@ -100,7 +104,13 @@ impl Client {
 
         // Submit all transactions.
         let burst = self.rate / PRECISION;
-        let mut tx = BytesMut::with_capacity(self.size);
+        let mut data: Vec<u8> = Vec::new();
+        for _ in 0..self.size {
+            data.push(rand::thread_rng().gen());
+        }
+        let mut id: BytesMut = BytesMut::with_capacity(size);
+        let mut tx = Transaction::new();
+        tx.data = data;
         let mut counter = 0;
         let mut r: u64 = rand::thread_rng().gen();
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
@@ -119,20 +129,26 @@ impl Client {
                     // NOTE: This log entry is used to compute performance.
                     info!("Sending sample transaction {}", counter);
 
-                    tx.put_u8(0u8); // Sample txs start with 0.
-                    tx.put_u64(counter); // This counter identifies the tx.
-                    info!("tx1: {:?}", tx);
+                    id.put_u8(0u8); // Sample txs start with 0.
+                    id.put_u64(counter); // This counter identifies the tx.
                 } else {
                     r += 1;
-                    tx.put_u8(1u8); // Standard txs start with 1.
-                    tx.put_u64(r); // Ensures all clients send different txs.
-                    info!("tx2: {:?}", tx);
+                    id.put_u8(1u8); // Standard txs start with 1.
+                    id.put_u64(r); // Ensures all clients send different txs.
                 };
 
-                tx.resize(self.size, 0u8);
-                info!("tx3: {:?}", tx);
-                let bytes = tx.split().freeze();
-                if let Err(e) = transport.send(bytes).await {
+                tx.id = id.to_vec();
+                    //info!("Sending transaction {:?}", tx);
+                    let message = bincode::serialize(&tx.clone()).unwrap();
+                    //if counter == 0 {
+                        //info!("TX SIZE: {:?}", message.len());
+                    //}   
+                    id.resize(size, 0u8);
+                    id.split();
+
+                    let bytes = Bytes::from(message);
+
+                if let Err(e) = transport.send(bytes.clone()).await {
                     warn!("Failed to send transaction: {}", e);
                     break 'main;
                 }

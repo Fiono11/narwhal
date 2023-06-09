@@ -55,8 +55,7 @@ pub struct Core {
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
     elections: HashMap<TxHash, Election>,
-    payloads: HashMap<TxHash, BTreeSet<TxHash>>,
-    to_commit: BTreeSet<TxHash>
+    //payloads: HashMap<TxHash, BTreeSet<TxHash>>,
 }
 
 impl Core {
@@ -90,8 +89,7 @@ impl Core {
                 network: ReliableSender::new(),
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 elections: HashMap::new(),
-                payloads: HashMap::new(),
-                to_commit: BTreeSet::new(),
+                //payloads: HashMap::new(),
             }
             .run()
             .await;
@@ -108,7 +106,7 @@ impl Core {
             match self.elections.get_mut(&header.id) {
                 Some(election) => {
                     election.votes.insert(header.author.clone());
-                    self.payloads.insert(header.id.clone(), header.payload.clone());
+                    //self.payloads.insert(header.id.clone(), header.payload.clone());
                     if header.author == self.name {
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
@@ -129,9 +127,9 @@ impl Core {
                     if !election.votes.contains(&self.name) && !election.decided {
                         let mut own_header = header.clone();
                         own_header.author = self.name.clone();
-                        let mut payload = BTreeSet::new();
-                        payload.insert(header.id.clone());
-                        own_header.payload = payload;
+                        //let mut payload = BTreeSet::new();
+                        //payload.insert(header.id.clone());
+                        //own_header.payload = payload;
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
@@ -152,9 +150,9 @@ impl Core {
                     if election.votes.len() >= QUORUM && !election.commits.contains(&self.name) && !election.decided {
                         let mut own_header = header.clone();
                         own_header.author = self.name.clone();
-                        let mut payload = BTreeSet::new();
-                        payload.insert(header.id.clone());
-                        own_header.payload = payload;
+                        //let mut payload = BTreeSet::new();
+                        //payload.insert(header.id.clone());
+                        //own_header.payload = payload;
                         own_header.commit = true;
                         election.commits.insert(own_header.author.clone());
                         // Broadcast the new header in a reliable manner.
@@ -184,7 +182,7 @@ impl Core {
                     }
                     let mut election = Election::new();
                     election.votes.insert(header.author.clone());
-                    self.payloads.insert(header.id.clone(), header.payload.clone());
+                    //self.payloads.insert(header.id.clone(), header.payload.clone());
                     if header.author == self.name {
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
@@ -257,11 +255,11 @@ impl Core {
                         info!("Committed {}", header);
 
                         for payload in &header.payload {
-                            for digest in self.payloads.get(&payload).unwrap() {
+                            //for digest in self.payloads.get(&payload).unwrap() {
                                 #[cfg(feature = "benchmark")]
                                 // NOTE: This log entry is used to compute performance.
-                                info!("Committed {} -> {:?}", header, digest);
-                            }
+                                info!("Committed {} -> {:?}", header, payload);
+                            //}
                         }
                         election.decided = true;
                     }

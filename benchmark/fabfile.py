@@ -22,7 +22,7 @@ def local(ctx, debug=True):
         'runs': 1,
     }
     node_params = {
-        'header_size': 3200,  # bytes
+        'header_size': 32,  # bytes
         'max_header_delay': 1000,  # ms
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms

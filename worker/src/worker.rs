@@ -266,7 +266,7 @@ impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
         //info!("TX received: {:?}", message);
         //let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
-        //let tx: Transaction = bincode::deserialize(&message).unwrap();
+        let tx: Transaction = bincode::deserialize(&message).unwrap();
 
         //let start2 = Instant::now();
 
@@ -283,7 +283,7 @@ impl MessageHandler for TxReceiverHandler {
 
         //for tx in txs {
             self.tx_batch_maker
-                .send(message.to_vec())
+                .send(tx)
                 .await
                 .expect("Failed to send transaction");
         //}
