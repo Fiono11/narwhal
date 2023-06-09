@@ -1,15 +1,13 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::worker::SerializedBatchDigestMessage;
 use config::WorkerId;
-use mc_crypto_keys::Ed25519Public as PublicKey;
-use mc_crypto_keys::tx_hash::TxHash as Digest;
+use crypto::Digest;
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
 use primary::WorkerPrimaryMessage;
 use std::convert::TryInto;
 use store::Store;
 use tokio::sync::mpsc::{Receiver, Sender};
-use mc_transaction_core::tx::Transaction;
 
 #[cfg(test)]
 #[path = "tests/processor_tests.rs"]

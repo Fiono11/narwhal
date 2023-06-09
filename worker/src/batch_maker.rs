@@ -3,26 +3,16 @@ use crate::processor::SerializedBatchMessage;
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
-use bulletproofs_og::PedersenGens;
 use bytes::Bytes;
-use chacha20poly1305::aead::{Aead, OsRng};
-use chacha20poly1305::{Key, ChaCha20Poly1305, Nonce, KeyInit};
-use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
-use log::info;
-//#[cfg(feature = "benchmark")]
-//use crypto::Digest;
-use mc_account_keys::{PublicAddress as PublicKey, AccountKey};
-use mc_crypto_keys::RistrettoPublic;
-use mc_crypto_keys::tx_hash::TxHash as Digest;
+#[cfg(feature = "benchmark")]
+use crypto::Digest;
+use crypto::PublicKey;
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
-//#[cfg(feature = "benchmark")]
-//use log::info;
-use mc_crypto_ring_signature::Scalar;
-use mc_crypto_ring_signature::onetime_keys::create_shared_secret;
-use mc_transaction_core::range_proofs::generate_range_proofs;
-use mc_transaction_core::tx::Transaction;
+#[cfg(feature = "benchmark")]
+use log::info;
 use network::ReliableSender;
+use primary::Transaction;
 #[cfg(feature = "benchmark")]
 use std::convert::TryInto as _;
 use std::net::SocketAddr;
@@ -132,8 +122,8 @@ impl BatchMaker {
         let tx_ids: Vec<_> = self
             .current_batch
             .iter()
-            .filter(|tx| tx.id[0] == 0u8 && tx.id.len() > 8)
-            .filter_map(|tx| tx.id[1..9].try_into().ok())
+            .filter(|tx| tx[0] == 0u8 && tx.len() > 8)
+            .filter_map(|tx| tx[1..9].try_into().ok())
             .collect();
 
         //info!("tx_ids: {:?}", tx_ids);
@@ -198,7 +188,7 @@ impl BatchMaker {
             }
 
             // NOTE: This log entry is used to compute performance.
-            info!("Batch {:?} contains {} B", digest, size,);
+            info!("Batch {:?} contains {} B", digest, size);
         }
 
         // Broadcast the batch through the network.

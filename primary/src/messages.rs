@@ -1,11 +1,9 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
 use crate::primary::Round;
-use config::{Committee, WorkerId, PK};
+use config::{Committee, WorkerId};
 use ed25519_dalek::{Digest as _, Sha512};
-use mc_account_keys::PublicAddress;
-use mc_crypto_keys::{RistrettoSignature, SignatureService};
-use mc_crypto_keys::tx_hash::TxHash;
+use crypto::{Digest as TxHash, PublicKey as PublicAddress, Signature, SignatureService};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::convert::{TryInto, TryFrom};
@@ -24,7 +22,7 @@ pub struct Header {
     //pub parents: BTreeSet<TxHash>,
     pub payload: BTreeSet<TxHash>,
     pub id: TxHash,
-    pub signature: RistrettoSignature,
+    pub signature: Signature,
     pub commit: bool,
 }
 
@@ -44,7 +42,7 @@ impl Header {
             payload,
             //parents,
             id: TxHash::default(),
-            signature: RistrettoSignature::default(),
+            signature: Signature::default(),
             commit,
         };
         let id = header.digest();
@@ -61,7 +59,7 @@ impl Header {
         ensure!(self.digest() == self.id, DagError::InvalidHeaderId);
 
         // Ensure the authority has voting rights.
-        let voting_rights = committee.stake(&PK(self.author.to_bytes()));
+        let voting_rights = committee.stake(&self.author);
         ensure!(voting_rights > 0, DagError::UnknownAuthority(self.author.clone()));
 
         // Ensure all worker ids are correct.
@@ -83,7 +81,7 @@ impl Header {
 impl Hash for Header {
     fn digest(&self) -> TxHash {
         let mut hasher = Sha512::new();
-        hasher.update(self.author.to_bytes());
+        hasher.update(self.author);
         //hasher.update(self.round.to_le_bytes());
         for x in &self.payload {
             hasher.update(x);
@@ -121,7 +119,7 @@ pub struct Vote {
     pub round: Round,
     pub origin: PublicAddress,
     pub author: PublicAddress,
-    pub signature: RistrettoSignature,
+    pub signature: Signature,
 }
 
 impl Vote {
@@ -135,7 +133,7 @@ impl Vote {
             round: header.round,
             origin: header.author.clone(),
             author: author.clone(),
-            signature: RistrettoSignature::default(),
+            signature: Signature::default(),
         };
         let signature = signature_service.request_signature(vote.digest()).await;
         Self { signature, ..vote }
@@ -144,7 +142,7 @@ impl Vote {
     pub fn verify(&self, committee: &Committee) -> DagResult<()> {
         // Ensure the authority has voting rights.
         ensure!(
-            committee.stake(&PK(self.author.to_bytes())) > 0,
+            committee.stake(&self.author) > 0,
             DagError::UnknownAuthority(self.author.clone())
         );
 
@@ -162,7 +160,7 @@ impl Hash for Vote {
         let mut hasher = Sha512::new();
         hasher.update(&self.id);
         hasher.update(self.round.to_le_bytes());
-        hasher.update(&self.origin.to_bytes());
+        hasher.update(&self.origin);
         TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }
@@ -183,7 +181,7 @@ impl fmt::Debug for Vote {
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Certificate {
     pub header: Header,
-    pub votes: Vec<(PublicAddress, RistrettoSignature)>,
+    pub votes: Vec<(PublicAddress, Signature)>,
 }
 
 impl Certificate {
@@ -193,7 +191,7 @@ impl Certificate {
             .keys()
             .map(|name| Self {
                 header: Header {
-                    author: PublicAddress::from_bytes(name.0),
+                    author: name.clone(),
                     ..Header::default()
                 },
                 ..Self::default()
@@ -215,7 +213,7 @@ impl Certificate {
         let mut used = HashSet::new();
         for (name, _) in self.votes.iter() {
             ensure!(!used.contains(name), DagError::AuthorityReuse(name.clone()));
-            let voting_rights = committee.stake(&PK(name.to_bytes()));
+            let voting_rights = committee.stake(&name);
             ensure!(voting_rights > 0, DagError::UnknownAuthority(name.clone()));
             used.insert(name.clone());
             weight += voting_rights;
@@ -244,7 +242,7 @@ impl Hash for Certificate {
         let mut hasher = Sha512::new();
         hasher.update(&self.header.id);
         hasher.update(self.round().to_le_bytes());
-        hasher.update(&self.origin().to_bytes());
+        hasher.update(&self.origin());
         TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }

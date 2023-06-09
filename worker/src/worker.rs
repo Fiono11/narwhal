@@ -6,32 +6,18 @@ use crate::processor::{Processor, SerializedBatchMessage};
 use crate::quorum_waiter::QuorumWaiter;
 use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
-use bulletproofs_og::{PedersenGens, RangeProof};
 use bytes::Bytes;
-use chacha20poly1305::aead::{Aead, OsRng};
-use chacha20poly1305::{Key, ChaCha20Poly1305, KeyInit, Nonce};
-use config::{Committee, Parameters, WorkerId, PK};
-use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
-use curve25519_dalek::ristretto::CompressedRistretto;
-use curve25519_dalek::traits::Identity;
-use mc_account_keys::{PublicAddress as PublicKey, AccountKey};
-use mc_crypto_keys::{RistrettoPublic, RistrettoPrivate, ReprBytes, GenericArray};
-use mc_crypto_keys::tx_hash::TxHash as Digest;
+use config::{Committee, Parameters, WorkerId};
+use crypto::{Digest, PublicKey};
 use futures::sink::SinkExt as _;
-use log::{error, info, warn, debug};
-use mc_crypto_ring_signature::onetime_keys::{create_shared_secret, recover_onetime_private_key};
-use mc_crypto_ring_signature::{Verify, KeyGen, RistrettoPoint, Scalar};
-use mc_transaction_core::range_proofs::check_range_proof;
-use mc_transaction_types::constants::RING_SIZE;
+use log::{error, info, warn};
 use network::{MessageHandler, Receiver, Writer};
-use primary::PrimaryWorkerMessage;
+use primary::{PrimaryWorkerMessage, Transaction};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::net::SocketAddr;
-use std::time::{Instant, Duration};
 use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
-use mc_transaction_core::tx::{Transaction, get_subaddress};
 
 #[cfg(test)]
 #[path = "tests/worker_tests.rs"]
@@ -86,7 +72,7 @@ impl Worker {
 
         let primary_address = worker
             .committee
-            .primary(&PK(worker.name.to_bytes()))
+            .primary(&worker.name)
             .expect("Our public key is not in the committee")
             .worker_to_primary;
 
@@ -100,7 +86,7 @@ impl Worker {
         PrimaryConnector::spawn(
             worker
                 .committee
-                .primary(&PK(worker.name.to_bytes()))
+                .primary(&worker.name)
                 .expect("Our public key is not in the committee")
                 .worker_to_primary,
             rx_primary,
@@ -112,7 +98,7 @@ impl Worker {
             id,
             worker
                 .committee
-                .worker(&PK(worker.name.to_bytes()), &worker.id)
+                .worker(&worker.name, &worker.id)
                 .expect("Our public key or worker id is not in the committee")
                 .transactions
                 .ip()
@@ -126,7 +112,7 @@ impl Worker {
         // Receive incoming messages from our primary.
         let mut address = self
             .committee
-            .worker(&PK(self.name.to_bytes()), &self.id)
+            .worker(&self.name, &self.id)
             .expect("Our public key or worker id is not in the committee")
             .primary_to_worker;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -161,28 +147,16 @@ impl Worker {
         let (tx_quorum_waiter, rx_quorum_waiter) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 
-        let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
-                let mut x: Scalar = Scalar::one();
-
-                for i in 0..RING_SIZE {
-                    let (sk, pk) = KeyGen();
-                    R[i] = pk;
-
-                    if i == RING_SIZE {
-                        x = sk;
-                    }
-                }
-
         // We first receive clients' transactions from the network.
         let mut address = self
             .committee
-            .worker(&PK(self.name.to_bytes()), &self.id)
+            .worker(&self.name, &self.id)
             .expect("Our public key or worker id is not in the committee")
             .transactions;
         address.set_ip("0.0.0.0".parse().unwrap());
         Receiver::spawn(
             address,
-            /* handler */ TxReceiverHandler { tx_batch_maker, R },
+            /* handler */ TxReceiverHandler { tx_batch_maker },
         );
 
         // The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
@@ -195,9 +169,9 @@ impl Worker {
             /* tx_message */ tx_quorum_waiter,
             /* workers_addresses */
             self.committee
-                .others_workers(&PK(self.name.to_bytes()), &self.id)
+                .others_workers(&self.name, &self.id)
                 .iter()
-                .map(|(name, addresses)| (PublicKey::from_bytes(name.0), addresses.worker_to_worker))
+                .map(|(name, addresses)| (*name, addresses.worker_to_worker))
                 .collect(),
             primary_address,
             tx_processor
@@ -236,7 +210,7 @@ impl Worker {
         // Receive incoming messages from other workers.
         let mut address = self
             .committee
-            .worker(&PK(self.name.to_bytes()), &self.id)
+            .worker(&self.name, &self.id)
             .expect("Our public key or worker id is not in the committee")
             .worker_to_worker;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -278,7 +252,6 @@ impl Worker {
 #[derive(Clone)]
 struct TxReceiverHandler {
     tx_batch_maker: Sender<Transaction>,
-    R: Vec<RistrettoPoint>,
 }
 
 #[derive(Default, Clone, Deserialize, Serialize, Debug)]
@@ -293,24 +266,24 @@ impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
         //info!("TX received: {:?}", message);
         //let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
-        let tx: Transaction = bincode::deserialize(&message).unwrap();
+        //let tx: Transaction = bincode::deserialize(&message).unwrap();
 
         //let start2 = Instant::now();
 
                 //for tx in block.txs {
-                    Verify(&tx.signature, "msg", &self.R).unwrap();
+                    //Verify(&tx.signature, "msg", &self.R).unwrap();
 
 		//let end2 = Instant::now();
 
 		//let duration2 = Duration::as_millis(&(end2-start2));
 
 		//info!("verification: {:?} ms", duration2);
-                    check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
+                    //check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
                 //}
 
         //for tx in txs {
             self.tx_batch_maker
-                .send(tx)
+                .send(message.to_vec())
                 .await
                 .expect("Failed to send transaction");
         //}
@@ -338,22 +311,6 @@ impl MessageHandler for WorkerReceiverHandler {
         match bincode::deserialize(&serialized) {
             Ok(WorkerMessage::Batch(block)) => { 
                 info!("Received block: {:?}", block);
-
-                let mut R: Vec<RistrettoPoint> = vec![RistrettoPoint::identity(); RING_SIZE];
-                let mut x: Scalar = Scalar::one();
-
-                for i in 0..RING_SIZE {
-                    let (sk, pk) = KeyGen();
-                    R[i] = pk;
-
-                    if i == 0 {
-                        x = sk;
-                    }
-                }
-                for tx in block.txs {
-                    //Verify(&tx.signature, "msg", &R).unwrap();
-                    //check_range_proof(&RangeProof::from_bytes(&tx.range_proof_bytes).unwrap(), &tx.commitment, &PedersenGens::default(), &mut OsRng).unwrap();
-                }
 
                 self
                     .tx_processor

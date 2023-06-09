@@ -1,17 +1,15 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::core::Core;
 use crate::error::DagError;
-use crate::messages::{Certificate, Header, Vote};
+use crate::messages::{Certificate, Header};
 use crate::payload_receiver::PayloadReceiver;
 use crate::proposer::Proposer;
 use async_trait::async_trait;
 use bytes::Bytes;
-use config::{Committee, Parameters, WorkerId, PK, KeyPair, SK};
-use curve25519_dalek::scalar::Scalar;
+use config::{Committee, Parameters, WorkerId};
+use crypto::{Digest, PublicKey, SignatureService, SecretKey};
 use futures::sink::SinkExt as _;
 use log::info;
-use mc_account_keys::{PublicAddress, AccountKey};
-use mc_transaction_core::tx::Transaction;
 use network::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -19,9 +17,6 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use mc_crypto_keys::{SignatureService, RistrettoPrivate, ReprBytes};
-use config::PK as PublicKey;
-use mc_crypto_keys::tx_hash::TxHash as Digest;
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 100_000;
@@ -56,8 +51,8 @@ pub struct Primary;
 
 impl Primary {
     pub fn spawn(
-        name: PublicAddress,
-        secret: AccountKey,
+        name: PublicKey,
+        secret: SecretKey,
         committee: Committee,
         parameters: Parameters,
         store: Store,
@@ -79,7 +74,7 @@ impl Primary {
 
         // Spawn the network receiver listening to messages from the other primaries.
         let mut address = committee
-            .primary(&PK(name.to_bytes()))
+            .primary(&name)
             .expect("Our public key or worker id is not in the committee")
             .primary_to_primary;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -97,7 +92,7 @@ impl Primary {
 
         // Spawn the network receiver listening to messages from our workers.
         let mut address = committee
-            .primary(&PK(name.to_bytes()))
+            .primary(&name)
             .expect("Our public key or worker id is not in the committee")
             .worker_to_primary;
         address.set_ip("0.0.0.0".parse().unwrap());
@@ -114,12 +109,8 @@ impl Primary {
             name, address
         );
 
-        let mut bytes = [0; 32];
-        bytes.copy_from_slice(&SK(secret.to_bytes()).0[..32]);
-        let s = Scalar::from_bits(bytes);
-
         // The `SignatureService` is used to require signatures on specific digests.
-        let signature_service = SignatureService::new(RistrettoPrivate(s));
+        let signature_service = SignatureService::new(secret);
 
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         Core::spawn(
@@ -155,7 +146,7 @@ impl Primary {
             "Primary {} successfully booted on {}",
             name.clone(),
             committee
-                .primary(&PK(name.to_bytes()))
+                .primary(&name)
                 .expect("Our public key or worker id is not in the committee")
                 .primary_to_primary
                 .ip()
@@ -217,5 +208,7 @@ impl MessageHandler for WorkerReceiverHandler {
         Ok(())
     }
 }
+
+pub type Transaction = Vec<u8>;
 
 pub type Batch = Vec<Transaction>;

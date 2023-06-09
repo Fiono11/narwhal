@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use mc_account_keys::PublicAddress;
+use crypto::PublicKey as PublicAddress;
 
 #[derive(Debug)]
 pub struct Election {

@@ -1,9 +1,7 @@
 use crate::messages::{Certificate, Header, Hash};
 use crate::primary::Round;
 use config::{Committee, WorkerId};
-use mc_crypto_keys::SignatureService;
-use mc_account_keys::PublicAddress as PublicKey;
-use mc_crypto_keys::tx_hash::TxHash as Digest;
+use crypto::{Digest, PublicKey, SignatureService};
 use log::{debug, info};
 //#[cfg(feature = "benchmark")]
 //use log::info;

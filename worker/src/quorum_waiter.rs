@@ -1,8 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::processor::SerializedBatchMessage;
-use config::{Committee, Stake, PK};
-use mc_account_keys::PublicAddress as PublicKey;
-use mc_crypto_keys::tx_hash::TxHash as Digest;
+use config::{Committee, Stake};
+use crypto::PublicKey;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use network::CancelHandler;
@@ -64,7 +63,7 @@ impl QuorumWaiter {
             let mut wait_for_quorum: FuturesUnordered<_> = handlers
                 .into_iter()
                 .map(|(name, handler)| {
-                    let stake = self.committee.stake(&PK(name.to_bytes()));
+                    let stake = self.committee.stake(&name);
                     Self::waiter(handler, stake)
                 })
                 .collect();

@@ -130,8 +130,9 @@ impl Client {
         let sender = AccountKey::default();
         let coin_key = Scalar::random(&mut rng);
         let tx_out = TxOut::new(amount, &recipient, &tx_private_key, sender.to_public_address(), coin_key).unwrap(); 
-        let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
-        let mut id = BytesMut::with_capacity(size);
+        //let mut tx = create_transaction(&tx_out, &sender, &recipient, amount.value, Vec::new());
+        let mut tx = BytesMut::with_capacity(self.size);
+        //let mut id = BytesMut::with_capacity(size);
             
         'main: loop {
         //for x in 0..2 {
@@ -142,27 +143,25 @@ impl Client {
                     if x == counter % burst {
                         // NOTE: This log entry is used to compute performance.
                         info!("Sending sample transaction {}", counter);
-                        id.put_u8(0u8); // Sample txs start with 0.
-                        id.put_u64(counter); // This counter identifies the tx.
+                        tx.put_u8(0u8); // Sample txs start with 0.
+                        tx.put_u64(counter); // This counter identifies the tx.
                     } else {
                         r += 1;
-                        id.put_u8(1u8); // Standard txs start with 1.
-                        id.put_u64(r); // Ensures all clients send different txs.
+                        tx.put_u8(1u8); // Standard txs start with 1.
+                        tx.put_u64(r); // Ensures all clients send different txs.
                     };
     
-                    tx.id = id.to_vec();
+                    //tx.id = id.to_vec();
                     //info!("Sending transaction {:?}", tx);
-                    let message = bincode::serialize(&tx.clone()).unwrap();
+                    //let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());
                     //}   
-                    id.resize(size, 0u8);
-                    id.split();
+                    let bytes = tx.split().freeze();
 
-                    let bytes = Bytes::from(message);
                     //if counter == 0 {
                     //for mut transport in transports.iter_mut() {
-                        if let Err(e) = transport.send(bytes.clone()).await {
+                        if let Err(e) = transport.send(bytes).await {
                             warn!("Failed to send transaction: {}", e);
                             break 'main;
                         }

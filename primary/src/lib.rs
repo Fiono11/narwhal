@@ -20,4 +20,4 @@ mod constants;
 mod common;
 
 pub use crate::messages::{Certificate, Header, Hash};
-pub use crate::primary::{Primary, PrimaryWorkerMessage, Round, WorkerPrimaryMessage};
+pub use crate::primary::{Primary, PrimaryWorkerMessage, Round, WorkerPrimaryMessage, Transaction};

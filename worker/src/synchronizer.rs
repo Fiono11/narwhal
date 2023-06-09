@@ -1,9 +1,8 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::worker::{Round, WorkerMessage};
 use bytes::Bytes;
-use config::{Committee, WorkerId, PK};
-use mc_account_keys::PublicAddress as PublicKey;
-use mc_crypto_keys::tx_hash::TxHash as Digest;
+use config::{Committee, WorkerId};
+use crypto::{PublicKey, Digest};
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt as _;
 use log::{debug, error};
@@ -208,7 +207,7 @@ impl Synchronizer {
                     }
                     if !retry.is_empty() {
                         let addresses = self.committee
-                            .others_workers(&PK(self.name.to_bytes()), &self.id)
+                            .others_workers(&self.name, &self.id)
                             .iter().map(|(_, address)| address.worker_to_worker)
                             .collect();
                         let message = WorkerMessage::BatchRequest(retry, self.name.clone());

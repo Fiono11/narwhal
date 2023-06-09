@@ -1,23 +1,21 @@
-// Copyright(C) Facebook, Inc. and its affiliates.
 use crate::constants::{QUORUM, SEMI_QUORUM};
-use crate::election::{Election, self};
+use crate::election::Election;
+// Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
-use crate::messages::{Certificate, Header, Vote, Hash};
+use crate::messages::{Certificate, Header, Vote};
 use crate::primary::{PrimaryMessage, Round};
 use async_recursion::async_recursion;
 use bytes::Bytes;
-use config::{Committee, PK};
-use log::{debug, error, warn};
-use mc_account_keys::PublicAddress;
-use mc_crypto_keys::SignatureService;
-use mc_crypto_keys::tx_hash::TxHash;
-use network::{CancelHandler, ReliableSender, SimpleSender};
+use config::Committee;
+use crypto::Hash as _;
+use crypto::{Digest as TxHash, PublicKey as PublicAddress, SignatureService};
+use log::{debug, error, warn, info};
+use network::{CancelHandler, ReliableSender};
 use std::collections::{HashMap, HashSet, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use store::Store;
 use tokio::sync::mpsc::{Receiver, Sender};
-use log::info;
 
 #[cfg(test)]
 #[path = "tests/core_tests.rs"]
@@ -110,12 +108,12 @@ impl Core {
             match self.elections.get_mut(&header.id) {
                 Some(election) => {
                     election.votes.insert(header.author.clone());
-                    self.payloads.insert(header.id, header.payload.clone());
+                    self.payloads.insert(header.id.clone(), header.payload.clone());
                     if header.author == self.name {
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
-                            .others_primaries(&PK(self.name.to_bytes()))
+                            .others_primaries(&self.name)
                             .iter()
                             .map(|(_, x)| x.primary_to_primary)
                             .collect();
@@ -132,12 +130,12 @@ impl Core {
                         let mut own_header = header.clone();
                         own_header.author = self.name.clone();
                         let mut payload = BTreeSet::new();
-                        payload.insert(header.id);
+                        payload.insert(header.id.clone());
                         own_header.payload = payload;
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
-                            .others_primaries(&PK(self.name.to_bytes()))
+                            .others_primaries(&self.name)
                             .iter()
                             .map(|(_, x)| x.primary_to_primary)
                             .collect();
@@ -155,14 +153,14 @@ impl Core {
                         let mut own_header = header.clone();
                         own_header.author = self.name.clone();
                         let mut payload = BTreeSet::new();
-                        payload.insert(header.id);
+                        payload.insert(header.id.clone());
                         own_header.payload = payload;
                         own_header.commit = true;
                         election.commits.insert(own_header.author.clone());
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
-                            .others_primaries(&PK(self.name.to_bytes()))
+                            .others_primaries(&self.name)
                             .iter()
                             .map(|(_, x)| x.primary_to_primary)
                             .collect();
@@ -186,12 +184,12 @@ impl Core {
                     }
                     let mut election = Election::new();
                     election.votes.insert(header.author.clone());
-                    self.payloads.insert(header.id, header.payload.clone());
+                    self.payloads.insert(header.id.clone(), header.payload.clone());
                     if header.author == self.name {
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
-                            .others_primaries(&PK(self.name.to_bytes()))
+                            .others_primaries(&self.name)
                             .iter()
                             .map(|(_, x)| x.primary_to_primary)
                             .collect();
@@ -210,7 +208,7 @@ impl Core {
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
-                            .others_primaries(&PK(self.name.to_bytes()))
+                            .others_primaries(&self.name)
                             .iter()
                             .map(|(_, x)| x.primary_to_primary)
                             .collect();
@@ -224,7 +222,7 @@ impl Core {
                         election.votes.insert(own_header.author.clone());
                         //info!("Sending vote: {:?}", own_header);
                     }
-                    self.elections.insert(header.id, election);
+                    self.elections.insert(header.id.clone(), election);
                 }
             }
         }
@@ -240,7 +238,7 @@ impl Core {
                         // Broadcast the new header in a reliable manner.
                         let addresses = self
                             .committee
-                            .others_primaries(&PK(self.name.to_bytes()))
+                            .others_primaries(&self.name)
                             .iter()
                             .map(|(_, x)| x.primary_to_primary)
                             .collect();
@@ -271,7 +269,7 @@ impl Core {
                 None => {
                     let mut election = Election::new();
                     election.commits.insert(header.author.clone());
-                    self.elections.insert(header.id, election);
+                    self.elections.insert(header.id.clone(), election);
                 }
             }
         }

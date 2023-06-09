@@ -1,25 +1,11 @@
-use std::env;
-use std::thread::sleep;
-
 // Copyright(C) Facebook, Inc. and its affiliates.
 use anyhow::{Context, Result};
 use clap::{crate_name, crate_version, App, AppSettings, ArgMatches, SubCommand};
 use config::Export as _;
 use config::Import as _;
-use config::PK;
-use config::SK;
 use config::{Committee, KeyPair, Parameters, WorkerId};
-//use consensus::Consensus;
-use curve25519_dalek::scalar::Scalar;
 use env_logger::Env;
-use mc_account_keys::AccountKey;
-use mc_account_keys::PublicAddress;
-use mc_crypto_keys::Ed25519Pair;
-use mc_crypto_keys::RistrettoPrivate;
-use mc_crypto_keys::RistrettoPublic;
-use mc_util_from_random::FromRandom;
 use primary::{Certificate, Primary};
-use rand_core::OsRng;
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver};
 use worker::Worker;
@@ -68,31 +54,8 @@ async fn main() -> Result<()> {
     logger.format_timestamp_millis();
     logger.init();
 
-    let sk1 = RistrettoPrivate(Scalar::random(&mut OsRng));
-    let sk2 = RistrettoPrivate(Scalar::random(&mut OsRng));
-    let pk1 = RistrettoPublic::from(&sk1);
-    let pk2 = RistrettoPublic::from(&sk2);
-    let a: [u8; 32] = *sk1.as_ref();
-    let mut b = a.to_vec();
-    let c: [u8; 32] = *sk2.as_ref();
-    let mut d = c.to_vec();
-    b.append(&mut d); 
-    let e: [u8; 32] = pk1.as_ref().compress().to_bytes();
-    let mut f = e.to_vec();
-    let g: [u8; 32] = pk2.as_ref().compress().to_bytes();
-    let mut h = g.to_vec();
-    f.append(&mut h); 
-    let mut i = [0; 64];
-    i.copy_from_slice(&f[..]);
-    let mut j = [0; 64];
-    j.copy_from_slice(&b[..]);
-    let keypair = KeyPair {
-        name: PK(i),
-        secret: SK(j)
-    };
-
     match matches.subcommand() {
-        ("generate_keys", Some(sub_matches)) => keypair
+        ("generate_keys", Some(sub_matches)) => KeyPair::new()
             .export(sub_matches.value_of("filename").unwrap())
             .context("Failed to generate key pair")?,
         ("run", Some(sub_matches)) => run(sub_matches).await?,
@@ -136,8 +99,8 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
             let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
             let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
             Primary::spawn(
-                PublicAddress::from_bytes(keypair.name.0),
-                AccountKey::from_bytes(keypair.secret.0),
+                keypair.name,
+                keypair.secret,
                 committee.clone(),
                 parameters.clone(),
                 store,
@@ -153,7 +116,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 .unwrap()
                 .parse::<WorkerId>()
                 .context("The worker id must be a positive integer")?;
-            Worker::spawn(PublicAddress::from_bytes(keypair.name.0), id, committee, parameters, store);
+            Worker::spawn(keypair.name, id, committee, parameters, store);
         }
         _ => unreachable!(),
     }
