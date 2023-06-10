@@ -204,7 +204,7 @@ impl Worker {
 
     /// Spawn all tasks responsible to handle messages from other workers.
     fn handle_workers_messages(&self, tx_primary: Sender<SerializedBatchDigestMessage>) {
-        let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
+       /*let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from other workers.
@@ -233,7 +233,7 @@ impl Worker {
 
         // This `Processor` hashes and stores the batches we receive from the other workers. It then forwards the
         // batch's digest to the `PrimaryConnector` that will send it to our primary.
-        Processor::spawn(
+        Processor::spawnx(
             self.id,
             self.store.clone(),
             /* rx_batch */ rx_processor,
@@ -244,7 +244,7 @@ impl Worker {
         info!(
             "Worker {} listening to worker messages on {}",
             self.id, address
-        );
+        );*/
     }
 }
 
@@ -295,10 +295,10 @@ impl MessageHandler for TxReceiverHandler {
 }
 
 /// Defines how the network receiver handles incoming workers messages.
-#[derive(Clone)]
+/*#[derive(Clone)]
 struct WorkerReceiverHandler {
     tx_helper: Sender<(Vec<Digest>, PublicKey)>,
-    tx_processor: Sender<SerializedBatchMessage>,
+    tx_processor: Sender<(SerializedBatchMessage, Digest)>,
 }
 
 #[async_trait]
@@ -327,7 +327,7 @@ impl MessageHandler for WorkerReceiverHandler {
         }
         Ok(())
     }
-}
+}*/
 
 /// Defines how the network receiver handles incoming primary messages.
 #[derive(Clone)]

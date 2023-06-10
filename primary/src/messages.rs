@@ -1,9 +1,11 @@
+use crate::core::TxHash;
+use crate::election::ElectionId;
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
 use crate::primary::Round;
 use config::{Committee, WorkerId};
 use ed25519_dalek::{Digest as _, Sha512};
-use crypto::{Digest as TxHash, PublicKey as PublicAddress, Signature, SignatureService};
+use crypto::{Digest, PublicKey as PublicAddress, Signature, SignatureService};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::convert::{TryInto, TryFrom};
@@ -20,7 +22,7 @@ pub struct Header {
     pub round: Round,
     //pub payload: BTreeMap<TxHash, WorkerId>,
     //pub parents: BTreeSet<TxHash>,
-    pub payload: BTreeSet<TxHash>,
+    pub payload: BTreeSet<(TxHash, ElectionId)>,
     pub id: TxHash,
     pub signature: Signature,
     pub commit: bool,
@@ -30,7 +32,7 @@ impl Header {
     pub async fn new(
         author: PublicAddress,
         round: Round,        
-        payload: BTreeSet<TxHash>,
+        payload: BTreeSet<(TxHash, ElectionId)>,
         //payload: BTreeMap<TxHash, WorkerId>,
         //parents: BTreeSet<TxHash>,
         signature_service: &mut SignatureService,
@@ -83,14 +85,15 @@ impl Hash for Header {
         let mut hasher = Sha512::new();
         hasher.update(self.author);
         //hasher.update(self.round.to_le_bytes());
-        for x in &self.payload {
+        for (x, y) in &self.payload {
             hasher.update(x);
+            hasher.update(y);
             //hasher.update(y.to_le_bytes());
         }
         //for x in &self.parents {
             //hasher.update(x);
         //}
-        TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
+        Digest(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }
 
@@ -102,7 +105,7 @@ impl fmt::Debug for Header {
             self.id,
             self.round,
             self.author,
-            self.payload.iter().map(|x| x.size()).sum::<usize>(),
+            self.payload.iter().map(|x| x.0.size()).sum::<usize>(),
         )
     }
 }
@@ -161,7 +164,7 @@ impl Hash for Vote {
         hasher.update(&self.id);
         hasher.update(self.round.to_le_bytes());
         hasher.update(&self.origin);
-        TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
+        Digest(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }
 
@@ -243,7 +246,7 @@ impl Hash for Certificate {
         hasher.update(&self.header.id);
         hasher.update(self.round().to_le_bytes());
         hasher.update(&self.origin());
-        TxHash(hasher.finalize().as_slice()[..32].try_into().unwrap())
+        Digest(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }
 

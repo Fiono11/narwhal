@@ -27,7 +27,7 @@ def local(ctx, debug=True):
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms
         'sync_retry_nodes': 3,  # number of nodes
-        'batch_size': 1000,  # bytes
+        'batch_size': 500,  # bytes
         'max_batch_delay': 1000  # ms
     }
     '''try:

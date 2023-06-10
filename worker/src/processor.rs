@@ -4,6 +4,7 @@ use config::WorkerId;
 use crypto::Digest;
 use ed25519_dalek::Digest as _;
 use ed25519_dalek::Sha512;
+use log::info;
 use primary::WorkerPrimaryMessage;
 use std::convert::TryInto;
 use store::Store;
@@ -26,14 +27,15 @@ impl Processor {
         // The persistent storage.
         mut store: Store,
         // Input channel to receive batches.
-        mut rx_batch: Receiver<SerializedBatchMessage>,
+        mut rx_batch: Receiver<(SerializedBatchMessage, Digest)>,
         // Output channel to send out batches' digests.
         tx_digest: Sender<SerializedBatchDigestMessage>,
         // Whether we are processing our own batches or the batches of other nodes.
         own_digest: bool,
     ) {
         tokio::spawn(async move {
-            while let Some(batch) = rx_batch.recv().await {
+            while let Some((batch, election_id)) = rx_batch.recv().await {
+                //info!("id: {:?}", election_id);
                 // validate txs
                 //let txs: Vec<Transaction> = bincode::deserialize(&batch).unwrap();
 
@@ -45,8 +47,8 @@ impl Processor {
 
                 // Deliver the batch's digest.
                 let message = match own_digest {
-                    true => WorkerPrimaryMessage::OurBatch(digest, id),
-                    false => WorkerPrimaryMessage::OthersBatch(digest, id),
+                    true => WorkerPrimaryMessage::OurBatch(digest, election_id),
+                    false => WorkerPrimaryMessage::OthersBatch(digest, election_id),
                 };
                 let message = bincode::serialize(&message)
                     .expect("Failed to serialize our own worker-primary message");

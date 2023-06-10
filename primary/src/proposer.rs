@@ -1,3 +1,5 @@
+use crate::core::TxHash;
+use crate::election::ElectionId;
 use crate::messages::{Certificate, Header, Hash};
 use crate::primary::Round;
 use config::{Committee, WorkerId};
@@ -26,7 +28,7 @@ pub struct Proposer {
     /// Receives the parents to include in the next header (along with their round number).
     rx_core: Receiver<(Vec<Digest>, Round)>,
     /// Receives the batches' digests from our workers.
-    rx_workers: Receiver<(Digest, WorkerId)>,
+    rx_workers: Receiver<(TxHash, ElectionId)>,
     /// Sends newly created headers to the `Core`.
     tx_core: Sender<Header>,
 
@@ -35,7 +37,7 @@ pub struct Proposer {
     /// Holds the certificates' ids waiting to be included in the next header.
     last_parents: Vec<Digest>,
     /// Holds the batches' digests waiting to be included in the next header.
-    digests: Vec<Digest>,
+    digests: Vec<(TxHash, ElectionId)>,
     /// Keeps track of the size (in bytes) of batches' digests that we received so far.
     payload_size: usize,
 }
@@ -49,7 +51,7 @@ impl Proposer {
         header_size: usize,
         max_header_delay: u64,
         rx_core: Receiver<(Vec<Digest>, Round)>,
-        rx_workers: Receiver<(Digest, WorkerId)>,
+        rx_workers: Receiver<(TxHash, ElectionId)>,
         tx_core: Sender<Header>,
     ) {
         let genesis = Certificate::genesis(committee)
@@ -92,7 +94,7 @@ impl Proposer {
         #[cfg(feature = "benchmark")]
         for digest in &header.payload {
             // NOTE: This log entry is used to compute performance.
-            info!("Created {} -> {:?}", &header, digest);
+            info!("Created {} -> {:?}", &header, digest.1);
         }
 
         // Send the new header to the `Core` that will broadcast and process it.
@@ -143,10 +145,10 @@ impl Proposer {
                     // Signal that we have enough parent certificates to propose a new header.
                     self.last_parents = parents;
                 }
-                Some((digest, worker_id)) = self.rx_workers.recv() => {
+                Some((tx_hash, election_id)) = self.rx_workers.recv() => {
                     //info!("Received digest {:?}", digest);
-                    self.payload_size += digest.size();
-                    self.digests.push(digest);
+                    self.payload_size += tx_hash.size();
+                    self.digests.push((tx_hash, election_id));
                     //self.make_header().await;
                     //info!("Size: {:?}", self.payload_size);
                     //info!("Digests: {:?}", self.digests);

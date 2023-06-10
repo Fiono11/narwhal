@@ -1,5 +1,6 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::core::Core;
+use crate::core::{Core, TxHash};
+use crate::election::{ElectionId, self};
 use crate::error::DagError;
 use crate::messages::{Certificate, Header, Hash};
 use crate::payload_receiver::PayloadReceiver;
@@ -44,9 +45,9 @@ pub enum PrimaryWorkerMessage {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WorkerPrimaryMessage {
     /// The worker indicates it sealed a new batch.
-    OurBatch(Digest, WorkerId),
+    OurBatch(TxHash, ElectionId),
     /// The worker indicates it received a batch's digest from another authority.
-    OthersBatch(Digest, WorkerId),
+    OthersBatch(TxHash, ElectionId),
 }
 
 pub struct Primary;
@@ -183,8 +184,8 @@ impl MessageHandler for PrimaryReceiverHandler {
 /// Defines how the network receiver handles incoming workers messages.
 #[derive(Clone)]
 struct WorkerReceiverHandler {
-    tx_our_digests: Sender<(Digest, WorkerId)>,
-    tx_others_digests: Sender<(Digest, WorkerId)>,
+    tx_our_digests: Sender<(TxHash, ElectionId)>,
+    tx_others_digests: Sender<(TxHash, ElectionId)>,
 }
 
 #[async_trait]
@@ -196,14 +197,14 @@ impl MessageHandler for WorkerReceiverHandler {
     ) -> Result<(), Box<dyn Error>> {
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized).map_err(DagError::SerializationError)? {
-            WorkerPrimaryMessage::OurBatch(digest, worker_id) => self
+            WorkerPrimaryMessage::OurBatch(digest, election_id) => self
                 .tx_our_digests
-                .send((digest, worker_id))
+                .send((digest, election_id))
                 .await
                 .expect("Failed to send workers' digests"),
-            WorkerPrimaryMessage::OthersBatch(digest, worker_id) => self
+            WorkerPrimaryMessage::OthersBatch(digest, election_id) => self
                 .tx_others_digests
-                .send((digest, worker_id))
+                .send((digest, election_id))
                 .await
                 .expect("Failed to send workers' digests"),
         }

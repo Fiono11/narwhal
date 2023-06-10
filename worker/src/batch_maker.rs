@@ -4,12 +4,11 @@ use crate::processor::SerializedBatchMessage;
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
 use bytes::Bytes;
-#[cfg(feature = "benchmark")]
-use crypto::Digest;
-use crypto::PublicKey;
+//#[cfg(feature = "benchmark")]
+use crypto::{PublicKey, Digest};
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
-#[cfg(feature = "benchmark")]
+//#[cfg(feature = "benchmark")]
 use log::info;
 use network::ReliableSender;
 use primary::Transaction;
@@ -47,7 +46,7 @@ pub struct BatchMaker {
     /// The primary network address.
     primary_address: SocketAddr,
     /// Channel to deliver batches for which we have enough acknowledgements.
-    tx_batch: Sender<SerializedBatchMessage>,
+    tx_batch: Sender<(SerializedBatchMessage, Digest)>,
 }
 
 impl BatchMaker {
@@ -58,7 +57,7 @@ impl BatchMaker {
         tx_message: Sender<QuorumWaiterMessage>,
         workers_addresses: Vec<(PublicKey, SocketAddr)>,
         primary_address: SocketAddr,
-        tx_batch: Sender<SerializedBatchMessage>,
+        tx_batch: Sender<(SerializedBatchMessage, Digest)>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -160,12 +159,25 @@ impl BatchMaker {
 
         //let (range_proof, commitments) = generate_range_proofs(&amounts, &blindings, &generators, &mut OsRng).unwrap();
         let block = Block {
-            txs: batch,
+            txs: batch.clone(),
             //range_proof_bytes: range_proof.to_bytes(),
             //commitments,
         };
         let message = WorkerMessage::Batch(block);
         let serialized = bincode::serialize(&message).expect("Failed to serialize our own batch");
+
+        let mut array: [u8; 32] = [0; 32];
+
+        let vec = batch[0].id.clone();
+    
+        let vec_len = vec.len();
+        
+        if vec_len < 32 {
+            array[..vec_len].clone_from_slice(&vec[..vec_len]);
+        } else {
+            array.clone_from_slice(&vec[..32]);
+        }
+
 
         //info!("serialized: {:?}", serialized);
 
@@ -182,13 +194,13 @@ impl BatchMaker {
                 // NOTE: This log entry is used to compute performance.
                 info!(
                     "Batch {:?} contains sample tx {}",
-                    digest,
+                    Digest(array),
                     u64::from_be_bytes(id)
                 );
             }
 
             // NOTE: This log entry is used to compute performance.
-            info!("Batch {:?} contains {} B", digest, size);
+            info!("Batch {:?} contains {} B", Digest(array), size);
         }
 
         // Broadcast the batch through the network.
@@ -196,8 +208,10 @@ impl BatchMaker {
         //let bytes = Bytes::from(serialized.clone());
         //let handlers = self.network.broadcast(addresses, bytes).await;
 
+        //info!("id: {:?}", array);
+
         self.tx_batch
-            .send(serialized)
+            .send((serialized, Digest(array)))
             .await
             .expect("Failed to deliver batch");
 

@@ -3,6 +3,8 @@ use crypto::{PublicKey as PublicAddress, Digest};
 
 use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}};
 
+pub type ElectionId = Digest;
+
 pub struct Election {
     pub current_round: Round,
     pub tallies: HashMap<Round, Tally>,

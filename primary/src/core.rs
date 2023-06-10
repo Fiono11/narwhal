@@ -1,5 +1,5 @@
 use crate::constants::{QUORUM, SEMI_QUORUM};
-use crate::election::{self, Election, Tally};
+use crate::election::{self, Election, Tally, ElectionId};
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
 use crate::messages::{Certificate, Header, Vote};
@@ -8,7 +8,7 @@ use async_recursion::async_recursion;
 use bytes::Bytes;
 use config::Committee;
 use crypto::Hash as _;
-use crypto::{Digest as TxHash, PublicKey as PublicAddress, SignatureService};
+use crypto::{Digest, PublicKey as PublicAddress, SignatureService};
 use log::{debug, error, warn, info};
 use network::{CancelHandler, ReliableSender};
 use std::collections::{HashMap, HashSet, BTreeSet};
@@ -20,6 +20,8 @@ use tokio::sync::mpsc::{Receiver, Sender};
 #[cfg(test)]
 #[path = "tests/core_tests.rs"]
 pub mod core_tests;
+
+pub type TxHash = Digest;
 
 pub struct Core {
     /// The public key of this primary.
@@ -54,7 +56,7 @@ pub struct Core {
     network: ReliableSender,
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
-    elections: HashMap<TxHash, Election>,
+    elections: HashMap<ElectionId, Election>,
     //payloads: HashMap<TxHash, BTreeSet<TxHash>>,
 }
 
@@ -101,10 +103,10 @@ impl Core {
         //info!("name: {:?}", self.name);
         //info!("Received {:?} from {:?}", header, header.author);
 
-        for digest in &header.payload {
+        for (tx_hash, election_id) in &header.payload {
             if !header.commit {
                 //info!("Received vote: {:?}", header);
-                match self.elections.get_mut(&digest) {
+                match self.elections.get_mut(&election_id) {
                     Some(election) => {
                         if let Some(tally) = election.tallies.get_mut(&header.round) {
                                 tally.votes.insert(header.author.clone());
@@ -181,7 +183,7 @@ impl Core {
                             #[cfg(feature = "benchmark")]
                             for digest in &header.payload {
                                 // NOTE: This log entry is used to compute performance.
-                                info!("Created {} -> {:?}", header, digest);
+                                info!("Created {} -> {:?}", header, digest.1);
                             }
                         }
                         let mut tally = Tally::new();
@@ -226,13 +228,13 @@ impl Core {
                         }
                         let mut election = Election::new();
                         election.tallies.insert(header.round, tally);
-                        self.elections.insert(digest.clone(), election);
+                        self.elections.insert(election_id.clone(), election);
                     }
                 }
             }
             else {
                 //info!("Received commit: {:?}", header);
-                match self.elections.get_mut(&digest) {
+                match self.elections.get_mut(&election_id) {
                     Some(election) => {
                         if let Some(tally) = election.tallies.get_mut(&header.round) {
                             tally.commits.insert(header.author.clone());
@@ -265,7 +267,7 @@ impl Core {
                                     //for digest in self.payloads.get(&payload).unwrap() {
                                         #[cfg(feature = "benchmark")]
                                         // NOTE: This log entry is used to compute performance.
-                                        info!("Committed {} -> {:?}", header, payload);
+                                        info!("Committed {} -> {:?}", header, payload.1);
                                     //}
                                 }
                                 election.decided = true;
@@ -277,7 +279,7 @@ impl Core {
                         let mut tally = Tally::new();
                         tally.commits.insert(header.author.clone());
                         election.tallies.insert(header.round, tally);
-                        self.elections.insert(digest.clone(), election);
+                        self.elections.insert(election_id.clone(), election);
                     }
                 }
             }

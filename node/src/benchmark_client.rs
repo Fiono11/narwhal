@@ -9,6 +9,7 @@ use futures::sink::SinkExt as _;
 use log::{info, warn};
 use primary::Transaction;
 use rand::Rng;
+use rand::thread_rng;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
@@ -113,7 +114,8 @@ impl Client {
         let mut tx = Transaction::new();
         tx.data = data;
         let mut counter = 0;
-        let mut r: u64 = 0;
+        let mut r: u64 = thread_rng().gen();
+        //let mut r: u64 = 0;
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -139,7 +141,7 @@ impl Client {
                 };
 
                 tx.id = id.to_vec();
-                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());
