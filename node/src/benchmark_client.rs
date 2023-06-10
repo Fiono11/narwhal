@@ -114,8 +114,8 @@ impl Client {
         let mut tx = Transaction::new();
         tx.data = data;
         let mut counter = 0;
-        let mut r: u64 = thread_rng().gen();
-        //let mut r: u64 = 0;
+        //let mut r: u64 = thread_rng().gen();
+        let mut r: u64 = 0;
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);

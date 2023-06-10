@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashMap};
 use crypto::{PublicKey as PublicAddress, Digest};
 
-use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}};
+use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}, core::TxHash};
 
 pub type ElectionId = Digest;
 
@@ -31,15 +31,15 @@ impl Election {
 
 #[derive(Debug, Clone)]
 pub struct Tally {
-    pub votes: BTreeSet<PublicAddress>,
-    pub commits: BTreeSet<PublicAddress>,
+    pub votes: HashMap<TxHash, BTreeSet<PublicAddress>>,
+    pub commits: HashMap<TxHash, BTreeSet<PublicAddress>>,
 }
 
 impl Tally {
     pub fn new() -> Self {
         Self {
-            votes: BTreeSet::new(),
-            commits: BTreeSet::new(),
+            votes: HashMap::new(),
+            commits: HashMap::new(),
         }
     }
 }
