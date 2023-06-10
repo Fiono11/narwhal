@@ -105,7 +105,8 @@ impl Client {
             .context(format!("failed to connect to {}", self.target))?;
 
         // Submit all transactions.
-        let burst = self.rate / PRECISION;
+        //let burst = self.rate / PRECISION;
+        let burst = 2;
         let mut data: Vec<u8> = Vec::new();
         for _ in 0..self.size {
             data.push(rand::thread_rng().gen());
@@ -114,8 +115,8 @@ impl Client {
         let mut tx = Transaction::new();
         tx.data = data;
         let mut counter = 0;
-        //let mut r: u64 = thread_rng().gen();
-        let mut r: u64 = 0;
+        let mut r: u64 = thread_rng().gen();
+        //let mut r: u64 = 0;
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -123,7 +124,8 @@ impl Client {
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
 
-        'main: loop {
+        //'main: loop {
+        for _ in 0..1 {
             interval.as_mut().tick().await;
             let now = Instant::now();
 
@@ -153,7 +155,7 @@ impl Client {
 
                 if let Err(e) = transport.send(bytes.clone()).await {
                     warn!("Failed to send transaction: {}", e);
-                    break 'main;
+                    //break 'main;
                 }
             }
             if now.elapsed().as_millis() > BURST_DURATION as u128 {

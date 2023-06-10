@@ -99,13 +99,57 @@ impl Core {
     }
 
     #[async_recursion]
+    async fn new_process_header(&mut self, header: &Header) -> DagResult<()> {
+        for (tx_hash, election_id) in &header.payload {
+            match self.elections.get_mut(&election_id) {
+                Some(election) => {
+                    election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
+                    if header.author == self.name {
+                        // broadcast vote
+                        let addresses = self
+                            .committee
+                            .others_primaries(&self.name)
+                            .iter()
+                            .map(|(_, x)| x.primary_to_primary)
+                            .collect();
+                        let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
+                            .expect("Failed to serialize our own header");
+                        let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                        self.cancel_handlers
+                            .entry(header.round)
+                            .or_insert_with(Vec::new)
+                            .extend(handlers);
+                        info!("Sending vote: {:?}", header);
+                    }
+                }
+                None => {
+                    // create election
+                    let mut election = Election::new();
+                    // insert vote
+                    election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
+                }
+            }
+            // decide vote
+            let election = self.elections.get(&election_id).unwrap();
+            if let Some(tally) = election.tallies.get(&election.current_round) {
+                
+            }
+            else {
+                
+            }
+            // broadcast vote
+        }
+        Ok(())
+    }
+
+    #[async_recursion]
     async fn process_header(&mut self, header: &Header) -> DagResult<()> {
         //info!("name: {:?}", self.name);
         //info!("Received {:?} from {:?}", header, header.author);
 
         for (tx_hash, election_id) in &header.payload {
             if !header.commit {
-                //info!("Received vote: {:?}", header);
+                info!("Received vote of {:?} in {:?}", tx_hash, election_id);
                 match self.elections.get_mut(&election_id) {
                     Some(election) => {
                         if let Some(tally) = election.tallies.get_mut(&header.round) {
@@ -127,7 +171,7 @@ impl Core {
                                         .entry(header.round)
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);
-                                    //info!("Sending vote: {:?}", header);
+                                    info!("Sending vote: {:?}", header);
                                 }
                                 if !votes.contains(&self.name) && !election.decided {
                                     let mut own_header = header.clone();
@@ -150,7 +194,7 @@ impl Core {
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);
                                     votes.insert(own_header.author.clone());
-                                    //info!("Sending vote: {:?}", own_header);
+                                    info!("Sending vote: {:?}", own_header);
                                 }
                                 if votes.len() >= QUORUM && !election.decided {
                                     let mut own_header = header.clone();
@@ -174,7 +218,55 @@ impl Core {
                                         .entry(header.round)
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);
-                                    //info!("Sending commit: {:?}", own_header);
+                                    info!("Sending commit: {:?}", own_header);
+                                }
+                            }
+                            else {
+                                let mut btreeset = BTreeSet::new();
+                                btreeset.insert(header.author.clone());
+                                tally.votes.insert(tx_hash.clone(), btreeset);
+                                //self.payloads.insert(header.id.clone(), header.payload.clone());
+                                if header.author == self.name {
+                                    // Broadcast the new header in a reliable manner.
+                                    let addresses = self
+                                        .committee
+                                        .others_primaries(&self.name)
+                                        .iter()
+                                        .map(|(_, x)| x.primary_to_primary)
+                                        .collect();
+                                    let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
+                                        .expect("Failed to serialize our own header");
+                                    let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                                    self.cancel_handlers
+                                        .entry(header.round)
+                                        .or_insert_with(Vec::new)
+                                        .extend(handlers);
+                                    info!("Sending vote: {:?}", header);
+                                }
+                                if let Some(votes) = tally.votes.get_mut(&tx_hash) {
+                                    if !votes.contains(&self.name) && !election.decided {
+                                        let mut own_header = header.clone();
+                                        own_header.author = self.name.clone();
+                                        //let mut payload = BTreeSet::new();
+                                        //payload.insert(header.id.clone());
+                                        //own_header.payload = payload;
+                                        // Broadcast the new header in a reliable manner.
+                                        let addresses = self
+                                            .committee
+                                            .others_primaries(&self.name)
+                                            .iter()
+                                            .map(|(_, x)| x.primary_to_primary)
+                                            .collect();
+                                        let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
+                                            .expect("Failed to serialize our own header");
+                                        let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                                        self.cancel_handlers
+                                            .entry(header.round)
+                                            .or_insert_with(Vec::new)
+                                            .extend(handlers);
+                                        votes.insert(own_header.author.clone());
+                                        info!("Sending vote: {:?}", own_header);
+                                    }
                                 }
                             }
                         }       
@@ -210,7 +302,7 @@ impl Core {
                                 .entry(header.round)
                                 .or_insert_with(Vec::new)
                                 .extend(handlers);
-                            //info!("Sending vote: {:?}", header);
+                            info!("Sending vote: {:?}", header);
                         }
                         if let Some(votes) = tally.votes.get_mut(&tx_hash) {
                             let mut own_header = header.clone();
@@ -230,7 +322,7 @@ impl Core {
                                 .or_insert_with(Vec::new)
                                 .extend(handlers);
                             votes.insert(own_header.author.clone());
-                            //info!("Sending vote: {:?}", own_header);
+                            info!("Sending vote: {:?}", own_header);
                         }
                         let mut election = Election::new();
                         election.tallies.insert(header.round, tally);
@@ -239,7 +331,7 @@ impl Core {
                 }
             }
             else {
-                //info!("Received commit: {:?}", header);
+                info!("Received commit of {:?} in {:?}", tx_hash, election_id);
                 match self.elections.get_mut(&election_id) {
                     Some(election) => {
                         if let Some(tally) = election.tallies.get_mut(&header.round) {
@@ -263,7 +355,7 @@ impl Core {
                                         .entry(header.round)
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);
-                                    //info!("Sending commit: {:?}", own_header);
+                                    info!("Sending commit: {:?}", own_header);
                                     commits.insert(own_header.author.clone());
                                 }
                                 
@@ -296,8 +388,8 @@ impl Core {
                     }
                 }
             }
+            info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());
         }
-            //info!("Election of {:?}: {:?}", &header, self.elections.get(&header.id).unwrap());
         Ok(())
     }
 

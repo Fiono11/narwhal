@@ -5,6 +5,7 @@ use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}, core::TxHash};
 
 pub type ElectionId = Digest;
 
+#[derive(Debug)]
 pub struct Election {
     pub current_round: Round,
     pub tallies: HashMap<Round, Tally>,
@@ -25,6 +26,35 @@ impl Election {
             highest: None,
             proof_round: None,
             own_vote: None,
+        }
+    }
+
+    pub fn insert_vote(&mut self, tx_hash: Digest, commit: bool, round: Round, author: PublicAddress) {
+        if !commit {
+            let tally = self.tallies.get_mut(&round).unwrap();
+            match tally.votes.get_mut(&tx_hash) {
+                Some(btreeset) => {
+                    btreeset.insert(author);
+                }
+                None => {
+                    let mut btreeset = BTreeSet::new();
+                    btreeset.insert(author);
+                    tally.votes.insert(tx_hash, btreeset);
+                }
+            }
+        }
+        else {
+            let tally = self.tallies.get_mut(&round).unwrap();
+            match tally.commits.get_mut(&tx_hash) {
+                Some(btreeset) => {
+                    btreeset.insert(author);
+                }
+                None => {
+                    let mut btreeset = BTreeSet::new();
+                    btreeset.insert(author);
+                    tally.votes.insert(tx_hash, btreeset);
+                }
+            }
         }
     }
 }
