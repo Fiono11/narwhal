@@ -2,6 +2,7 @@
 use ed25519_dalek as dalek;
 use ed25519_dalek::ed25519;
 use ed25519_dalek::Signer as _;
+use rand::Rng;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::{de, ser, Deserialize, Serialize};
@@ -22,6 +23,13 @@ pub type CryptoError = ed25519::Error;
 pub struct Digest(pub [u8; 32]);
 
 impl Digest {
+    pub fn random() -> Self {
+        let mut rng = rand::thread_rng();
+        let mut bytes = [0u8; 32];
+        rng.fill(&mut bytes);
+        Self(bytes)
+    }
+
     pub fn to_vec(&self) -> Vec<u8> {
         self.0.to_vec()
     }

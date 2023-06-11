@@ -113,8 +113,9 @@ impl Core {
         else {
             info!("Received commit {:?}", header);
         }
+        let (tx_hash, election_id) = &header.payload; 
+        if !self.byzantine {
         //for (tx_hash, election_id) in &header.payload {
-        let (tx_hash, election_id) = &header.payload;
             match self.elections.get_mut(&election_id) {
                 Some(election) => {
                     election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
@@ -236,6 +237,21 @@ impl Core {
                 //}
             }
             info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());
+        }
+        else {
+            let digest = Digest::random();
+            let payload = (digest, election_id.clone());
+            let own_header = Header::new(self.name, header.round, payload, &mut self.signature_service, rand::random()).await;
+            // broadcast vote
+            let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
+                .expect("Failed to serialize our own header");
+            let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+            self.cancel_handlers
+                .entry(own_header.round)
+                .or_insert_with(Vec::new)
+                .extend(handlers);
+            info!("Sending vote: {:?}", own_header);
+        }
         Ok(())
     }
 
