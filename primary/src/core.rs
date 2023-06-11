@@ -168,7 +168,7 @@ impl Core {
                         election.decided = true;
                         return Ok(());
                     }
-                    if !election.committed {
+                    //if !election.committed {
                         //own_header = header.clone();
                         if let Some(tx_hash) = tally.find_quorum_of_votes() {
                             election.commit = Some(tx_hash.clone());
@@ -177,7 +177,7 @@ impl Core {
                             own_header.round = election.round;
                             own_header.author = self.name;
                             own_header.commit = true;
-                            election.committed = true;
+                            //election.committed = true;
 
                             election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
 
@@ -191,13 +191,29 @@ impl Core {
                                 .extend(handlers);
                             info!("Sending commit: {:?}", own_header);
                         }
-                        else {
-                            if !tally.voted(&self.name) {
-                            //if !election.voted {
+                        else if election.voted_or_committed(&self.name, header.round) && tally.total_votes() >= QUORUM && !election.voted_or_committed(&self.name, header.round + 1) {
+                            let highest = election.highest.clone().unwrap();
+                            own_header.payload = (highest.clone(), election_id.clone());
+                            own_header.round = header.round + 1;
+                            own_header.author = self.name;
+                            election.round = header.round + 1;
+                            election.insert_vote(highest.clone(), false, election.round, self.name);
+
+                            // broadcast vote
+                            let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
+                                .expect("Failed to serialize our own header");
+                            let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+                            self.cancel_handlers
+                                .entry(own_header.round)
+                                .or_insert_with(Vec::new)
+                                .extend(handlers);
+                            info!("Changing vote: {:?}", own_header);
+                        }
+                        else if !election.voted_or_committed(&self.name, header.round) {
                                 if let Some(highest) = &election.highest {
                                     own_header.payload = (highest.clone(), election_id.clone());
                                 }
-                                election.voted = true;
+                                //election.voted = true;
                                 election.round = header.round + 1;
                                 own_header.author = self.name;
     
@@ -210,29 +226,9 @@ impl Core {
                                     .or_insert_with(Vec::new)
                                     .extend(handlers);
                                 info!("Sending vote: {:?}", own_header);
-                            }
-                            else {
-                                if tally.total_votes() >= QUORUM {
-                                    let highest = election.highest.clone().unwrap();
-                                    own_header.payload = (highest.clone(), election_id.clone());
-                                    own_header.round = header.round + 1;
-                                    own_header.author = self.name;
-                                    election.round = header.round + 1;
-                                    election.insert_vote(highest.clone(), false, election.round, self.name);
-    
-                                    // broadcast vote
-                                    let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
-                                        .expect("Failed to serialize our own header");
-                                    let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-                                    self.cancel_handlers
-                                        .entry(own_header.round)
-                                        .or_insert_with(Vec::new)
-                                        .extend(handlers);
-                                    info!("Changing vote: {:?}", own_header);
-                                }
-                            }   
+                            
                         }
-                    }                
+                    //}               
                 //}
             }
             info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());

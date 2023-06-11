@@ -13,8 +13,8 @@ pub struct Election {
     pub commit: Option<Digest>,
     pub highest: Option<Digest>,
     pub proof_round: Option<Round>,
-    pub voted: bool,
-    pub committed: bool,
+    //pub voted: bool,
+    //pub committed: bool,
 }
 
 impl Election {
@@ -28,8 +28,8 @@ impl Election {
             commit: None,
             highest: None,
             proof_round: None,
-            voted: false,
-            committed: false,
+            //voted: false,
+            //committed: false,
         }
     }
 
@@ -56,6 +56,48 @@ impl Election {
             }
         }
     }
+
+    pub fn voted_or_committed(&self, pa: &PublicAddress, round: Round) -> bool {
+        match self.tallies.get(&round) {
+            Some(tally) => {
+                for vote_set in tally.votes.values().chain(tally.commits.values()) {
+                    if vote_set.contains(pa) {
+                        return true;
+                    }
+                }
+            }
+            None => return false,
+        }
+        false
+    }    
+
+    /*pub fn voted(&self, pa: &PublicAddress, round: Round) -> bool {
+        match self.tallies.get(&round) {
+            Some(tally) => {
+                for vote_set in tally.votes.values() {
+                    if vote_set.contains(pa) {
+                        return true;
+                    }
+                }
+            }
+            None => return false,
+        }
+        false
+    }
+
+    pub fn committed(&self, pa: &PublicAddress, round: Round) -> bool {
+        match self.tallies.get(&round) {
+            Some(tally) => {
+                for commit_set in tally.commits.values() {
+                    if commit_set.contains(pa) {
+                        return true;
+                    }
+                }
+            }
+            None => return false,
+        }
+        false
+    }*/
 }
 
 #[derive(Debug, Clone)]
@@ -92,24 +134,6 @@ impl Tally {
 
     pub fn total_votes(&self) -> usize {
         self.votes.values().map(|vote_set| vote_set.len()).sum()
-    }
-
-    pub fn voted(&self, pa: &PublicAddress) -> bool {
-        for vote_set in self.votes.values() {
-            if vote_set.contains(pa) {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub fn committed(&self, pa: &PublicAddress) -> bool {
-        for commit_set in self.commits.values() {
-            if commit_set.contains(pa) {
-                return true;
-            }
-        }
-        false
     }
 
     fn insert_to_tally(&mut self, tx_hash: Digest, author: PublicAddress, is_commit: bool) {
