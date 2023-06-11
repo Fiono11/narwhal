@@ -115,6 +115,12 @@ impl Primary {
         // The `SignatureService` is used to require signatures on specific digests.
         let signature_service = SignatureService::new(secret);
 
+        let addresses = committee
+            .others_primaries(&name)
+            .iter()
+            .map(|(_, x)| x.primary_to_primary)
+            .collect();
+
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         Core::spawn(
             name.clone(),
@@ -126,6 +132,7 @@ impl Primary {
             /* rx_primaries */ rx_primary_messages,
             /* rx_proposer */ rx_headers,
             /* tx_proposer */ tx_parents,
+            addresses,
         );
 
         // Receives batch digests from other workers. They are only used to validate headers.

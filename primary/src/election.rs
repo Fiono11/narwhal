@@ -19,9 +19,11 @@ pub struct Election {
 
 impl Election {
     pub fn new() -> Self {
+        let mut tallies = HashMap::new();
+        tallies.insert(0, Tally::new());
         Self {
             round: 0,
-            tallies: HashMap::new(),
+            tallies,
             decided: false,
             commit: None,
             highest: None,
@@ -33,20 +35,33 @@ impl Election {
 
     pub fn insert_vote(&mut self, tx_hash: Digest, commit: bool, round: Round, author: PublicAddress) {
         if !commit {
-            let tally = self.tallies.get_mut(&round).unwrap();
-            if let Some(highest) = self.highest.clone() {
-                if tx_hash > highest {
-                    self.highest = Some(tx_hash.clone());
-                }
-            }
-            match tally.votes.get_mut(&tx_hash) {
-                Some(btreeset) => {
-                    btreeset.insert(author);
+            match self.tallies.get_mut(&round) {
+                Some(tally) => {
+                    if let Some(highest) = self.highest.clone() {
+                        if tx_hash > highest {
+                            self.highest = Some(tx_hash.clone());
+                        }
+                    }
+                    else {
+                        self.highest = Some(tx_hash.clone());
+                    }
+                    match tally.votes.get_mut(&tx_hash) {
+                        Some(btreeset) => {
+                            btreeset.insert(author);
+                        }
+                        None => {
+                            let mut btreeset = BTreeSet::new();
+                            btreeset.insert(author);
+                            tally.votes.insert(tx_hash, btreeset);
+                        }
+                    }
                 }
                 None => {
+                    let mut tally = Tally::new();
                     let mut btreeset = BTreeSet::new();
                     btreeset.insert(author);
-                    tally.votes.insert(tx_hash, btreeset);
+                    tally.votes.insert(tx_hash.clone(), btreeset);
+                    self.tallies.insert(round, tally);
                 }
             }
         }
@@ -96,5 +111,9 @@ impl Tally {
             }
         }
         None
+    }
+
+    pub fn total_votes(&self) -> usize {
+        self.votes.values().map(|vote_set| vote_set.len()).sum()
     }
 }

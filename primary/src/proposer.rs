@@ -82,8 +82,8 @@ impl Proposer {
         // Make a new header.
         let header = Header::new(
             self.name.clone(),
-            self.round,
-            (tx_hash, election_id),
+            0,
+            (tx_hash, election_id.clone()),
             //self.last_parents.drain(..).collect(),
             &mut self.signature_service,
             false,
@@ -92,10 +92,10 @@ impl Proposer {
         //debug!("Created {:?}", header);
         
         #[cfg(feature = "benchmark")]
-        for digest in &header.payload {
+        //for digest in &header.payload {
             // NOTE: This log entry is used to compute performance.
-            info!("Created {} -> {:?}", &header, digest.1);
-        }
+            info!("Created {} -> {:?}", &header, election_id);
+        //}
 
         // Send the new header to the `Core` that will broadcast and process it.
         self.tx_core

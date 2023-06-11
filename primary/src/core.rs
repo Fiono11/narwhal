@@ -12,6 +12,7 @@ use crypto::{Digest, PublicKey as PublicAddress, SignatureService};
 use log::{debug, error, warn, info};
 use network::{CancelHandler, ReliableSender};
 use std::collections::{HashMap, HashSet, BTreeSet};
+use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use store::Store;
@@ -57,6 +58,7 @@ pub struct Core {
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
     elections: HashMap<ElectionId, Election>,
+    addresses: Vec<SocketAddr>,
     //payloads: HashMap<TxHash, BTreeSet<TxHash>>,
 }
 
@@ -72,6 +74,7 @@ impl Core {
         rx_primaries: Receiver<PrimaryMessage>,
         rx_proposer: Receiver<Header>,
         tx_proposer: Sender<(Vec<TxHash>, Round)>,
+        addresses: Vec<SocketAddr>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -91,6 +94,7 @@ impl Core {
                 network: ReliableSender::new(),
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 elections: HashMap::new(),
+                addresses,
                 //payloads: HashMap::new(),
             }
             .run()
@@ -107,15 +111,9 @@ impl Core {
                     election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
                     if header.author == self.name {
                         // broadcast vote
-                        let addresses = self
-                            .committee
-                            .others_primaries(&self.name)
-                            .iter()
-                            .map(|(_, x)| x.primary_to_primary)
-                            .collect();
                         let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
                             .expect("Failed to serialize our own header");
-                        let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
+                        let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
                         self.cancel_handlers
                             .entry(header.round)
                             .or_insert_with(Vec::new)
@@ -125,17 +123,19 @@ impl Core {
                 }
                 None => {
                     // create election
-                    let mut election = Election::new();
+                    let election = Election::new();
+                    self.elections.insert(election_id.clone(), election);
 
                     #[cfg(feature = "benchmark")]
                     // NOTE: This log entry is used to compute performance.
                     info!("Created {} -> {:?}", header, election_id);
                         
+                    let mut election = self.elections.get_mut(&election_id).unwrap();
                     // insert vote
                     election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
-                    self.elections.insert(election_id.clone(), election);
                 }
             }
+            let mut own_header = Header::default();
             // decide vote
             let election = self.elections.get_mut(&election_id).unwrap();
             //match election.tallies.get(&header.round) {
@@ -147,10 +147,11 @@ impl Core {
                         #[cfg(feature = "benchmark")]
                         // NOTE: This log entry is used to compute performance.
                         info!("Committed {} -> {:?}", header, election_id);
+                        election.decided = true;
                         return Ok(());
                     }
                     if !election.committed {
-                        let mut own_header = header.clone();
+                        own_header = header.clone();
                         if let Some(tx_hash) = tally.find_quorum_of_votes() {
                             election.commit = Some(tx_hash.clone());
                             election.proof_round = Some(header.round);
@@ -164,11 +165,28 @@ impl Core {
                             }
                             election.voted = true;
                             election.round = header.round + 1;
+                        }
+                        else {
+                            if tally.total_votes() >= QUORUM {
+                                let highest = election.highest.clone().unwrap();
+                                own_header.payload = (highest.clone(), election_id.clone());
+                                own_header.round = header.round + 1;
+                                election.round = header.round + 1;
+                                election.insert_vote(highest.clone(), false, election.round, self.name);
+                            }
                         }   
                     }                
                 //}
             }
             // broadcast vote
+            let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
+                .expect("Failed to serialize our own header");
+            let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+            self.cancel_handlers
+                .entry(own_header.round)
+                .or_insert_with(Vec::new)
+                .extend(handlers);
+            info!("Sending vote: {:?}", own_header);
         Ok(())
     }
 
