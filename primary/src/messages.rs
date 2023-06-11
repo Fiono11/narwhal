@@ -22,7 +22,7 @@ pub struct Header {
     pub round: Round,
     //pub payload: BTreeMap<TxHash, WorkerId>,
     //pub parents: BTreeSet<TxHash>,
-    pub payload: BTreeSet<(TxHash, ElectionId)>,
+    pub payload: (TxHash, ElectionId),
     pub id: TxHash,
     pub signature: Signature,
     pub commit: bool,
@@ -32,7 +32,7 @@ impl Header {
     pub async fn new(
         author: PublicAddress,
         round: Round,        
-        payload: BTreeSet<(TxHash, ElectionId)>,
+        payload: (TxHash, ElectionId),
         //payload: BTreeMap<TxHash, WorkerId>,
         //parents: BTreeSet<TxHash>,
         signature_service: &mut SignatureService,
@@ -85,11 +85,11 @@ impl Hash for Header {
         let mut hasher = Sha512::new();
         hasher.update(self.author);
         //hasher.update(self.round.to_le_bytes());
-        for (x, y) in &self.payload {
-            hasher.update(x);
-            hasher.update(y);
+        //for (x, y) in &self.payload {
+            hasher.update(self.payload.0.clone());
+            hasher.update(self.payload.1.clone());
             //hasher.update(y.to_le_bytes());
-        }
+        //}
         //for x in &self.parents {
             //hasher.update(x);
         //}
@@ -105,7 +105,7 @@ impl fmt::Debug for Header {
             self.id,
             self.round,
             self.author,
-            self.payload.iter().map(|x| x.0.size()).sum::<usize>(),
+            self.payload.0.size(),
         )
     }
 }

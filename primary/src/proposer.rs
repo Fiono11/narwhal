@@ -78,12 +78,12 @@ impl Proposer {
         });
     }
 
-    async fn make_header(&mut self) {
+    async fn make_header(&mut self, tx_hash: Digest, election_id: Digest) {
         // Make a new header.
         let header = Header::new(
             self.name.clone(),
             self.round,
-            self.digests.drain(..).collect(),
+            (tx_hash, election_id),
             //self.last_parents.drain(..).collect(),
             &mut self.signature_service,
             false,
@@ -117,20 +117,21 @@ impl Proposer {
             // 1. We have a quorum of certificates from the previous round and enough batches' digests;
             // 2. We have a quorum of certificates from the previous round and the specified maximum
             // inter-header delay has passed.
-            let enough_parents = !self.last_parents.is_empty();
-            let enough_digests = self.payload_size >= self.header_size;
-            let timer_expired = timer.is_elapsed();
+            //let enough_parents = !self.last_parents.is_empty();
+            //let enough_digests = self.payload_size >= self.header_size;
+            //let enough_digests = self.digests.len() == 1;
+            //let timer_expired = timer.is_elapsed();
             //info!("Digests: {:?}", self.digests);
 
-            if enough_digests && enough_parents {
+            //if enough_digests {
                 // Make a new header.
-                self.make_header().await;
-                self.payload_size = 0;
+                //self.make_header().await;
+                //self.payload_size = 0;
 
                 // Reschedule the timer.
-                let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-                timer.as_mut().reset(deadline);
-            }
+                //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                //timer.as_mut().reset(deadline);
+            //}
 
             tokio::select! {
                 Some((parents, round)) = self.rx_core.recv() => {
@@ -146,9 +147,10 @@ impl Proposer {
                     self.last_parents = parents;
                 }
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
+                    self.make_header(tx_hash, election_id).await;
                     //info!("Received digest {:?}", digest);
-                    self.payload_size += tx_hash.size();
-                    self.digests.push((tx_hash, election_id));
+                    //self.payload_size += tx_hash.size();
+                    //self.digests.push((tx_hash, election_id));
                     //self.make_header().await;
                     //info!("Size: {:?}", self.payload_size);
                     //info!("Digests: {:?}", self.digests);

@@ -99,8 +99,9 @@ impl Core {
     }
 
     #[async_recursion]
-    async fn new_process_header(&mut self, header: &Header) -> DagResult<()> {
-        for (tx_hash, election_id) in &header.payload {
+    async fn process_header(&mut self, header: &Header) -> DagResult<()> {
+        //for (tx_hash, election_id) in &header.payload {
+        let (tx_hash, election_id) = &header.payload;
             match self.elections.get_mut(&election_id) {
                 Some(election) => {
                     election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
@@ -125,24 +126,53 @@ impl Core {
                 None => {
                     // create election
                     let mut election = Election::new();
+
+                    #[cfg(feature = "benchmark")]
+                    // NOTE: This log entry is used to compute performance.
+                    info!("Created {} -> {:?}", header, election_id);
+                        
                     // insert vote
                     election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
+                    self.elections.insert(election_id.clone(), election);
                 }
             }
             // decide vote
-            let election = self.elections.get(&election_id).unwrap();
-            if let Some(tally) = election.tallies.get(&election.current_round) {
-                
-            }
-            else {
-                
+            let election = self.elections.get_mut(&election_id).unwrap();
+            //match election.tallies.get(&header.round) {
+                if let Some(tally) = election.tallies.get(&header.round) {
+                    if let Some(tx_hash) = tally.find_quorum_of_commits() {
+                        #[cfg(not(feature = "benchmark"))]
+                        info!("Committed {}", header);
+                                            
+                        #[cfg(feature = "benchmark")]
+                        // NOTE: This log entry is used to compute performance.
+                        info!("Committed {} -> {:?}", header, election_id);
+                        return Ok(());
+                    }
+                    if !election.committed {
+                        let mut own_header = header.clone();
+                        if let Some(tx_hash) = tally.find_quorum_of_votes() {
+                            election.commit = Some(tx_hash.clone());
+                            election.proof_round = Some(header.round);
+                            own_header.payload = (tx_hash.clone(), election_id.clone());
+                            own_header.round = header.round + 1;
+                            election.committed = true;
+                        }
+                        if !election.voted {
+                            if let Some(highest) = &election.highest {
+                                own_header.payload = (highest.clone(), election_id.clone());
+                            }
+                            election.voted = true;
+                            election.round = header.round + 1;
+                        }   
+                    }                
+                //}
             }
             // broadcast vote
-        }
         Ok(())
     }
 
-    #[async_recursion]
+    /*#[async_recursion]
     async fn process_header(&mut self, header: &Header) -> DagResult<()> {
         //info!("name: {:?}", self.name);
         //info!("Received {:?} from {:?}", header, header.author);
@@ -391,7 +421,7 @@ impl Core {
             info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());
         }
         Ok(())
-    }
+    }*/
 
     // Main loop listening to incoming messages.
     pub async fn run(&mut self) {

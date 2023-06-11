@@ -7,31 +7,38 @@ pub type ElectionId = Digest;
 
 #[derive(Debug)]
 pub struct Election {
-    pub current_round: Round,
+    pub round: Round,
     pub tallies: HashMap<Round, Tally>,
     pub decided: bool,
-    pub own_commit: Option<Digest>,
+    pub commit: Option<Digest>,
     pub highest: Option<Digest>,
     pub proof_round: Option<Round>,
-    pub own_vote: Option<Digest>,
+    pub voted: bool,
+    pub committed: bool,
 }
 
 impl Election {
     pub fn new() -> Self {
         Self {
-            current_round: 0,
+            round: 0,
             tallies: HashMap::new(),
             decided: false,
-            own_commit: None,
+            commit: None,
             highest: None,
             proof_round: None,
-            own_vote: None,
+            voted: false,
+            committed: false,
         }
     }
 
     pub fn insert_vote(&mut self, tx_hash: Digest, commit: bool, round: Round, author: PublicAddress) {
         if !commit {
             let tally = self.tallies.get_mut(&round).unwrap();
+            if let Some(highest) = self.highest.clone() {
+                if tx_hash > highest {
+                    self.highest = Some(tx_hash.clone());
+                }
+            }
             match tally.votes.get_mut(&tx_hash) {
                 Some(btreeset) => {
                     btreeset.insert(author);
@@ -71,5 +78,23 @@ impl Tally {
             votes: HashMap::new(),
             commits: HashMap::new(),
         }
+    }
+
+    pub fn find_quorum_of_votes(&self) -> Option<&TxHash> {
+        for (tx_hash, vote_set) in &self.votes {
+            if vote_set.len() >= QUORUM {
+                return Some(tx_hash);
+            }
+        }
+        None
+    }
+
+    pub fn find_quorum_of_commits(&self) -> Option<&TxHash> {
+        for (tx_hash, commit_set) in &self.commits {
+            if commit_set.len() >= QUORUM {
+                return Some(tx_hash);
+            }
+        }
+        None
     }
 }
