@@ -102,10 +102,10 @@ impl fmt::Debug for Header {
         write!(
             f,
             "{}: B{}({}, {})",
-            self.id,
+            self.payload.1,
             self.round,
             self.author,
-            self.payload.0.size(),
+            self.payload.0,
         )
     }
 }
