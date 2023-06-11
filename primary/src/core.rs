@@ -124,7 +124,7 @@ impl Core {
                             .entry(header.round)
                             .or_insert_with(Vec::new)
                             .extend(handlers);
-                        //info!("Sending vote: {:?}", header);
+                        info!("Sending vote: {:?}", header);
                     }
                 }
                 None => {
@@ -139,6 +139,18 @@ impl Core {
                     let mut election = self.elections.get_mut(&election_id).unwrap();
                     // insert vote
                     election.insert_vote(tx_hash.clone(), header.commit, header.round, header.author);
+
+                    if header.author == self.name {
+                        // broadcast vote
+                        let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
+                            .expect("Failed to serialize our own header");
+                        let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+                        self.cancel_handlers
+                            .entry(header.round)
+                            .or_insert_with(Vec::new)
+                            .extend(handlers);
+                        info!("Sending vote: {:?}", header);
+                    }
                 }
             }
             let mut own_header = Header::default();
@@ -180,7 +192,7 @@ impl Core {
                             info!("Sending commit: {:?}", own_header);
                         }
                         else {
-                            if tally.voted(&self.name) {
+                            if !tally.voted(&self.name) {
                             //if !election.voted {
                                 if let Some(highest) = &election.highest {
                                     own_header.payload = (highest.clone(), election_id.clone());
