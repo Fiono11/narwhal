@@ -133,6 +133,7 @@ impl Primary {
             /* rx_proposer */ rx_headers,
             /* tx_proposer */ tx_parents,
             addresses,
+            committee.authorities.get(&name).unwrap().byzantine,
         );
 
         // Receives batch digests from other workers. They are only used to validate headers.

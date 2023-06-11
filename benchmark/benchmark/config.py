@@ -42,7 +42,7 @@ class Committee:
         }
     '''
 
-    def __init__(self, addresses, base_port):
+    def __init__(self, addresses, base_port, byzantine):
         ''' The `addresses` field looks as follows:
             { 
                 "name": ["host", "host", ...],
@@ -82,7 +82,8 @@ class Committee:
             self.json['authorities'][name] = {
                 'stake': 1,
                 'primary': primary_addr,
-                'workers': workers_addr
+                'workers': workers_addr,
+                'byzantine': byzantine,
             }
 
     def primary_addresses(self, faults=0):
@@ -152,13 +153,14 @@ class Committee:
 
 
 class LocalCommittee(Committee):
-    def __init__(self, names, port, workers):
+    def __init__(self, names, port, workers, byzantine):
+        assert isinstance(byzantine, bool)
         assert isinstance(names, list)
         assert all(isinstance(x, str) for x in names)
         assert isinstance(port, int)
         assert isinstance(workers, int) and workers > 0
         addresses = OrderedDict((x, ['127.0.0.1']*(1+workers)) for x in names)
-        super().__init__(addresses, port)
+        super().__init__(addresses, port, byzantine)
 
 
 class NodeParameters:

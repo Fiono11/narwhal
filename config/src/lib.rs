@@ -135,6 +135,7 @@ pub struct Authority {
     pub primary: PrimaryAddresses,
     /// Map of workers' id and their network addresses.
     pub workers: HashMap<WorkerId, WorkerAddresses>,
+    pub byzantine: bool,
 }
 
 #[derive(Clone, Deserialize)]

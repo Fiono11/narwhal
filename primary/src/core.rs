@@ -59,6 +59,7 @@ pub struct Core {
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
     elections: HashMap<ElectionId, Election>,
     addresses: Vec<SocketAddr>,
+    byzantine: bool,
     //payloads: HashMap<TxHash, BTreeSet<TxHash>>,
 }
 
@@ -75,6 +76,7 @@ impl Core {
         rx_proposer: Receiver<Header>,
         tx_proposer: Sender<(Vec<TxHash>, Round)>,
         addresses: Vec<SocketAddr>,
+        byzantine: bool,
     ) {
         tokio::spawn(async move {
             Self {
@@ -95,6 +97,7 @@ impl Core {
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 elections: HashMap::new(),
                 addresses,
+                byzantine,
                 //payloads: HashMap::new(),
             }
             .run()
