@@ -62,7 +62,7 @@ class Committee:
 
         port = base_port
         self.json = {'authorities': OrderedDict()}
-        for name, hosts in addresses.items():
+        for i, (name, hosts) in enumerate(addresses.items()):
             host = hosts.pop(0)
             primary_addr = {
                 'primary_to_primary': f'{host}:{port}',
@@ -79,11 +79,13 @@ class Committee:
                 }
                 port += 3
 
+            is_byzantine = i < byzantine
+
             self.json['authorities'][name] = {
                 'stake': 1,
                 'primary': primary_addr,
                 'workers': workers_addr,
-                'byzantine': byzantine,
+                'byzantine': is_byzantine,
             }
 
     def primary_addresses(self, faults=0):
@@ -154,7 +156,7 @@ class Committee:
 
 class LocalCommittee(Committee):
     def __init__(self, names, port, workers, byzantine):
-        assert isinstance(byzantine, bool)
+        #assert isinstance(byzantine, bool)
         assert isinstance(names, list)
         assert all(isinstance(x, str) for x in names)
         assert isinstance(port, int)
