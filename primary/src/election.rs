@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::{collections::{BTreeSet, HashMap}, sync::{Arc, Mutex, Condvar}, thread::{self, sleep}, time::Duration};
 use crypto::{PublicKey as PublicAddress, Digest};
 
 use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}, core::TxHash};
@@ -104,13 +104,26 @@ impl Election {
 pub struct Tally {
     pub votes: HashMap<TxHash, BTreeSet<PublicAddress>>,
     pub commits: HashMap<TxHash, BTreeSet<PublicAddress>>,
+    pub timer: Arc<(Mutex<Timer>, Condvar)>,
 }
 
 impl Tally {
     pub fn new() -> Self {
+        let timer = Arc::new((Mutex::new(Timer::Active), Condvar::new())).clone();
+        let timer_clone = Arc::clone(&timer);
+        thread::spawn(move || {
+            sleep(Duration::from_millis(ROUND_TIMER as u64));
+            //debug!("round {} of {:?} expired!", round, id);
+            let &(ref mutex, ref cvar) = &*timer_clone;
+            let mut value = mutex.lock().unwrap();
+            *value = Timer::Expired;
+            cvar.notify_one();
+        });
+
         Self {
             votes: HashMap::new(),
             commits: HashMap::new(),
+            timer,
         }
     }
 
@@ -149,4 +162,12 @@ impl Tally {
             }
         }
     }
+}
+
+pub const ROUND_TIMER: usize = 1000;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Timer {
+    Active,
+    Expired,
 }

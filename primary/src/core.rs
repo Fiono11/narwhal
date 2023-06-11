@@ -1,5 +1,5 @@
-use crate::constants::{QUORUM, SEMI_QUORUM};
-use crate::election::{self, Election, Tally, ElectionId};
+use crate::constants::{QUORUM, SEMI_QUORUM, NUMBER_OF_NODES};
+use crate::election::{self, Election, Tally, ElectionId, Timer};
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
 use crate::messages::{Certificate, Header, Vote};
@@ -191,7 +191,8 @@ impl Core {
                                 .extend(handlers);
                             info!("Sending commit: {:?}", own_header);
                         }
-                        else if election.voted_or_committed(&self.name, header.round) && tally.total_votes() >= QUORUM && !election.voted_or_committed(&self.name, header.round + 1) {
+                        else if election.voted_or_committed(&self.name, header.round) && ((tally.total_votes() >= QUORUM && *tally.timer.0.lock().unwrap() == Timer::Expired) || tally.total_votes() == NUMBER_OF_NODES)
+                        && !election.voted_or_committed(&self.name, header.round + 1) {
                             let highest = election.highest.clone().unwrap();
                             own_header.payload = (highest.clone(), election_id.clone());
                             own_header.round = header.round + 1;
