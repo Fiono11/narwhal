@@ -110,10 +110,10 @@ impl Core {
     #[async_recursion]
     async fn process_header(&mut self, header: &Header) -> DagResult<()> {
         if !header.commit {
-            info!("Received vote {:?}", header);
+            //info!("Received vote {:?}", header);
         }
         else {
-            info!("Received commit {:?}", header);
+            //info!("Received commit {:?}", header);
         }
         let (tx_hash, election_id) = &header.payload; 
         if !self.byzantine {
@@ -155,7 +155,7 @@ impl Core {
                             .entry(header.round)
                             .or_insert_with(Vec::new)
                             .extend(handlers);*/
-                        info!("Sending vote after new election: {:?}", header);
+                        //info!("Sending vote after new election: {:?}", header);
                     }
                 }
             }
@@ -198,7 +198,7 @@ impl Core {
                                     .entry(own_header.round)
                                     .or_insert_with(Vec::new)
                                     .extend(handlers);*/
-                                info!("Sending commit: {:?}", own_header);
+                                //info!("Sending commit: {:?}", own_header);
                             }
                         }
                         else if election.voted_or_committed(&self.name, header.round) && ((tally.total_votes() >= QUORUM && *tally.timer.0.lock().unwrap() == Timer::Expired) || tally.total_votes() == NUMBER_OF_NODES)
@@ -218,7 +218,7 @@ impl Core {
                                 .entry(own_header.round)
                                 .or_insert_with(Vec::new)
                                 .extend(handlers);*/
-                            info!("Changing vote: {:?}", own_header);
+                            //info!("Changing vote: {:?}", own_header);
                         }
                         else if !election.voted_or_committed(&self.name, header.round) {
                                 if let Some(highest) = &election.highest {
@@ -238,12 +238,12 @@ impl Core {
                                     .entry(own_header.round)
                                     .or_insert_with(Vec::new)
                                     .extend(handlers);*/
-                                info!("Sending vote: {:?}", own_header);                            
+                                //info!("Sending vote: {:?}", own_header);                            
                         }
                     //}               
                 //}
             }
-            info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());
+            //info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());
         }
         else {
             match self.payloads.get_mut(&election_id) {
@@ -269,7 +269,7 @@ impl Core {
                 .entry(own_header.round)
                 .or_insert_with(Vec::new)
                 .extend(handlers);*/
-            info!("Sending vote: {:?}", own_header);
+            //info!("Sending vote: {:?}", own_header);
         }
         Ok(())
     }
