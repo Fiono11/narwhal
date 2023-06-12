@@ -122,7 +122,7 @@ impl BatchMaker {
             .current_batch
             .iter()
             .filter(|tx| tx.id[0] == 0u8 && tx.id.len() > 8)
-            .filter_map(|tx| tx.id[1..5].try_into().ok())
+            .filter_map(|tx| tx.id[1..9].try_into().ok())
             .collect();
 
         //info!("tx_ids: {:?}", tx_ids);
@@ -194,13 +194,14 @@ impl BatchMaker {
                 // NOTE: This log entry is used to compute performance.
                 info!(
                     "Batch {:?} contains sample tx {}",
+                    //Digest(array),
                     Digest(array),
                     u64::from_be_bytes(id)
                 );
             }
 
             // NOTE: This log entry is used to compute performance.
-            info!("Batch {:?} contains {} B", Digest(array), size);
+            info!("Batch {:?} contains {} B",  Digest(array), size);
         }
 
         // Broadcast the batch through the network.

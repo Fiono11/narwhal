@@ -5,10 +5,12 @@ use futures::sink::SinkExt as _;
 use futures::stream::StreamExt as _;
 use log::{info, warn};
 use rand::prelude::SliceRandom as _;
-use rand::rngs::SmallRng;
-use rand::SeedableRng as _;
+use rand::rngs::{SmallRng, OsRng};
+use rand::{SeedableRng as _, Rng};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::thread;
+use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -66,6 +68,19 @@ impl SimpleSender {
 
     /// Try (best-effort) to broadcast the message to all specified addresses.
     pub async fn broadcast(&mut self, addresses: Vec<SocketAddr>, data: Bytes) {
+        let mut rng = OsRng;
+
+        // Generate a random duration between 0 and 1000 milliseconds
+        let duration_ms = rng.gen_range(0..=50);
+
+        // Convert the duration to the appropriate type
+        let duration = Duration::from_millis(duration_ms);
+
+        // Sleep for the random duration
+        //thread::sleep(duration);
+
+        info!("Broadcast in {} ms", duration_ms);
+        
         for address in addresses {
             self.send(address, data.clone()).await;
         }

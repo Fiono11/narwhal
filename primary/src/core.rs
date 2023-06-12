@@ -10,7 +10,7 @@ use config::Committee;
 use crypto::Hash as _;
 use crypto::{Digest, PublicKey as PublicAddress, SignatureService};
 use log::{debug, error, warn, info};
-use network::{CancelHandler, ReliableSender};
+use network::{CancelHandler, ReliableSender, SimpleSender};
 use rand::rngs::OsRng;
 use rand::seq::IteratorRandom;
 use std::collections::{HashMap, HashSet, BTreeSet};
@@ -56,7 +56,7 @@ pub struct Core {
     /// The last header we proposed (for which we are waiting votes).
     current_header: Header,
     /// A network sender to send the batches to the other workers.
-    network: ReliableSender,
+    network: SimpleSender,
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
     elections: HashMap<ElectionId, Election>,
@@ -95,7 +95,7 @@ impl Core {
                 last_voted: HashMap::with_capacity(2 * gc_depth as usize),
                 processing: HashMap::with_capacity(2 * gc_depth as usize),
                 current_header: Header::default(),
-                network: ReliableSender::new(),
+                network: SimpleSender::new(),
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
                 elections: HashMap::new(),
                 addresses,
@@ -151,10 +151,10 @@ impl Core {
                         let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
                             .expect("Failed to serialize our own header");
                         let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-                        self.cancel_handlers
+                        /*self.cancel_handlers
                             .entry(header.round)
                             .or_insert_with(Vec::new)
-                            .extend(handlers);
+                            .extend(handlers);*/
                         info!("Sending vote after new election: {:?}", header);
                     }
                 }
@@ -194,10 +194,10 @@ impl Core {
                                 let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
                                     .expect("Failed to serialize our own header");
                                 let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-                                self.cancel_handlers
+                                /*self.cancel_handlers
                                     .entry(own_header.round)
                                     .or_insert_with(Vec::new)
-                                    .extend(handlers);
+                                    .extend(handlers);*/
                                 info!("Sending commit: {:?}", own_header);
                             }
                         }
@@ -214,10 +214,10 @@ impl Core {
                             let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
                                 .expect("Failed to serialize our own header");
                             let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-                            self.cancel_handlers
+                            /*self.cancel_handlers
                                 .entry(own_header.round)
                                 .or_insert_with(Vec::new)
-                                .extend(handlers);
+                                .extend(handlers);*/
                             info!("Changing vote: {:?}", own_header);
                         }
                         else if !election.voted_or_committed(&self.name, header.round) {
@@ -234,10 +234,10 @@ impl Core {
                                 let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
                                     .expect("Failed to serialize our own header");
                                 let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-                                self.cancel_handlers
+                                /*self.cancel_handlers
                                     .entry(own_header.round)
                                     .or_insert_with(Vec::new)
-                                    .extend(handlers);
+                                    .extend(handlers);*/
                                 info!("Sending vote: {:?}", own_header);                            
                         }
                     //}               
@@ -265,10 +265,10 @@ impl Core {
             let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
                 .expect("Failed to serialize our own header");
             let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-            self.cancel_handlers
+            /*self.cancel_handlers
                 .entry(own_header.round)
                 .or_insert_with(Vec::new)
-                .extend(handlers);
+                .extend(handlers);*/
             info!("Sending vote: {:?}", own_header);
         }
         Ok(())

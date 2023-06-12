@@ -98,7 +98,7 @@ impl Client {
             ));
         }
 
-        let size = 9;
+        let size = 13;
 
         // Connect to the mempool.
         let stream = TcpStream::connect(self.target)
@@ -111,13 +111,15 @@ impl Client {
         let mut data: Vec<u8> = Vec::new();
         for _ in 0..self.size {
             data.push(rand::thread_rng().gen());
+            //data.push(0);
         }
         let mut id: BytesMut = BytesMut::with_capacity(size);
         let mut tx = Transaction::new();
         tx.data = data;
         let mut counter = 0;
-        //let mut r: u64 = thread_rng().gen();
-        let mut r: u64 = 0;
+        let mut r: u64 = thread_rng().gen();
+        let mut r2: u32 = thread_rng().gen();
+        //let mut r: u64 = 0;
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -126,19 +128,20 @@ impl Client {
         info!("Start sending transactions");
 
         'main: loop {
-        //for _ in 0..1 {
+        //for _ in 0..100 {
             interval.as_mut().tick().await;
             let now = Instant::now();
 
             for x in 0..burst {
                 if x == counter % burst {
-                    r += 1;
+                    //r += 1;
                     id.put_u8(0u8); // Sample txs start with 0.
-                    id.put_u64(r);
-                    //id.put_u64(counter); // This counter identifies the tx.
+                    //id.put_u64(r);
+                    id.put_u64(counter); // This counter identifies the tx.
+                    id.put_u32(r2);
 
                     // NOTE: This log entry is used to compute performance.
-                    info!("Sending sample transaction {}", u32::from_be_bytes(id[1..5].try_into().unwrap())); 
+                    info!("Sending sample transaction {}", counter); 
                 } else {
                     r += 1;
                     id.put_u8(1u8); // Standard txs start with 1.
@@ -146,7 +149,7 @@ impl Client {
                 };
 
                 tx.id = id.to_vec();
-                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());
