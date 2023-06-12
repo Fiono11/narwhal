@@ -10,6 +10,7 @@ use log::{info, warn};
 use primary::Transaction;
 use rand::Rng;
 use rand::thread_rng;
+use std::convert::TryInto;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::{interval, sleep, Duration, Instant};
@@ -131,11 +132,13 @@ impl Client {
 
             for x in 0..burst {
                 if x == counter % burst {
-                    // NOTE: This log entry is used to compute performance.
-                    info!("Sending sample transaction {}", counter);
-
+                    r += 1;
                     id.put_u8(0u8); // Sample txs start with 0.
-                    id.put_u64(counter); // This counter identifies the tx.
+                    id.put_u64(r);
+                    //id.put_u64(counter); // This counter identifies the tx.
+
+                    // NOTE: This log entry is used to compute performance.
+                    info!("Sending sample transaction {}", u32::from_be_bytes(id[1..5].try_into().unwrap())); 
                 } else {
                     r += 1;
                     id.put_u8(1u8); // Standard txs start with 1.

@@ -7,7 +7,7 @@ pub type ElectionId = Digest;
 
 #[derive(Debug)]
 pub struct Election {
-    pub round: Round,
+    //pub round: Round,
     pub tallies: HashMap<Round, Tally>,
     pub decided: bool,
     pub commit: Option<Digest>,
@@ -22,7 +22,7 @@ impl Election {
         let mut tallies = HashMap::new();
         tallies.insert(0, Tally::new());
         Self {
-            round: 0,
+            //round: 0,
             tallies,
             decided: false,
             commit: None,
@@ -33,8 +33,9 @@ impl Election {
         }
     }
 
-    pub fn insert_vote(&mut self, tx_hash: Digest, commit: bool, round: Round, author: PublicAddress) {
-        if !commit {
+    pub fn insert_vote(&mut self, header: &Header) {
+        let tx_hash = header.payload.0.clone();
+        if !header.commit {
             if let Some(highest) = self.highest.clone() {
                 if tx_hash > highest {
                     self.highest = Some(tx_hash.clone());
@@ -45,14 +46,14 @@ impl Election {
             }
         }
 
-        match self.tallies.get_mut(&round) {
+        match self.tallies.get_mut(&header.round) {
             Some(tally) => {
-                tally.insert_to_tally(tx_hash, author, commit);
+                tally.insert_to_tally(tx_hash, header.author, header.commit);
             }
             None => {
                 let mut tally = Tally::new();
-                Tally::insert_to_tally(&mut tally, tx_hash.clone(), author, commit);
-                self.tallies.insert(round, tally);
+                Tally::insert_to_tally(&mut tally, tx_hash.clone(), header.author, header.commit);
+                self.tallies.insert(header.round, tally);
             }
         }
     }
