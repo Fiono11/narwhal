@@ -33,7 +33,7 @@ impl Election {
         }
     }
 
-    pub fn insert_vote(&mut self, vote: &Vote, author: PublicAddress) {
+    pub fn insert_vote(&mut self, vote: &Vote) {
         let tx_hash = vote.header_id.clone();
         if !vote.commit {
             if let Some(highest) = self.highest.clone() {
@@ -48,11 +48,11 @@ impl Election {
 
         match self.tallies.get_mut(&vote.round) {
             Some(tally) => {
-                tally.insert_to_tally(tx_hash, author, vote.commit);
+                tally.insert_to_tally(tx_hash, vote.author, vote.commit);
             }
             None => {
                 let mut tally = Tally::new();
-                Tally::insert_to_tally(&mut tally, tx_hash.clone(), author, vote.commit);
+                Tally::insert_to_tally(&mut tally, tx_hash.clone(), vote.author, vote.commit);
                 self.tallies.insert(vote.round, tally);
             }
         }

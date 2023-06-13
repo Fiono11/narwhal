@@ -107,7 +107,7 @@ impl Client {
 
         // Submit all transactions.
         //let burst = self.rate / PRECISION;
-        let burst = 20;
+        let burst = 1;
         let mut data: Vec<u8> = Vec::new();
         for _ in 0..self.size {
             data.push(rand::thread_rng().gen());
