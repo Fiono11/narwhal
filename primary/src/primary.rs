@@ -1,10 +1,9 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::core::{Core, TxHash};
 use crate::election::{ElectionId, self};
 use crate::error::DagError;
 use crate::messages::{Header, Hash};
 use crate::payload_receiver::PayloadReceiver;
-use crate::proposer::Proposer;
+use crate::proposer::{Proposer, TxHash};
 use async_trait::async_trait;
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
@@ -122,7 +121,7 @@ impl Primary {
             .collect();
 
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
-        Core::spawn(
+        /*Core::spawn(
             name.clone(),
             committee.clone(),
             store.clone(),
@@ -135,7 +134,7 @@ impl Primary {
             addresses,
             committee.authorities.get(&name).unwrap().byzantine,
             parameters.header_size,
-        );
+        );*/
 
         // Receives batch digests from other workers. They are only used to validate headers.
         PayloadReceiver::spawn(store.clone(), /* rx_workers */ rx_others_digests);
@@ -151,6 +150,9 @@ impl Primary {
             /* rx_core */ rx_parents,
             /* rx_workers */ rx_our_digests,
             /* tx_core */ tx_headers,
+            addresses,
+            committee.authorities.get(&name).unwrap().byzantine,
+            rx_primary_messages,
         );
 
         // NOTE: This log entry is used to compute performance.

@@ -1,7 +1,7 @@
 use std::{collections::{BTreeSet, HashMap}, sync::{Arc, Mutex, Condvar}, thread::{self, sleep}, time::Duration};
 use crypto::{PublicKey as PublicAddress, Digest};
 
-use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}, core::TxHash, messages::Vote};
+use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}, proposer::TxHash, messages::Vote};
 
 pub type ElectionId = Digest;
 

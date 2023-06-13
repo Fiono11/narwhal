@@ -1,8 +1,8 @@
-use crate::core::TxHash;
 use crate::election::ElectionId;
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::error::{DagError, DagResult};
 use crate::primary::Round;
+use crate::proposer::TxHash;
 use config::{Committee, WorkerId};
 use ed25519_dalek::{Digest as _, Sha512};
 use crypto::{Digest, PublicKey as PublicAddress, Signature, SignatureService};
@@ -21,25 +21,28 @@ pub struct Header {
     pub author: PublicAddress,
     pub votes: Vec<Vote>,
     pub signature: Signature,
-    //pub id: Digest,
+    pub id: Digest,
+    pub round: Round,
 }
 
 impl Header {
     pub async fn new(
+        round: Round,
         author: PublicAddress,
         votes: Vec<Vote>,
         signature_service: &mut SignatureService,
     ) -> Self {
         let header = Self {
+            round,
             author,
-            votes: Vec::new(),
+            votes: votes.clone(),
             signature: Signature::default(),
-            //id: Digest::default(),
+            id: Digest::default(),
         };
         let id = header.digest();
         let signature = signature_service.request_signature(Digest::default()).await;
         Self {
-            //id,
+            id,
             votes,
             signature,
             ..header
@@ -48,7 +51,7 @@ impl Header {
 
     pub fn verify(&self, committee: &Committee) -> DagResult<()> {
         // Ensure the header id is well formed.
-        //ensure!(self.digest() == self.id, DagError::InvalidHeaderId);
+        ensure!(self.digest() == self.id, DagError::InvalidHeaderId);
 
         // Ensure the authority has voting rights.
         let voting_rights = committee.stake(&self.author);
@@ -101,6 +104,25 @@ impl fmt::Display for Header {
         write!(f, "B{}({})", self.round, self.id)
     }
 }*/
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct HeaderVote {
+    pub round: Round,
+    pub header_id: Digest,
+    pub commit: bool,
+}
+
+impl HeaderVote {
+    pub async fn new(
+        round: Round,
+        header_id: Digest,
+        commit: bool,
+    ) -> Self {
+        Self {
+            round, commit, header_id,
+        }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Vote {
