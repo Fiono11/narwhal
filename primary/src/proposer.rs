@@ -60,6 +60,8 @@ pub struct Proposer {
     votes: HashMap<Digest, Vec<(TxHash, ElectionId)>>,
     network: SimpleSender,
     rx_primaries: Receiver<PrimaryMessage>,
+    other_primaries: Vec<SocketAddr>,
+    pending_votes: HashMap<Round, BTreeSet<Vote>>,
 }
 
 impl Proposer {
@@ -76,6 +78,7 @@ impl Proposer {
         addresses: Vec<SocketAddr>,
         byzantine: bool,
         rx_primaries: Receiver<PrimaryMessage>,
+        other_primaries: Vec<SocketAddr>,
     ) {
         tokio::spawn(async move {
             Self {
@@ -97,6 +100,8 @@ impl Proposer {
                 network: SimpleSender::new(),
                 rx_primaries,
                 votes: HashMap::new(),
+                other_primaries,
+                pending_votes: HashMap::new(),
             }
             .run()
             .await;
@@ -105,7 +110,7 @@ impl Proposer {
 
     #[async_recursion]
     async fn process_header(&mut self, header: &Header, timer: &mut Pin<&mut tokio::time::Sleep>) -> DagResult<()> {
-        info!("Received header from {} in round {}", header.author, self.round);
+        info!("Received header {} from {} in round {}", header.id, header.author, self.round);
 
         let mut rng = OsRng;
 
@@ -128,17 +133,6 @@ impl Proposer {
         match self.elections.get_mut(&header.round) {
             Some(election) => {
                 election.insert_vote(&vote, vote.author);
-                /*if header.author == self.name {
-                    // broadcast vote
-                    let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
-                        .expect("Failed to serialize our own header");
-                    let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-                    self.cancel_handlers
-                        .entry(header.round)
-                        .or_insert_with(Vec::new)
-                        .extend(handlers);
-                    info!("Sending vote: {:?}", header);
-                }*/
             }
             None => {
                 // create election
@@ -151,20 +145,24 @@ impl Proposer {
                     info!("Created {} -> {:?}", tx_hash, election_id);
                 }
                     
-                let mut election = self.elections.get_mut(&header.round).unwrap();
+                let election = self.elections.get_mut(&header.round).unwrap();
                 // insert vote
                 election.insert_vote(&vote, vote.author);
 
-                if vote.author == self.name {
+                if vote.author != self.name {
                     // broadcast vote
                     let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
                         .expect("Failed to serialize our own header");
-                    let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-                    /*self.cancel_handlers
-                        .entry(header.round)
-                        .or_insert_with(Vec::new)
-                        .extend(handlers);*/
-                    //info!("Sending vote after new election: {:?}", header);
+                    let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
+                }
+            }
+        }
+
+        let election = self.elections.get_mut(&header.round).unwrap();
+        if self.pending_votes.contains_key(&header.round) {
+            if let Some(votes) = self.pending_votes.remove(&header.round) {
+                for vote in votes {
+                    election.insert_vote(&vote, vote.author);
                 }
             }
         }
@@ -174,11 +172,7 @@ impl Proposer {
 
     #[async_recursion]
     async fn process_vote(&mut self, vote: &Vote) -> DagResult<()> {
-        //info!("Received a header from {} in round {}", header.author, self.round);
-        
-        //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-        //timer.as_mut().reset(deadline);
-        //self.round += 1;
+        info!("Received a vote from {} for header {} in election {}", vote.author, vote.header_id, vote.election_id);
 
         //for vote in &header.votes {
             if !vote.commit {
@@ -193,18 +187,20 @@ impl Proposer {
                 
                 //let mut own_header = Header::default();
                 // decide vote
-                let election = self.elections.get_mut(&election_id).unwrap();
-                //match election.tallies.get(&header.round) {
+                match self.elections.get_mut(&election_id) {
+                    Some(election) => {
                     if let Some(tally) = election.tallies.get(&vote.round) {
-                        if let Some(tx_hash) = tally.find_quorum_of_commits() {
+                        if let Some(header_id) = tally.find_quorum_of_commits() {
                             if !election.decided {
-                                #[cfg(not(feature = "benchmark"))]
-                                info!("Committed {}", tx_hash);
-                                                    
-                                #[cfg(feature = "benchmark")]
-                                // NOTE: This log entry is used to compute performance.
-                                info!("Committed {} -> {:?}", tx_hash, election_id);
-                                election.decided = true;
+                                for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
+                                    #[cfg(not(feature = "benchmark"))]
+                                    info!("Committed {}", tx_hash);
+                                                        
+                                    #[cfg(feature = "benchmark")]
+                                    // NOTE: This log entry is used to compute performance.
+                                    info!("Committed {} -> {:?}", tx_hash, election_id);
+                                    election.decided = true;
+                                }
                             }
                             return Ok(());
                         }
@@ -228,7 +224,7 @@ impl Proposer {
                                     // broadcast vote
                                     let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
                                         .expect("Failed to serialize our own header");
-                                    let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+                                    let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
                                     /*self.cancel_handlers
                                         .entry(own_header.round)
                                         .or_insert_with(Vec::new)
@@ -250,12 +246,12 @@ impl Proposer {
                                 // broadcast vote
                                 let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
                                     .expect("Failed to serialize our own header");
-                                let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+                                let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
                                 /*self.cancel_handlers
                                     .entry(own_header.round)
                                     .or_insert_with(Vec::new)
                                     .extend(handlers);*/
-                                //info!("Changing vote: {:?}", own_header);
+                                info!("Changing vote: {:?}", vote);
                             }
                             else if !election.voted_or_committed(&self.name, vote.round) {
                                     let mut tx_hash = tx_hash;
@@ -272,15 +268,27 @@ impl Proposer {
                                     // broadcast vote
                                     let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
                                         .expect("Failed to serialize our own header");
-                                    let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+                                    let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
                                     /*self.cancel_handlers
                                         .entry(own_header.round)
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);*/
-                                    //info!("Sending vote: {:?}", own_header);                            
+                                    info!("Sending vote: {:?}", vote);                            
                             }
-                        //}               
-                    //}
+                        }               
+                    }
+                    None => {
+                        match self.pending_votes.get_mut(&election_id) {
+                            Some(btreeset) => {
+                                btreeset.insert(vote.clone());
+                            }
+                            None => {
+                                let mut btreeset = BTreeSet::new();
+                                btreeset.insert(vote.clone());
+                                self.pending_votes.insert(election_id, btreeset);
+                            }
+                        }
+                    }
                 }
                 //info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());
             }
@@ -304,7 +312,7 @@ impl Proposer {
                 // broadcast vote
                 let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
                     .expect("Failed to serialize our own header");
-                //let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+                let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
                 /*self.cancel_handlers
                     .entry(own_header.round)
                     .or_insert_with(Vec::new)

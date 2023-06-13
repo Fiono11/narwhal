@@ -114,7 +114,7 @@ impl HeaderVote {
     }
 }*/
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Vote {
     pub round: Round,
     pub header_id: Digest,

@@ -121,6 +121,12 @@ impl Primary {
             .map(|(_, x)| x.primary_to_primary)
             .collect();
 
+        let other_primaries = committee
+            .others_primaries(&name)
+            .iter()
+            .map(|(_, x)| x.primary_to_primary)
+            .collect();
+
         // The `Core` receives and handles headers, votes, and certificates from the other primaries.
         /*Core::spawn(
             name.clone(),
@@ -154,6 +160,7 @@ impl Primary {
             addresses,
             committee.authorities.get(&name).unwrap().byzantine,
             rx_primary_messages,
+            other_primaries,
         );
 
         // NOTE: This log entry is used to compute performance.
