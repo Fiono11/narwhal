@@ -105,13 +105,26 @@ impl Proposer {
 
     #[async_recursion]
     async fn process_header(&mut self, header: &Header, timer: &mut Pin<&mut tokio::time::Sleep>) -> DagResult<()> {
-        let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+        info!("Received header from {} in round {}", header.author, self.round);
+
+        let mut rng = OsRng;
+
+        let duration_ms = rng.gen_range(0..=1000);
+
+        info!("timer set to {:?} ms", duration_ms);
+        
+        let deadline = Instant::now() + Duration::from_millis(duration_ms);
         timer.as_mut().reset(deadline);
+        
         self.round += 1;
 
         self.votes.insert(header.id.clone(), header.votes.clone());
         let vote = Vote::new(0, header.id.clone(), header.round, false, header.author, &mut self.signature_service).await;
 
+        for (_, election_id) in &header.votes {
+            self.proposals.retain(|&(_, ref p_election_id)| p_election_id != election_id);
+        }
+        
         match self.elections.get_mut(&header.round) {
             Some(election) => {
                 election.insert_vote(&vote, vote.author);
@@ -133,8 +146,10 @@ impl Proposer {
                 self.elections.insert(header.round, election);
 
                 #[cfg(feature = "benchmark")]
-                // NOTE: This log entry is used to compute performance.
-                info!("Created {} -> {:?}", vote, election_id);
+                for (tx_hash, election_id) in &header.votes {
+                    // NOTE: This log entry is used to compute performance.
+                    info!("Created {} -> {:?}", tx_hash, election_id);
+                }
                     
                 let mut election = self.elections.get_mut(&header.round).unwrap();
                 // insert vote
@@ -184,11 +199,11 @@ impl Proposer {
                         if let Some(tx_hash) = tally.find_quorum_of_commits() {
                             if !election.decided {
                                 #[cfg(not(feature = "benchmark"))]
-                                info!("Committed {}", vote);
+                                info!("Committed {}", tx_hash);
                                                     
                                 #[cfg(feature = "benchmark")]
                                 // NOTE: This log entry is used to compute performance.
-                                info!("Committed {} -> {:?}", vote, election_id);
+                                info!("Committed {} -> {:?}", tx_hash, election_id);
                                 election.decided = true;
                             }
                             return Ok(());
@@ -360,7 +375,7 @@ impl Proposer {
             //let enough_digests = self.payload_size >= self.header_size;
             //let enough_digests = self.digests.len() == 1;
             let timer_expired = timer.is_elapsed();
-            let enough_votes = self.proposals.len() >= self.header_size;
+            let enough_proposals = self.proposals.len() >= self.header_size;
             //info!("Digests: {:?}", self.digests);
 
             /*if enough_votes {
@@ -415,7 +430,7 @@ impl Proposer {
 
                 () = &mut timer => {
                     // Nothing to do.
-                    if enough_votes {
+                    if enough_proposals {
                         self.make_header().await;
                     }
                 },
