@@ -82,17 +82,17 @@ impl Proposer {
         .await;
         //debug!("Created {:?}", header);
         
-        #[cfg(feature = "benchmark")]
-        for vote in &header.votes {
+        //#[cfg(feature = "benchmark")]
+        //for vote in &header.votes {
             // NOTE: This log entry is used to compute performance.
-            info!("Created {} -> {:?}", &vote, vote.election_id);
-        }
+            //info!("Created {} -> {:?}", &vote, vote.election_id);
+        //}
 
         // Send the new header to the `Core` that will broadcast and process it.
         self.tx_core
             .send(header)
-            .await;
-            //.expect("Failed to send header");
+            .await
+            .expect("Failed to send header");
     }
 
     // Main loop listening to incoming messages.

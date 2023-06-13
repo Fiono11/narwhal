@@ -64,6 +64,7 @@ pub struct Core {
     byzantine: bool,
     payloads: HashMap<ElectionId, BTreeSet<TxHash>>,
     votes: Vec<Vote>,
+    header_size: usize,
 }
 
 impl Core {
@@ -80,6 +81,7 @@ impl Core {
         tx_proposer: Sender<(Vec<TxHash>, Round)>,
         addresses: Vec<SocketAddr>,
         byzantine: bool,
+        header_size: usize,
     ) {
         tokio::spawn(async move {
             Self {
@@ -103,6 +105,7 @@ impl Core {
                 byzantine,
                 payloads: HashMap::new(),
                 votes: Vec::new(),
+                header_size,
             }
             .run()
             .await;
@@ -113,10 +116,10 @@ impl Core {
     async fn process_header(&mut self, header: &Header) -> DagResult<()> {
         for vote in &header.votes {
             if !vote.commit {
-                info!("Received vote {:?} from {}", vote, header.author);
+                //info!("Received vote {:?} from {}", vote, header.author);
             }
             else {
-                info!("Received commit {:?} from {}", vote, header.author);
+                //info!("Received commit {:?} from {}", vote, header.author);
             }
             let (tx_hash, election_id) = (vote.tx_hash.clone(), vote.election_id.clone()); 
             if !self.byzantine {
@@ -283,15 +286,13 @@ impl Core {
                 //info!("Sending vote: {:?}", own_header);
             }
 
-            for vote in &self.votes {
-                info!("{} sending {}", self.name, vote);
+            if self.votes.len() >= self.header_size {
+                // broadcast votes
+                let own_header = Header::new(self.name, self.votes.drain(..).collect(), &mut self.signature_service).await;
+                let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
+                    .expect("Failed to serialize our own header");
+                let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
             }
-
-            // broadcast votes
-            let own_header = Header::new(self.name, self.votes.drain(..).collect(), &mut self.signature_service).await;
-            let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
-                .expect("Failed to serialize our own header");
-            let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
         }
         Ok(())
     }
