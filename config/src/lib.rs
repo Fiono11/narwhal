@@ -205,6 +205,14 @@ impl Committee {
             .collect()
     }
 
+    pub fn primaries(&self) -> Vec<(PublicKey, PrimaryAddresses)> {
+        self.authorities
+            .iter()
+            //.filter(|(name, _)| name != &myself)
+            .map(|(name, authority)| (*name, authority.primary.clone()))
+            .collect()
+    }
+
     /// Returns the addresses of a specific worker (`id`) of a specific authority (`to`).
     pub fn worker(&self, to: &PublicKey, id: &WorkerId) -> Result<WorkerAddresses, ConfigError> {
         self.authorities

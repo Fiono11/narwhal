@@ -1,7 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::election::{ElectionId, self};
 use crate::error::DagError;
-use crate::messages::{Header, Hash};
+use crate::messages::{Header, Hash, Vote};
 use crate::payload_receiver::PayloadReceiver;
 use crate::proposer::{Proposer, TxHash};
 use async_trait::async_trait;
@@ -29,6 +29,7 @@ pub type Round = u64;
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PrimaryMessage {
     Header(Header),
+    Vote(Vote),
 }
 
 /// The messages sent by the primary to its workers.
@@ -115,7 +116,7 @@ impl Primary {
         let signature_service = SignatureService::new(secret);
 
         let addresses = committee
-            .others_primaries(&name)
+            .primaries()
             .iter()
             .map(|(_, x)| x.primary_to_primary)
             .collect();
