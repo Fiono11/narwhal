@@ -291,6 +291,7 @@ impl Proposer {
     }
 
     async fn make_header(&mut self) {
+        info!("Making a new header...");
         // Make a new header.
         let header = Header::new(
             self.round,
@@ -300,6 +301,10 @@ impl Proposer {
         )
         .await;
         //debug!("Created {:?}", header);
+
+        let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
+            .expect("Failed to serialize our own header");
+        let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
         
         //#[cfg(feature = "benchmark")]
         //for vote in &header.votes {
@@ -308,10 +313,10 @@ impl Proposer {
         //}
 
         // Send the new header to the `Core` that will broadcast and process it.
-        self.tx_core
+        /*self.tx_core
             .send(header)
             .await
-            .expect("Failed to send header");
+            .expect("Failed to send header");*/
     }
 
     // Main loop listening to incoming messages.
@@ -359,8 +364,10 @@ impl Proposer {
 
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
+                    info!("received tx {} of election {}", tx_hash, election_id);
                     if let None = self.elections.get(&election_id) {
                         let vote = Vote::new(0, tx_hash, election_id, false).await;
+                        info!("inserted vote {}", &vote);
                         self.votes.push(vote);
                     }
                     //self.make_header(tx_hash, election_id).await;
@@ -370,33 +377,23 @@ impl Proposer {
                     //self.make_header().await;
                     //info!("Size: {:?}", self.payload_size);
                     //info!("Digests: {:?}", self.digests);
-                }
+                },
+
                 () = &mut timer => {
                     // Nothing to do.
-                }
-            }
+                },
 
-            let result = tokio::select! {
                 // We receive here messages from other primaries.
                 Some(message) = self.rx_primaries.recv() => {
-                    match message {
+                    let _ = match message {
                         PrimaryMessage::Header(header) => self.process_header(&header, &mut timer).await,
-                        _ => panic!("Unexpected core message")
-                    }
+                        _ => Ok(())
+                    };
                 },
 
                 // We also receive here our new headers created by the `Proposer`.
                 //Some(header) = self.rx_proposer.recv() => self.process_header(&header).await,
             };
-            match result {
-                Ok(()) => (),
-                Err(DagError::StoreError(e)) => {
-                    error!("{}", e);
-                    panic!("Storage failure: killing node.");
-                }
-                Err(e @ DagError::TooOld(..)) => debug!("{}", e),
-                Err(e) => warn!("{}", e),
-            }
         }
     }
 }
