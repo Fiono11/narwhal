@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashMap};
+use std::pin::Pin;
 use async_recursion::async_recursion;
 use bytes::Bytes;
 use rand::seq::IteratorRandom;
@@ -101,7 +102,11 @@ impl Proposer {
     }
 
     #[async_recursion]
-    async fn process_header(&mut self, header: &Header) -> DagResult<()> {
+    async fn process_header(&mut self, header: &Header, timer: &mut Pin<&mut tokio::time::Sleep>) -> DagResult<()> {
+        let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+        timer.as_mut().reset(deadline);
+        self.round += 1;
+
         for vote in &header.votes {
             if !vote.commit {
                 //info!("Received vote {:?} from {}", vote, header.author);
@@ -313,7 +318,7 @@ impl Proposer {
     pub async fn run(&mut self) {
         //debug!("Dag starting at round {}", self.round);
 
-        let timer = sleep(Duration::from_millis(self.max_header_delay));
+        let timer: tokio::time::Sleep = sleep(Duration::from_millis(self.max_header_delay));
         tokio::pin!(timer);
 
         loop {
@@ -329,7 +334,7 @@ impl Proposer {
             let enough_votes = self.votes.len() >= self.header_size;
             //info!("Digests: {:?}", self.digests);
 
-            if enough_votes || timer_expired {
+            if enough_votes && timer_expired {
                 let mut rng = OsRng;
 
                 // Generate a random duration between 0 and 1000 milliseconds
@@ -346,16 +351,18 @@ impl Proposer {
                 //self.payload_size = 0;
 
                 // Reschedule the timer.
-                let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-                timer.as_mut().reset(deadline);
+                //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                //timer.as_mut().reset(deadline);
 
-                self.round += 1;
+                //self.round += 1;
             }
 
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
-                    let vote = Vote::new(0, tx_hash, election_id, false).await;
-                    self.votes.push(vote);
+                    if let None = self.elections.get(&election_id) {
+                        let vote = Vote::new(0, tx_hash, election_id, false).await;
+                        self.votes.push(vote);
+                    }
                     //self.make_header(tx_hash, election_id).await;
                     //info!("Received digest {:?}", digest);
                     //self.payload_size += tx_hash.size();
@@ -373,7 +380,7 @@ impl Proposer {
                 // We receive here messages from other primaries.
                 Some(message) = self.rx_primaries.recv() => {
                     match message {
-                        PrimaryMessage::Header(header) => self.process_header(&header).await,
+                        PrimaryMessage::Header(header) => self.process_header(&header, &mut timer).await,
                         _ => panic!("Unexpected core message")
                     }
                 },
