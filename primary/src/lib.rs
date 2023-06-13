@@ -19,5 +19,5 @@ mod constants;
 #[path = "tests/common.rs"]
 mod common;
 
-pub use crate::messages::{Certificate, Header, Hash};
+pub use crate::messages::{Header, Hash};
 pub use crate::primary::{Primary, PrimaryWorkerMessage, Round, WorkerPrimaryMessage, Transaction};

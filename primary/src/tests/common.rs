@@ -25,6 +25,10 @@ impl PartialEq for Vote {
     }
 }
 
+impl Eq for Vote {
+    
+}
+
 // Fixture
 pub fn keys() -> Vec<(PublicKey, SecretKey)> {
     let mut rng = StdRng::from_seed([0; 32]);

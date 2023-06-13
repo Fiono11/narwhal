@@ -1,6 +1,6 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::primary::Round;
-use crypto::{Digest as TxHash, PublicKey as PublicAddress};
+use crypto::{Digest as TxHash, PublicKey as PublicAddress, CryptoError};
 use store::StoreError;
 use thiserror::Error;
 
@@ -24,8 +24,8 @@ pub type DagResult<T> = Result<T, DagError>;
 
 #[derive(Debug, Error)]
 pub enum DagError {
-    //#[error("Invalid signature")]
-    //InvalidSignature(#[from] CryptoError),
+    #[error("Invalid signature")]
+    InvalidSignature(#[from] CryptoError),
 
     #[error("Storage failure: {0}")]
     StoreError(#[from] StoreError),

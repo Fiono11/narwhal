@@ -16,13 +16,13 @@ def local(ctx, debug=True):
         'faults': 0,
         'nodes': [4],
         'workers': 1,
-        'rate': 1000,
+        'rate': 10000,
         'tx_size': 500,
-        'duration': 30,
+        'duration': 5,
         'runs': 1,
     }
     node_params = {
-        'header_size': 32,  # bytes
+        'header_size': 10,  # bytes
         'max_header_delay': 1000,  # ms
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms

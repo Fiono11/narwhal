@@ -1,11 +1,11 @@
 use std::{collections::{BTreeSet, HashMap}, sync::{Arc, Mutex, Condvar}, thread::{self, sleep}, time::Duration};
 use crypto::{PublicKey as PublicAddress, Digest};
 
-use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}, core::TxHash};
+use crate::{Round, Header, constants::{QUORUM, SEMI_QUORUM}, core::TxHash, messages::Vote};
 
 pub type ElectionId = Digest;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Election {
     //pub round: Round,
     pub tallies: HashMap<Round, Tally>,
@@ -33,9 +33,9 @@ impl Election {
         }
     }
 
-    pub fn insert_vote(&mut self, header: &Header) {
-        let tx_hash = header.payload.0.clone();
-        if !header.commit {
+    pub fn insert_vote(&mut self, vote: &Vote, author: PublicAddress) {
+        let tx_hash = vote.tx_hash.clone();
+        if !vote.commit {
             if let Some(highest) = self.highest.clone() {
                 if tx_hash > highest {
                     self.highest = Some(tx_hash.clone());
@@ -46,14 +46,14 @@ impl Election {
             }
         }
 
-        match self.tallies.get_mut(&header.round) {
+        match self.tallies.get_mut(&vote.round) {
             Some(tally) => {
-                tally.insert_to_tally(tx_hash, header.author, header.commit);
+                tally.insert_to_tally(tx_hash, author, vote.commit);
             }
             None => {
                 let mut tally = Tally::new();
-                Tally::insert_to_tally(&mut tally, tx_hash.clone(), header.author, header.commit);
-                self.tallies.insert(header.round, tally);
+                Tally::insert_to_tally(&mut tally, tx_hash.clone(), author, vote.commit);
+                self.tallies.insert(vote.round, tally);
             }
         }
     }
@@ -71,34 +71,6 @@ impl Election {
         }
         false
     }    
-
-    /*pub fn voted(&self, pa: &PublicAddress, round: Round) -> bool {
-        match self.tallies.get(&round) {
-            Some(tally) => {
-                for vote_set in tally.votes.values() {
-                    if vote_set.contains(pa) {
-                        return true;
-                    }
-                }
-            }
-            None => return false,
-        }
-        false
-    }
-
-    pub fn committed(&self, pa: &PublicAddress, round: Round) -> bool {
-        match self.tallies.get(&round) {
-            Some(tally) => {
-                for commit_set in tally.commits.values() {
-                    if commit_set.contains(pa) {
-                        return true;
-                    }
-                }
-            }
-            None => return false,
-        }
-        false
-    }*/
 }
 
 #[derive(Debug, Clone)]

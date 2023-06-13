@@ -1,6 +1,6 @@
 use crate::core::TxHash;
 use crate::election::ElectionId;
-use crate::messages::{Certificate, Header, Hash};
+use crate::messages::{Header, Hash, Vote};
 use crate::primary::Round;
 use config::{Committee, WorkerId};
 use crypto::{Digest, PublicKey, SignatureService};
@@ -34,12 +34,11 @@ pub struct Proposer {
 
     /// The current round of the dag.
     round: Round,
-    /// Holds the certificates' ids waiting to be included in the next header.
-    last_parents: Vec<Digest>,
     /// Holds the batches' digests waiting to be included in the next header.
     digests: Vec<(TxHash, ElectionId)>,
     /// Keeps track of the size (in bytes) of batches' digests that we received so far.
     payload_size: usize,
+    votes: Vec<Vote>,
 }
 
 impl Proposer {
@@ -54,11 +53,6 @@ impl Proposer {
         rx_workers: Receiver<(TxHash, ElectionId)>,
         tx_core: Sender<Header>,
     ) {
-        let genesis = Certificate::genesis(committee)
-            .iter()
-            .map(|x| x.digest())
-            .collect();
-
         tokio::spawn(async move {
             Self {
                 name,
@@ -69,39 +63,36 @@ impl Proposer {
                 rx_workers,
                 tx_core,
                 round: 1,
-                last_parents: genesis,
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
+                votes: Vec::with_capacity(header_size),
             }
             .run()
             .await;
         });
     }
 
-    async fn make_header(&mut self, tx_hash: Digest, election_id: Digest) {
+    async fn make_header(&mut self) {
         // Make a new header.
         let header = Header::new(
             self.name.clone(),
-            0,
-            (tx_hash, election_id.clone()),
-            //self.last_parents.drain(..).collect(),
+            self.votes.drain(..).collect(),
             &mut self.signature_service,
-            false,
         )
         .await;
         //debug!("Created {:?}", header);
         
         #[cfg(feature = "benchmark")]
-        //for digest in &header.payload {
+        for vote in &header.votes {
             // NOTE: This log entry is used to compute performance.
-            info!("Created {} -> {:?}", &header, election_id);
-        //}
+            info!("Created {} -> {:?}", &vote, vote.election_id);
+        }
 
         // Send the new header to the `Core` that will broadcast and process it.
         self.tx_core
             .send(header)
-            .await
-            .expect("Failed to send header");
+            .await;
+            //.expect("Failed to send header");
     }
 
     // Main loop listening to incoming messages.
@@ -120,34 +111,25 @@ impl Proposer {
             //let enough_parents = !self.last_parents.is_empty();
             //let enough_digests = self.payload_size >= self.header_size;
             //let enough_digests = self.digests.len() == 1;
-            //let timer_expired = timer.is_elapsed();
+            let timer_expired = timer.is_elapsed();
+            let enough_votes = self.votes.len() >= self.header_size;
             //info!("Digests: {:?}", self.digests);
 
-            //if enough_digests {
+            if enough_votes || timer_expired {
                 // Make a new header.
-                //self.make_header().await;
+                self.make_header().await;
                 //self.payload_size = 0;
 
                 // Reschedule the timer.
-                //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-                //timer.as_mut().reset(deadline);
-            //}
+                let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                timer.as_mut().reset(deadline);
+            }
 
             tokio::select! {
-                Some((parents, round)) = self.rx_core.recv() => {
-                    if round < self.round {
-                        continue;
-                    }
-
-                    // Advance to the next round.
-                    self.round = round + 1;
-                    //debug!("Dag moved to round {}", self.round);
-
-                    // Signal that we have enough parent certificates to propose a new header.
-                    self.last_parents = parents;
-                }
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
-                    self.make_header(tx_hash, election_id).await;
+                    let vote = Vote::new(0, tx_hash, election_id, false).await;
+                    self.votes.push(vote);
+                    //self.make_header(tx_hash, election_id).await;
                     //info!("Received digest {:?}", digest);
                     //self.payload_size += tx_hash.size();
                     //self.digests.push((tx_hash, election_id));

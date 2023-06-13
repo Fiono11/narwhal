@@ -5,7 +5,8 @@ use config::Export as _;
 use config::Import as _;
 use config::{Committee, KeyPair, Parameters, WorkerId};
 use env_logger::Env;
-use primary::{Certificate, Primary};
+use primary::Header;
+use primary::Primary;
 use store::Store;
 use tokio::sync::mpsc::{channel, Receiver};
 use worker::Worker;
@@ -96,16 +97,16 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     match matches.subcommand() {
         // Spawn the primary and consensus core.
         ("primary", _) => {
-            let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
-            let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
+            //let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
+            //let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
             Primary::spawn(
                 keypair.name,
                 keypair.secret,
                 committee.clone(),
                 parameters.clone(),
                 store,
-                /* tx_consensus */ tx_new_certificates,
-                /* rx_consensus */ rx_feedback,
+                /* tx_consensus */ //tx_new_certificates,
+                /* rx_consensus */ //rx_feedback,
             );
         }
 
@@ -129,7 +130,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
 }
 
 /// Receives an ordered list of certificates and apply any application-specific logic.
-async fn analyze(mut rx_output: Receiver<Certificate>) {
+async fn analyze(mut rx_output: Receiver<()>) {
     while let Some(_certificate) = rx_output.recv().await {
         // NOTE: Here goes the application logic.
     }

@@ -2,7 +2,7 @@
 use crate::core::{Core, TxHash};
 use crate::election::{ElectionId, self};
 use crate::error::DagError;
-use crate::messages::{Certificate, Header, Hash};
+use crate::messages::{Header, Hash};
 use crate::payload_receiver::PayloadReceiver;
 use crate::proposer::Proposer;
 use async_trait::async_trait;
@@ -59,8 +59,8 @@ impl Primary {
         committee: Committee,
         parameters: Parameters,
         store: Store,
-        tx_consensus: Sender<Certificate>,
-        rx_consensus: Receiver<Certificate>,
+        //tx_consensus: Sender<Certificate>,
+        //rx_consensus: Receiver<Certificate>,
     ) {
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
