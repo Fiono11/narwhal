@@ -254,14 +254,14 @@ class LogParser:
             raise ValueError("Expected a filename or StringIO. Got %s" % type(file))
 
     @classmethod
-    def process(cls, directory, faults=0):
+    def process(cls, directory, faults):
         assert isinstance(directory, str)
 
         clients = []
         for filename in sorted(glob(join(directory, 'client-*.log'))):
             base = basename(filename)
             file_number = int(splitext(base)[0].split('-')[1])
-            if file_number != 0:
+            if file_number >= faults:
                 with open(filename, 'r') as f:
                     clients += [f.read()]
 
@@ -269,7 +269,7 @@ class LogParser:
         for filename in sorted(glob(join(directory, 'primary-*.log'))):
             base = basename(filename)
             file_number = int(splitext(base)[0].split('-')[1])
-            if file_number != 0:
+            if file_number >= faults:
                 with open(filename, 'r') as f:
                     primaries += [f.read()]
 
@@ -277,7 +277,7 @@ class LogParser:
         for filename in sorted(glob(join(directory, 'worker-*.log'))):
             base = basename(filename)
             file_number = int(splitext(base)[0].split('-')[1])
-            if file_number != 0:
+            if file_number >= faults:
                 with open(filename, 'r') as f:
                     workers += [f.read()]
 

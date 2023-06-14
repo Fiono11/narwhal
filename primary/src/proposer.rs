@@ -379,7 +379,14 @@ impl Proposer {
                 },
 
                 () = &mut timer => {
-                    let next_leader = self.committee.leader((self.round+1) as usize);
+                    let mut next_round = self.round + 1;
+                    let mut next_leader = self.committee.leader(next_round as usize);
+
+                    while self.committee.is_byzantine(&next_leader) {
+                        next_round += 1;
+                        next_leader = self.committee.leader(next_round as usize);
+                    }
+
                     self.leader = next_leader;
 
                     if next_leader == self.name && self.proposals.len() >= self.header_size {

@@ -71,13 +71,13 @@ impl SimpleSender {
         let mut rng = OsRng;
 
         // Generate a random duration between 0 and 1000 milliseconds
-        let duration_ms = rng.gen_range(0..=5);
+        let duration_ms = rng.gen_range(0..=200);
 
         // Convert the duration to the appropriate type
         let duration = Duration::from_millis(duration_ms);
 
         // Sleep for the random duration
-        //thread::sleep(duration);
+        thread::sleep(duration);
 
         //info!("Broadcast in {} ms", duration_ms);
         

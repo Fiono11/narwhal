@@ -188,6 +188,14 @@ impl Committee {
         keys[seed % self.size()]
     }
 
+    pub fn is_byzantine(&self, node: &PublicKey) -> bool {
+        if let Some(authority) = self.authorities.get(node) {
+            authority.byzantine
+        } else {
+            false // Return false or some default value if the node is not in the authorities map.
+        }
+    }
+
     /// Returns the primary addresses of the target primary.
     pub fn primary(&self, to: &PublicKey) -> Result<PrimaryAddresses, ConfigError> {
         self.authorities
