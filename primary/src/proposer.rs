@@ -204,6 +204,8 @@ impl Proposer {
                         if let Some(header_id) = tally.find_quorum_of_commits() {
                             if !election.decided {
                                 for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
+                                    self.proposals.retain(|(_, id)| id != election_id);
+
                                     #[cfg(not(feature = "benchmark"))]
                                     info!("Committed {}", tx_hash);
                                                         
@@ -267,7 +269,7 @@ impl Proposer {
                                 info!("Changing vote: {:?}", &own_vote);
                             }
                             else if !election.voted_or_committed(&self.name, vote.round) {
-                                    let mut tx_hash = tx_hash;
+                                let mut tx_hash = tx_hash;
                                     if let Some(highest) = &election.highest {
                                         tx_hash = highest.clone();
                                     }
@@ -328,21 +330,8 @@ impl Proposer {
                 let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
                     .expect("Failed to serialize our own header");
                 let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
-                /*self.cancel_handlers
-                    .entry(own_header.round)
-                    .or_insert_with(Vec::new)
-                    .extend(handlers);*/
-                //info!("Sending vote: {:?}", own_header);
-            }
 
-            //if self.votes.len() >= self.header_size {
-                // broadcast votes
-                //let own_header = Header::new(self.round, self.name, self.votes.drain(..).collect(), &mut self.signature_service).await;
-                //let bytes = bincode::serialize(&PrimaryMessage::Header(own_header.clone()))
-                    //.expect("Failed to serialize our own header");
-                //let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-            //}
-        //}
+            }
         Ok(())
     }
 
@@ -380,7 +369,9 @@ impl Proposer {
         loop {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
-                    self.proposals.push((tx_hash, election_id));
+                    if !self.byzantine {
+                        self.proposals.push((tx_hash, election_id));
+                    }
 
                     if self.proposals.len() >= self.header_size && self.leader == self.name {
                         self.make_header().await;

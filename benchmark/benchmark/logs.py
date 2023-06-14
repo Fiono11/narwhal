@@ -6,7 +6,7 @@ from multiprocessing import Pool
 from os.path import join
 from re import findall, search
 from statistics import mean
-
+from os.path import basename, splitext
 from benchmark.utils import Print
 
 
@@ -259,15 +259,26 @@ class LogParser:
 
         clients = []
         for filename in sorted(glob(join(directory, 'client-*.log'))):
-            with open(filename, 'r') as f:
-                clients += [f.read()]
+            base = basename(filename)
+            file_number = int(splitext(base)[0].split('-')[1])
+            if file_number != 0:
+                with open(filename, 'r') as f:
+                    clients += [f.read()]
+
         primaries = []
         for filename in sorted(glob(join(directory, 'primary-*.log'))):
-            with open(filename, 'r') as f:
-                primaries += [f.read()]
+            base = basename(filename)
+            file_number = int(splitext(base)[0].split('-')[1])
+            if file_number != 0:
+                with open(filename, 'r') as f:
+                    primaries += [f.read()]
+
         workers = []
         for filename in sorted(glob(join(directory, 'worker-*.log'))):
-            with open(filename, 'r') as f:
-                workers += [f.read()]
+            base = basename(filename)
+            file_number = int(splitext(base)[0].split('-')[1])
+            if file_number != 0:
+                with open(filename, 'r') as f:
+                    workers += [f.read()]
 
         return cls(clients, primaries, workers, faults=faults)
