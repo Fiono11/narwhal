@@ -199,86 +199,67 @@ impl Proposer {
                 // decide vote
                 match self.elections.get_mut(&election_id) {
                     Some(election) => {
-                        election.insert_vote(&vote);
-                    if let Some(tally) = election.tallies.get(&vote.round) {
-                        if let Some(header_id) = tally.find_quorum_of_commits() {
-                            if !election.decided {
-                                for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
-                                    self.proposals.retain(|(_, id)| id != election_id);
+                        if !election.decided {
+                            election.insert_vote(&vote);
+                            if let Some(tally) = election.tallies.get(&vote.round) {
+                            if let Some(header_id) = tally.find_quorum_of_commits() {
+                                //if !election.decided {
+                                    for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
+                                        //info!("proposals: {:?}", self.proposals);
+                                        self.proposals.retain(|(_, id)| id != election_id);
+                                        //info!("proposals2: {:?}", self.proposals);
 
-                                    #[cfg(not(feature = "benchmark"))]
-                                    info!("Committed {}", tx_hash);
-                                                        
-                                    #[cfg(feature = "benchmark")]
-                                    // NOTE: This log entry is used to compute performance.
-                                    info!("Committed {} -> {:?}", vote, election_id);
-                                    election.decided = true;
-                                }
-
-                                let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-                                timer.as_mut().reset(deadline);
-
-                                self.round += 1;
-                                self.leader = self.committee.leader(self.round as usize);
-                                
-                                if self.leader == self.name && self.proposals.len() >= self.header_size {
-                                    self.make_header().await;
-                                }   
-                            }
-                            return Ok(());
-                        }
-                        //if !election.committed {
-                            //own_header = header.clone();
-                            if let Some(tx_hash) = tally.find_quorum_of_votes() {
-                                if !election.voted_or_committed(&self.name, vote.round+1) {
-                                    election.commit = Some(tx_hash.clone());
-                                    election.proof_round = Some(vote.round);
-                                    let own_vote = Vote::new(vote.round + 1, tx_hash.clone(), election_id, true, self.name, &mut self.signature_service).await;
-                                    election.insert_vote(&own_vote);
-
-                                    // broadcast vote
-                                    let bytes = bincode::serialize(&PrimaryMessage::Vote(own_vote.clone()))
-                                        .expect("Failed to serialize our own header");
-                                    let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
-                                    /*self.cancel_handlers
-                                        .entry(own_header.round)
-                                        .or_insert_with(Vec::new)
-                                        .extend(handlers);*/
-                                    info!("Sending commit: {:?}", &own_vote);
-                                }
-                            }
-                            else if election.voted_or_committed(&self.name, vote.round) && ((tally.total_votes() >= QUORUM && *tally.timer.0.lock().unwrap() == Timer::Expired) || tally.total_votes() == NUMBER_OF_NODES)
-                            && !election.voted_or_committed(&self.name, vote.round + 1) {
-                                let highest = election.highest.clone().unwrap();
-                                //own_header.payload = (highest.clone(), election_id.clone());
-                                //own_header.round = header.round + 1;
-                                //own_header.author = self.name;
-                                let own_vote = Vote::new(vote.round+1, highest, election_id, false,  self.name, &mut self.signature_service).await;
-                                //self.proposals.push(vote.clone());
-                                //election.round = header.round + 1;
-                                election.insert_vote(&own_vote);
-
-                                // broadcast vote
-                                let bytes = bincode::serialize(&PrimaryMessage::Vote(own_vote.clone()))
-                                    .expect("Failed to serialize our own header");
-                                let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
-                                /*self.cancel_handlers
-                                    .entry(own_header.round)
-                                    .or_insert_with(Vec::new)
-                                    .extend(handlers);*/
-                                info!("Changing vote: {:?}", &own_vote);
-                            }
-                            else if !election.voted_or_committed(&self.name, vote.round) {
-                                let mut tx_hash = tx_hash;
-                                    if let Some(highest) = &election.highest {
-                                        tx_hash = highest.clone();
+                                        #[cfg(not(feature = "benchmark"))]
+                                        info!("Committed {}", tx_hash);
+                                                            
+                                        #[cfg(feature = "benchmark")]
+                                        // NOTE: This log entry is used to compute performance.
+                                        info!("Committed {} -> {:?}", vote, election_id);
+                                        election.decided = true;
                                     }
-                                    //election.voted = true;
-                                    //election.round = header.round + 1;
+
+                                    let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                                    timer.as_mut().reset(deadline);
+
+                                    self.round += 1;
+                                    self.leader = self.committee.leader(self.round as usize);
+                                    
+                                    if self.leader == self.name && self.proposals.len() >= self.header_size && self.elections.get(&self.round).is_none() {
+                                        self.make_header().await;
+                                    }   
+                                //}
+                                return Ok(());
+                            }
+                            //if !election.committed {
+                                //own_header = header.clone();
+                                if let Some(tx_hash) = tally.find_quorum_of_votes() {
+                                    if !election.voted_or_committed(&self.name, vote.round+1) {
+                                        election.commit = Some(tx_hash.clone());
+                                        election.proof_round = Some(vote.round);
+                                        let own_vote = Vote::new(vote.round + 1, tx_hash.clone(), election_id, true, self.name, &mut self.signature_service).await;
+                                        election.insert_vote(&own_vote);
+
+                                        // broadcast vote
+                                        let bytes = bincode::serialize(&PrimaryMessage::Vote(own_vote.clone()))
+                                            .expect("Failed to serialize our own header");
+                                        let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
+                                        /*self.cancel_handlers
+                                            .entry(own_header.round)
+                                            .or_insert_with(Vec::new)
+                                            .extend(handlers);*/
+                                        info!("Sending commit: {:?}", &own_vote);
+                                    }
+                                }
+                                else if election.voted_or_committed(&self.name, vote.round) && ((tally.total_votes() >= QUORUM && *tally.timer.0.lock().unwrap() == Timer::Expired) || tally.total_votes() == NUMBER_OF_NODES)
+                                && !election.voted_or_committed(&self.name, vote.round + 1) {
+                                    let highest = election.highest.clone().unwrap();
+                                    //own_header.payload = (highest.clone(), election_id.clone());
+                                    //own_header.round = header.round + 1;
                                     //own_header.author = self.name;
-                                    let own_vote = Vote::new(vote.round, tx_hash, election_id, vote.commit, self.name, &mut self.signature_service).await;
-                                    election.insert_vote(&own_vote);
+                                    let own_vote = Vote::new(vote.round+1, highest, election_id, false,  self.name, &mut self.signature_service).await;
                                     //self.proposals.push(vote.clone());
+                                    //election.round = header.round + 1;
+                                    election.insert_vote(&own_vote);
 
                                     // broadcast vote
                                     let bytes = bincode::serialize(&PrimaryMessage::Vote(own_vote.clone()))
@@ -288,7 +269,30 @@ impl Proposer {
                                         .entry(own_header.round)
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);*/
-                                    info!("Sending vote: {:?}", &own_vote);                            
+                                    info!("Changing vote: {:?}", &own_vote);
+                                }
+                                else if !election.voted_or_committed(&self.name, vote.round) {
+                                    let mut tx_hash = tx_hash;
+                                        if let Some(highest) = &election.highest {
+                                            tx_hash = highest.clone();
+                                        }
+                                        //election.voted = true;
+                                        //election.round = header.round + 1;
+                                        //own_header.author = self.name;
+                                        let own_vote = Vote::new(vote.round, tx_hash, election_id, vote.commit, self.name, &mut self.signature_service).await;
+                                        election.insert_vote(&own_vote);
+                                        //self.proposals.push(vote.clone());
+
+                                        // broadcast vote
+                                        let bytes = bincode::serialize(&PrimaryMessage::Vote(own_vote.clone()))
+                                            .expect("Failed to serialize our own header");
+                                        let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
+                                        /*self.cancel_handlers
+                                            .entry(own_header.round)
+                                            .or_insert_with(Vec::new)
+                                            .extend(handlers);*/
+                                        info!("Sending vote: {:?}", &own_vote);                            
+                                }
                             }
                         }
                         info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());               
@@ -310,7 +314,7 @@ impl Proposer {
                 }
             }
             else {
-                match self.payloads.get_mut(&election_id) {
+                /*match self.payloads.get_mut(&election_id) {
                     Some(txs) => {
                         txs.insert(tx_hash.clone());
                     }
@@ -329,7 +333,7 @@ impl Proposer {
                 // broadcast vote
                 let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
                     .expect("Failed to serialize our own header");
-                let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;
+                let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;*/
 
             }
         Ok(())
@@ -373,25 +377,27 @@ impl Proposer {
                         self.proposals.push((tx_hash, election_id));
                     }
 
-                    if self.proposals.len() >= self.header_size && self.leader == self.name {
+                    if self.proposals.len() >= self.header_size && self.leader == self.name && self.elections.get(&self.round).is_none() {
                         self.make_header().await;
                     }
                 },
 
                 () = &mut timer => {
-                    let mut next_round = self.round + 1;
-                    let mut next_leader = self.committee.leader(next_round as usize);
+                    if self.committee.is_byzantine(&self.leader) {
+                        let mut next_round = self.round + 1;
+                        let mut next_leader = self.committee.leader(next_round as usize);
 
-                    while self.committee.is_byzantine(&next_leader) {
-                        next_round += 1;
-                        next_leader = self.committee.leader(next_round as usize);
+                        while self.committee.is_byzantine(&next_leader) {
+                            next_round += 1;
+                            next_leader = self.committee.leader(next_round as usize);
+                        }
+
+                        self.leader = next_leader;
+
+                        if next_leader == self.name && self.proposals.len() >= self.header_size && self.elections.get(&self.round).is_none() {
+                            self.make_header().await;
+                        }  
                     }
-
-                    self.leader = next_leader;
-
-                    if next_leader == self.name && self.proposals.len() >= self.header_size {
-                        self.make_header().await;
-                    }  
 
                     let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
                     timer.as_mut().reset(deadline);
