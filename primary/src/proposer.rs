@@ -30,8 +30,6 @@ pub type TxHash = Digest;
 #[cfg(test)]
 #[path = "tests/proposer_tests.rs"]
 pub mod proposer_tests;
-
-const DELAY: u64 = 100;
 /// The proposer creates new headers and send them to the core for broadcasting and further processing.
 pub struct Proposer {
     /// The public key of this primary.
@@ -121,18 +119,18 @@ impl Proposer {
     async fn process_header(&mut self, header: &Header, timer: &mut Pin<&mut tokio::time::Sleep>) -> DagResult<()> {
         info!("Received header {} from {} in round {}", header.id, header.author, self.round);
         
-        if let None = self.elections.get(&header.round) {
-            let mut rng = OsRng;
+        //if let None = self.elections.get(&header.round) {
+            //let mut rng = OsRng;
 
-            let duration_ms = rng.gen_range(0..=DELAY);
+            //let duration_ms = rng.gen_range(0..=DELAY);
 
-            info!("timer set to {:?} ms", duration_ms);
+            //info!("timer set to {:?} ms", duration_ms);
             
-            let deadline = Instant::now() + Duration::from_millis(duration_ms);
-            timer.as_mut().reset(deadline);
+            //let deadline = Instant::now() + Duration::from_millis(DELAY);
+            //timer.as_mut().reset(deadline);
 
             //self.round += 1;
-        }
+        //}
 
         self.votes.insert(header.id.clone(), header.votes.clone());
         let vote = Vote::new(0, header.id.clone(), header.round, false, header.author, &mut self.signature_service).await;
@@ -176,7 +174,7 @@ impl Proposer {
             if let Some(votes) = self.pending_votes.remove(&header.round) {
                 for vote in votes {
                     info!("Inserting pending vote {}", &vote);
-                    self.process_vote(&vote).await;
+                    self.process_vote(&vote, timer).await;
                 }
             }
         }
@@ -185,7 +183,7 @@ impl Proposer {
     }
 
     #[async_recursion]
-    async fn process_vote(&mut self, vote: &Vote) -> DagResult<()> {
+    async fn process_vote(&mut self, vote: &Vote, timer: &mut Pin<&mut tokio::time::Sleep>) -> DagResult<()> {
         //for vote in &header.votes {
             if !vote.commit {
                 info!("Received a vote from {} for header {} in round {} of election {}", vote.author, vote.header_id, vote.round, vote.election_id);
@@ -214,6 +212,9 @@ impl Proposer {
                                     info!("Committed {} -> {:?}", vote, election_id);
                                     election.decided = true;
                                 }
+
+                                let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                                timer.as_mut().reset(deadline);
 
                                 self.round += 1;
                                 self.leader = self.committee.leader(self.round as usize);
@@ -346,70 +347,63 @@ impl Proposer {
     }
 
     async fn make_header(&mut self) {
-        info!("Making a new header from {} in round {}", self.name, self.round);
-        // Make a new header.
-        let header = Header::new(
-            self.round,
-            self.name.clone(),
-            self.proposals.drain(..).collect(), // only drain if committed
-            &mut self.signature_service,
-        )
-        .await;
-        //debug!("Created {:?}", header);
+        if !self.byzantine {
+            info!("Making a new header from {} in round {}", self.name, self.round);
+            // Make a new header.
+            let header = Header::new(
+                self.round,
+                self.name.clone(),
+                self.proposals.drain(..).collect(), // only drain if committed
+                &mut self.signature_service,
+            )
+            .await;
 
-        let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
-            .expect("Failed to serialize our own header");
-        let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
-
-        //#[cfg(feature = "benchmark")]
-        //for vote in &header.votes {
-            // NOTE: This log entry is used to compute performance.
-            //info!("Created {} -> {:?}", &vote, vote.election_id);
-        //}
-
-        // Send the new header to the `Core` that will broadcast and process it.
-        /*self.tx_core
-            .send(header)
-            .await
-            .expect("Failed to send header");*/
+            let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
+                .expect("Failed to serialize our own header");
+            let handlers = self.network.broadcast(self.addresses.clone(), Bytes::from(bytes)).await;
+        }
     }
 
     // Main loop listening to incoming messages.
     pub async fn run(&mut self) {
         //debug!("Dag starting at round {}", self.round);
 
-        let mut rng = OsRng;
+        //let mut rng = OsRng;
 
-        let duration_ms = rng.gen_range(0..=DELAY);
+        //let duration_ms = rng.gen_range(0..=DELAY);
 
-        info!("timer set to {:?} ms", duration_ms);
+        //info!("timer set to {:?} ms", duration_ms);
 
-        let timer: tokio::time::Sleep = sleep(Duration::from_millis(duration_ms));
+        let timer: tokio::time::Sleep = sleep(Duration::from_millis(self.max_header_delay));
         tokio::pin!(timer);
-
-        
 
         loop {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
                     self.proposals.push((tx_hash, election_id));
 
-                    if self.proposals.len() >= self.header_size && timer.is_elapsed() && self.leader == self.name {
+                    if self.proposals.len() >= self.header_size && self.leader == self.name {
                         self.make_header().await;
                     }
                 },
 
                 () = &mut timer => {
-                    if self.leader == self.name && self.proposals.len() >= self.header_size {
+                    let next_leader = self.committee.leader((self.round+1) as usize);
+                    self.leader = next_leader;
+
+                    if next_leader == self.name && self.proposals.len() >= self.header_size {
                         self.make_header().await;
                     }  
+
+                    let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                    timer.as_mut().reset(deadline);
                 },
 
                 // We receive here messages from other primaries.
                 Some(message) = self.rx_primaries.recv() => {
                     let _ = match message {
                         PrimaryMessage::Header(header) => self.process_header(&header, &mut timer).await,
-                        PrimaryMessage::Vote(vote) => self.process_vote(&vote).await,
+                        PrimaryMessage::Vote(vote) => self.process_vote(&vote, &mut timer).await,
                         _ => Ok(())
                     };
                 },
