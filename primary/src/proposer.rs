@@ -217,6 +217,10 @@ impl Proposer {
 
                                 self.round += 1;
                                 self.leader = self.committee.leader(self.round as usize);
+                                
+                                if self.leader == self.name && self.proposals.len() >= self.header_size {
+                                    self.make_header().await;
+                                }   
                             }
                             return Ok(());
                         }
@@ -396,7 +400,9 @@ impl Proposer {
                 },
 
                 () = &mut timer => {
-                    
+                    if self.leader == self.name && self.proposals.len() >= self.header_size {
+                        self.make_header().await;
+                    }  
                 },
 
                 // We receive here messages from other primaries.

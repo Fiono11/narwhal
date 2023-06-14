@@ -106,8 +106,8 @@ impl Client {
             .context(format!("failed to connect to {}", self.target))?;
 
         // Submit all transactions.
-        //let burst = self.rate / PRECISION;
-        let burst = 1;
+        let burst = self.rate / PRECISION;
+        //let burst = 1;
         let mut data: Vec<u8> = Vec::new();
         for _ in 0..self.size {
             data.push(rand::thread_rng().gen());
@@ -128,8 +128,8 @@ impl Client {
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
 
-        //'main: loop {
-        for _ in 0..1 {
+        'main: loop {
+        //for _ in 0..1 {
             interval.as_mut().tick().await;
             let now = Instant::now();
 

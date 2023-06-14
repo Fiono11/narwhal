@@ -18,11 +18,11 @@ def local(ctx, debug=True):
         'workers': 1,
         'rate': 10000,
         'tx_size': 500,
-        'duration': 5,
+        'duration': 30,
         'runs': 1,
     }
     node_params = {
-        'header_size': 1,  # bytes
+        'header_size': 1000,  # bytes
         'max_header_delay': 100,  # ms
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms
