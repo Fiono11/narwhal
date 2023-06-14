@@ -226,6 +226,7 @@ impl Proposer {
                                     let mut next_round = self.round;
 
                                     while self.committee.is_byzantine(&self.leader) {
+                                        sleep(Duration::from_millis(200)).await;
                                         next_round += 1;
                                         self.leader = self.committee.leader(next_round as usize);
                                     }
@@ -319,29 +320,6 @@ impl Proposer {
                     }
                 }
             }
-            else {
-                /*match self.payloads.get_mut(&election_id) {
-                    Some(txs) => {
-                        txs.insert(tx_hash.clone());
-                    }
-                    None => {
-                        let mut txs = BTreeSet::new();
-                        txs.insert(tx_hash.clone());
-                        self.payloads.insert(election_id.clone(), txs);
-                    }
-                }
-                let mut rng = OsRng;
-                let digest = self.payloads.get(&election_id).unwrap().iter().choose(&mut rng).unwrap().clone();
-                //let digest = Digest::random();
-                let vote = Vote::new(vote.round, digest, election_id, rand::random(), self.name, &mut self.signature_service).await;
-                //self.proposals.push(vote.clone());
-                //let own_header = Header::new(self.name, header.round, payload, &mut self.signature_service, rand::random()).await;
-                // broadcast vote
-                let bytes = bincode::serialize(&PrimaryMessage::Vote(vote.clone()))
-                    .expect("Failed to serialize our own header");
-                let handlers = self.network.broadcast(self.other_primaries.clone(), Bytes::from(bytes)).await;*/
-
-            }
         Ok(())
     }
 
@@ -394,6 +372,7 @@ impl Proposer {
                         let mut next_leader = self.committee.leader(next_round as usize);
 
                         while self.committee.is_byzantine(&next_leader) {
+                            sleep(Duration::from_millis(200)).await;
                             next_round += 1;
                             next_leader = self.committee.leader(next_round as usize);
                         }
