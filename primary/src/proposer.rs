@@ -223,6 +223,12 @@ impl Proposer {
 
                                     self.round += 1;
                                     self.leader = self.committee.leader(self.round as usize);
+                                    let mut next_round = self.round;
+
+                                    while self.committee.is_byzantine(&self.leader) {
+                                        next_round += 1;
+                                        self.leader = self.committee.leader(next_round as usize);
+                                    }
                                     
                                     if self.leader == self.name && self.proposals.len() >= self.header_size && self.elections.get(&self.round).is_none() {
                                         self.make_header().await;
