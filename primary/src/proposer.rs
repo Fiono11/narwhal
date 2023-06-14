@@ -21,6 +21,9 @@ use rand::rngs::OsRng;
 //use log::info;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, Duration, Instant};
+use rand::SeedableRng; // Trait for creating a seeded RNG
+use rand::seq::SliceRandom; // Trait for shuffling a slice
+use rand::rngs::StdRng; // An RNG with a fixed size seed
 
 pub type TxHash = Digest;
 
@@ -28,6 +31,7 @@ pub type TxHash = Digest;
 #[path = "tests/proposer_tests.rs"]
 pub mod proposer_tests;
 
+const DELAY: u64 = 100;
 /// The proposer creates new headers and send them to the core for broadcasting and further processing.
 pub struct Proposer {
     /// The public key of this primary.
@@ -62,13 +66,15 @@ pub struct Proposer {
     rx_primaries: Receiver<PrimaryMessage>,
     other_primaries: Vec<SocketAddr>,
     pending_votes: HashMap<Round, BTreeSet<Vote>>,
+    committee: Committee,
+    leader: PublicKey,
 }
 
 impl Proposer {
     #[allow(clippy::too_many_arguments)]
     pub fn spawn(
         name: PublicKey,
-        committee: &Committee,
+        committee: Committee,
         signature_service: SignatureService,
         header_size: usize,
         max_header_delay: u64,
@@ -79,6 +85,7 @@ impl Proposer {
         byzantine: bool,
         rx_primaries: Receiver<PrimaryMessage>,
         other_primaries: Vec<SocketAddr>,
+        leader: PublicKey,
     ) {
         tokio::spawn(async move {
             Self {
@@ -102,6 +109,8 @@ impl Proposer {
                 votes: HashMap::new(),
                 other_primaries,
                 pending_votes: HashMap::new(),
+                committee,
+                leader,
             }
             .run()
             .await;
@@ -111,17 +120,19 @@ impl Proposer {
     #[async_recursion]
     async fn process_header(&mut self, header: &Header, timer: &mut Pin<&mut tokio::time::Sleep>) -> DagResult<()> {
         info!("Received header {} from {} in round {}", header.id, header.author, self.round);
-
-        let mut rng = OsRng;
-
-        let duration_ms = rng.gen_range(0..=1000);
-
-        info!("timer set to {:?} ms", duration_ms);
         
-        let deadline = Instant::now() + Duration::from_millis(duration_ms);
-        timer.as_mut().reset(deadline);
-        
-        self.round += 1;
+        if let None = self.elections.get(&header.round) {
+            let mut rng = OsRng;
+
+            let duration_ms = rng.gen_range(0..=DELAY);
+
+            info!("timer set to {:?} ms", duration_ms);
+            
+            let deadline = Instant::now() + Duration::from_millis(duration_ms);
+            timer.as_mut().reset(deadline);
+
+            //self.round += 1;
+        }
 
         self.votes.insert(header.id.clone(), header.votes.clone());
         let vote = Vote::new(0, header.id.clone(), header.round, false, header.author, &mut self.signature_service).await;
@@ -177,10 +188,10 @@ impl Proposer {
     async fn process_vote(&mut self, vote: &Vote) -> DagResult<()> {
         //for vote in &header.votes {
             if !vote.commit {
-                info!("Received a vote from {} for header {} in election {}", vote.author, vote.header_id, vote.election_id);
+                info!("Received a vote from {} for header {} in round {} of election {}", vote.author, vote.header_id, vote.round, vote.election_id);
             }
             else {
-                info!("Received a commit from {} for header {} in election {}", vote.author, vote.header_id, vote.election_id);
+                info!("Received a commit from {} for header {} in round {} of election {}", vote.author, vote.header_id, vote.round, vote.election_id);
             }
             let (tx_hash, election_id) = (vote.header_id.clone(), vote.election_id); 
             if !self.byzantine {
@@ -203,6 +214,9 @@ impl Proposer {
                                     info!("Committed {} -> {:?}", vote, election_id);
                                     election.decided = true;
                                 }
+
+                                self.round += 1;
+                                self.leader = self.committee.leader(self.round as usize);
                             }
                             return Ok(());
                         }
@@ -223,7 +237,7 @@ impl Proposer {
                                         .entry(own_header.round)
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);*/
-                                    //info!("Sending commit: {:?}", own_header);
+                                    info!("Sending commit: {:?}", &own_vote);
                                 }
                             }
                             else if election.voted_or_committed(&self.name, vote.round) && ((tally.total_votes() >= QUORUM && *tally.timer.0.lock().unwrap() == Timer::Expired) || tally.total_votes() == NUMBER_OF_NODES)
@@ -245,7 +259,7 @@ impl Proposer {
                                     .entry(own_header.round)
                                     .or_insert_with(Vec::new)
                                     .extend(handlers);*/
-                                info!("Changing vote: {:?}", vote);
+                                info!("Changing vote: {:?}", &own_vote);
                             }
                             else if !election.voted_or_committed(&self.name, vote.round) {
                                     let mut tx_hash = tx_hash;
@@ -267,7 +281,7 @@ impl Proposer {
                                         .entry(own_header.round)
                                         .or_insert_with(Vec::new)
                                         .extend(handlers);*/
-                                    info!("Sending vote: {:?}", vote);                            
+                                    info!("Sending vote: {:?}", &own_vote);                            
                             }
                         }
                         info!("Election of {:?}: {:?}", &election_id, self.elections.get(&election_id).unwrap());               
@@ -362,81 +376,27 @@ impl Proposer {
 
         let mut rng = OsRng;
 
-        let duration_ms = rng.gen_range(0..=1000);
+        let duration_ms = rng.gen_range(0..=DELAY);
 
         info!("timer set to {:?} ms", duration_ms);
 
         let timer: tokio::time::Sleep = sleep(Duration::from_millis(duration_ms));
         tokio::pin!(timer);
 
+        
+
         loop {
-            // Check if we can propose a new header. We propose a new header when one of the following
-            // conditions is met:
-            // 1. We have a quorum of certificates from the previous round and enough batches' digests;
-            // 2. We have a quorum of certificates from the previous round and the specified maximum
-            // inter-header delay has passed.
-            //let enough_parents = !self.last_parents.is_empty();
-            //let enough_digests = self.payload_size >= self.header_size;
-            //let enough_digests = self.digests.len() == 1;
-            let timer_expired = timer.is_elapsed();
-            let enough_proposals = self.proposals.len() >= self.header_size;
-            //info!("Digests: {:?}", self.digests);
-
-            /*if enough_votes {
-                let mut rng = OsRng;
-
-                // Generate a random duration between 0 and 1000 milliseconds
-                let duration_ms = rng.gen_range(0..=1000);
-
-                // Convert the duration to the appropriate type
-                let duration = Duration::from_millis(duration_ms);
-
-                //info!("Sleeping during {} ms", duration_ms);
-
-                //info!("timer: {:?}", timer);
-
-                // Sleep for the random duration
-                //tokio::time::sleep(duration).await;
-
-                //info!("timer: {:?}", timer);
-
-                //if !timer_expired {
-                    //break;
-                //}
-            
-                // Make a new header.
-                //self.make_header().await;
-                //self.payload_size = 0;
-
-                // Reschedule the timer.
-                //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-                //timer.as_mut().reset(deadline);
-
-                //self.round += 1;
-            }*/
-
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
-                    info!("received tx {} of election {}", tx_hash, election_id);
-                    //if let None = self.elections.get(&election_id) {
-                        //let vote = Vote::new(0, tx_hash, election_id, false, self.name, &mut self.signature_service).await;
-                        //info!("inserted vote {}", &vote);
-                        self.proposals.push((tx_hash, election_id));
-                    //}
-                    //self.make_header(tx_hash, election_id).await;
-                    //info!("Received digest {:?}", digest);
-                    //self.payload_size += tx_hash.size();
-                    //self.digests.push((tx_hash, election_id));
-                    //self.make_header().await;
-                    //info!("Size: {:?}", self.payload_size);
-                    //info!("Digests: {:?}", self.digests);
+                    self.proposals.push((tx_hash, election_id));
+
+                    if self.proposals.len() >= self.header_size && timer.is_elapsed() && self.leader == self.name {
+                        self.make_header().await;
+                    }
                 },
 
                 () = &mut timer => {
-                    // Nothing to do.
-                    if enough_proposals {
-                        self.make_header().await;
-                    }
+                    
                 },
 
                 // We receive here messages from other primaries.

@@ -150,7 +150,7 @@ impl Client {
                 };
 
                 tx.id = id.to_vec();
-                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());

@@ -146,11 +146,19 @@ impl Primary {
         // Receives batch digests from other workers. They are only used to validate headers.
         PayloadReceiver::spawn(store.clone(), /* rx_workers */ rx_others_digests);
 
+        let leader = committee.leader(0);
+        let byzantine = committee.authorities.get(&name).unwrap().byzantine;
+        let primary = committee
+            .primary(&name)
+            .expect("Our public key or worker id is not in the committee")
+            .primary_to_primary
+            .ip();
+
         // When the `Core` collects enough parent certificates, the `Proposer` generates a new header with new batch
         // digests from our workers and it back to the `Core`.
         Proposer::spawn(
             name.clone(),
-            &committee,
+            committee,
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
@@ -158,20 +166,17 @@ impl Primary {
             /* rx_workers */ rx_our_digests,
             /* tx_core */ tx_headers,
             addresses,
-            committee.authorities.get(&name).unwrap().byzantine,
+            byzantine,
             rx_primary_messages,
             other_primaries,
+            leader,
         );
 
         // NOTE: This log entry is used to compute performance.
         info!(
             "Primary {} successfully booted on {}",
             name.clone(),
-            committee
-                .primary(&name)
-                .expect("Our public key or worker id is not in the committee")
-                .primary_to_primary
-                .ip()
+            primary,
         );
     }
 }
