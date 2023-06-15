@@ -66,6 +66,8 @@ pub struct Proposer {
     pending_votes: HashMap<Round, BTreeSet<Vote>>,
     committee: Committee,
     leader: PublicKey,
+    decided: BTreeSet<ElectionId>,
+    active_elections: Vec<ElectionId>,
 }
 
 impl Proposer {
@@ -109,6 +111,8 @@ impl Proposer {
                 pending_votes: HashMap::new(),
                 committee,
                 leader,
+                decided: BTreeSet::new(),
+                active_elections: Vec::new(),
             }
             .run()
             .await;
@@ -117,6 +121,8 @@ impl Proposer {
 
     #[async_recursion]
     async fn process_header(&mut self, header: &Header, timer: &mut Pin<&mut tokio::time::Sleep>) -> DagResult<()> {
+        if !self.byzantine {
+        
         info!("Received header {} from {} in round {}", header.id, header.author, self.round);
         
         //if let None = self.elections.get(&header.round) {
@@ -148,10 +154,13 @@ impl Proposer {
                 let election = Election::new();
                 self.elections.insert(header.round, election);
 
-                #[cfg(feature = "benchmark")]
+                //#[cfg(feature = "benchmark")]
                 for (tx_hash, election_id) in &header.votes {
-                    // NOTE: This log entry is used to compute performance.
-                    info!("Created {} -> {:?}", vote, election_id);
+                    if !self.active_elections.contains(&election_id) && !self.decided.contains(&election_id) {
+                        // NOTE: This log entry is used to compute performance.
+                        info!("Created {} -> {:?}", vote, election_id);
+                        self.active_elections.push(election_id.clone());
+                    }
                 }
             }
         }
@@ -179,6 +188,9 @@ impl Proposer {
             }
         }
 
+        //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+        //timer.as_mut().reset(deadline);
+    }
         Ok(())
     }
 
@@ -202,12 +214,12 @@ impl Proposer {
                         if !election.decided {
                             election.insert_vote(&vote);
                             if let Some(tally) = election.tallies.get(&vote.round) {
-                            if let Some(header_id) = tally.find_quorum_of_commits() {
+                            if let Some(header_id) = election.find_quorum_of_commits() {
                                 //if !election.decided {
                                     for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
-                                        //info!("proposals: {:?}", self.proposals);
                                         self.proposals.retain(|(_, id)| id != election_id);
-                                        //info!("proposals2: {:?}", self.proposals);
+                                        
+                                        self.decided.insert(election_id.clone());
 
                                         #[cfg(not(feature = "benchmark"))]
                                         info!("Committed {}", tx_hash);
@@ -218,10 +230,16 @@ impl Proposer {
                                         election.decided = true;
                                     }
 
-                                    let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-                                    timer.as_mut().reset(deadline);
-
                                     self.round += 1;
+
+                                    //info!("timer: {:?}", timer);
+
+                                    //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                                    //timer.as_mut().reset(deadline);
+
+                                    //info!("timer: {:?}", timer);
+
+                                    /*self.round += 1;
                                     self.leader = self.committee.leader(self.round as usize);
                                     let mut next_round = self.round;
 
@@ -231,9 +249,9 @@ impl Proposer {
                                         self.leader = self.committee.leader(next_round as usize);
                                     }
                                     
-                                    if self.leader == self.name && self.proposals.len() >= self.header_size && self.elections.get(&self.round).is_none() {
-                                        self.make_header().await;
-                                    }   
+                                    if self.proposals.len() >= self.header_size && self.leader == self.name && self.elections.get(&self.round).is_none() {
+                                        self.make_header().await;  
+                                    }  */   
                                 //}
                                 return Ok(());
                             }
@@ -259,11 +277,17 @@ impl Proposer {
                                 }
                                 else if election.voted_or_committed(&self.name, vote.round) && ((tally.total_votes() >= QUORUM && *tally.timer.0.lock().unwrap() == Timer::Expired) || tally.total_votes() == NUMBER_OF_NODES)
                                 && !election.voted_or_committed(&self.name, vote.round + 1) {
-                                    let highest = election.highest.clone().unwrap();
+                                    let mut highest = election.highest.clone().unwrap();
+                                    let mut committed = false;
+
+                                    if let Some(commit) = &election.commit {
+                                        highest = commit.clone();
+                                        committed = true;
+                                    }
                                     //own_header.payload = (highest.clone(), election_id.clone());
                                     //own_header.round = header.round + 1;
                                     //own_header.author = self.name;
-                                    let own_vote = Vote::new(vote.round+1, highest, election_id, false,  self.name, &mut self.signature_service).await;
+                                    let own_vote = Vote::new(vote.round+1, highest, election_id, committed,  self.name, &mut self.signature_service).await;
                                     //self.proposals.push(vote.clone());
                                     //election.round = header.round + 1;
                                     election.insert_vote(&own_vote);
@@ -282,6 +306,9 @@ impl Proposer {
                                     let mut tx_hash = tx_hash;
                                         if let Some(highest) = &election.highest {
                                             tx_hash = highest.clone();
+                                        }
+                                        if let Some(commit) = &election.commit {
+                                            tx_hash = commit.clone();
                                         }
                                         //election.voted = true;
                                         //election.round = header.round + 1;
@@ -319,13 +346,24 @@ impl Proposer {
                         }
                     }
                 }
+                //let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                //timer.as_mut().reset(deadline);
             }
         Ok(())
     }
 
     async fn make_header(&mut self) {
         if !self.byzantine {
-            info!("Making a new header from {} in round {}", self.name, self.round);
+            let decided = &self.decided;
+            let active_elections = &self.active_elections;
+
+            info!("PROPOALS!: {}", self.proposals.len());
+
+            self.proposals.retain(|(_, election_id)| !decided.contains(&election_id));
+            self.proposals.retain(|(_, election_id)| !active_elections.contains(&election_id));
+
+            info!("Making a new header from {} in round {} with {} proposals", self.name, self.round, self.proposals.len());
+
             // Make a new header.
             let header = Header::new(
                 self.round,
@@ -361,8 +399,21 @@ impl Proposer {
                         self.proposals.push((tx_hash, election_id));
                     }
 
+                    if self.committee.is_byzantine(&self.leader) {
+                        let mut next_round = self.round + 1;
+                        let mut next_leader = self.committee.leader(next_round as usize);
+
+                        while self.committee.is_byzantine(&next_leader) {
+                            sleep(Duration::from_millis(200)).await;
+                            next_round += 1;
+                            next_leader = self.committee.leader(next_round as usize);
+                        }
+
+                        self.leader = next_leader;
+                    }
+                        
                     if self.proposals.len() >= self.header_size && self.leader == self.name && self.elections.get(&self.round).is_none() {
-                        self.make_header().await;
+                        self.make_header().await;  
                     }
                 },
 
@@ -378,11 +429,14 @@ impl Proposer {
                         }
 
                         self.leader = next_leader;
-
-                        if next_leader == self.name && self.proposals.len() >= self.header_size && self.elections.get(&self.round).is_none() {
-                            self.make_header().await;
-                        }  
                     }
+
+                    if self.leader == self.name && self.elections.get(&self.round).is_none() {
+                        self.make_header().await;
+                    }  
+
+                    info!("LEADER in round {}: {}", self.round, self.leader);
+                    info!("PROPOSALS: {}", self.proposals.len());
 
                     let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
                     timer.as_mut().reset(deadline);

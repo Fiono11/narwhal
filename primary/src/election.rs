@@ -33,6 +33,15 @@ impl Election {
         }
     }
 
+    pub fn find_quorum_of_commits(&self) -> Option<&TxHash> {
+        for (_, tally) in &self.tallies {
+            if let Some(digest) = tally.find_quorum_of_commits() {
+                return Some(digest);
+            }
+        }
+        None
+    }
+
     pub fn insert_vote(&mut self, vote: &Vote) {
         let tx_hash = vote.header_id.clone();
         if !vote.commit {
@@ -44,6 +53,9 @@ impl Election {
             else {
                 self.highest = Some(tx_hash.clone());
             }
+        }
+        else {
+            self.commit = Some(tx_hash.clone());
         }
 
         match self.tallies.get_mut(&vote.round) {
@@ -103,6 +115,11 @@ impl Tally {
     pub fn find_quorum_of_votes(&self) -> Option<&TxHash> {
         for (tx_hash, vote_set) in &self.votes {
             if vote_set.len() >= QUORUM {
+                return Some(tx_hash);
+            }
+        }
+        for (tx_hash, commit_set) in &self.commits {
+            if commit_set.len() > 0 {
                 return Some(tx_hash);
             }
         }

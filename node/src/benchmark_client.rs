@@ -120,7 +120,7 @@ impl Client {
         let mut counter2 = 0;
         let mut r: u64 = thread_rng().gen();
         let mut r2: u32 = thread_rng().gen();
-        //let mut r: u64 = 0;
+        let mut r: u64 = 0;
         
         let mut forks = false;
         if r == 0 {
@@ -134,8 +134,8 @@ impl Client {
         // NOTE: This log entry is used to compute performance.
         info!("Start sending transactions");
 
-        'main: loop {
-        //for _ in 0..1 {
+        //'main: loop {
+        for _ in 0..10 {
             interval.as_mut().tick().await;
             let now = Instant::now();
 
@@ -145,7 +145,7 @@ impl Client {
                     id.put_u8(0u8); // Sample txs start with 0.
                     //id.put_u64(r);
                     id.put_u64(counter); // This counter identifies the tx.
-                    id.put_u32(r2);
+                    //id.put_u32(r2);
 
                     // NOTE: This log entry is used to compute performance.
                     info!("Sending sample transaction {}", counter); 
@@ -156,7 +156,7 @@ impl Client {
                 };
 
                 tx.id = id.to_vec();
-                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());
@@ -168,7 +168,7 @@ impl Client {
 
                 if let Err(e) = transport.send(bytes.clone()).await {
                     warn!("Failed to send transaction: {}", e);
-                    break 'main;
+                    //break 'main;
                 }
                 counter2 += 1;
             }
@@ -177,7 +177,7 @@ impl Client {
                 warn!("Transaction rate too high for this client");
             }
             counter += 1;
-            info!("Sent {} bytes", counter2 * 500);
+            info!("Sent {} txs", counter2);
         }
         Ok(())
     }

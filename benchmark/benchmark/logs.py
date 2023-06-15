@@ -6,7 +6,7 @@ from multiprocessing import Pool
 from os.path import join
 from re import findall, search
 from statistics import mean
-from os.path import basename, splitext
+
 from benchmark.utils import Print
 
 
@@ -173,9 +173,8 @@ class LogParser:
         return tps, bps, duration
 
     def _consensus_latency(self):
-        #latency = [c - self.proposals[d] for d, c in self.commits.items()]
-        #return mean(latency) if latency else 0
-        return 0
+        latency = [c - self.proposals[d] for d, c in self.commits.items()]
+        return mean(latency) if latency else 0
 
     def _end_to_end_throughput(self):
         if not self.commits:
@@ -255,31 +254,20 @@ class LogParser:
             raise ValueError("Expected a filename or StringIO. Got %s" % type(file))
 
     @classmethod
-    def process(cls, directory, faults):
+    def process(cls, directory, faults=0):
         assert isinstance(directory, str)
 
         clients = []
         for filename in sorted(glob(join(directory, 'client-*.log'))):
-            base = basename(filename)
-            file_number = int(splitext(base)[0].split('-')[1])
-            if file_number >= faults:
-                with open(filename, 'r') as f:
-                    clients += [f.read()]
-
+            with open(filename, 'r') as f:
+                clients += [f.read()]
         primaries = []
         for filename in sorted(glob(join(directory, 'primary-*.log'))):
-            base = basename(filename)
-            file_number = int(splitext(base)[0].split('-')[1])
-            if file_number >= faults:
-                with open(filename, 'r') as f:
-                    primaries += [f.read()]
-
+            with open(filename, 'r') as f:
+                primaries += [f.read()]
         workers = []
         for filename in sorted(glob(join(directory, 'worker-*.log'))):
-            base = basename(filename)
-            file_number = int(splitext(base)[0].split('-')[1])
-            if file_number >= faults:
-                with open(filename, 'r') as f:
-                    workers += [f.read()]
+            with open(filename, 'r') as f:
+                workers += [f.read()]
 
         return cls(clients, primaries, workers, faults=faults)

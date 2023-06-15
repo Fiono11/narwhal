@@ -125,7 +125,7 @@ class LocalBench:
                 # Parse logs and return the parser.
                 Print.info('Parsing logs...')
 
-                logger = LogParser.process(PathMaker.logs_path(), (self.bench_parameters.nodes[0]-1)/3)
+                logger = LogParser.process(PathMaker.logs_path(), faults=self.faults)
                             
                 result_filename = PathMaker.result_file(
                     self.bench_parameters.faults,

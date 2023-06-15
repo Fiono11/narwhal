@@ -148,6 +148,7 @@ impl Primary {
 
         let leader = committee.leader(0);
         let byzantine = committee.authorities.get(&name).unwrap().byzantine;
+        info!("Byzantine: {}", byzantine);
         let primary = committee
             .primary(&name)
             .expect("Our public key or worker id is not in the committee")
