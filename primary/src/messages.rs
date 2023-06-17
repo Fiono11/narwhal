@@ -3,12 +3,12 @@ use crate::election::ElectionId;
 use crate::error::{DagError, DagResult};
 use crate::primary::Round;
 use crate::proposer::TxHash;
-use config::{Committee, WorkerId};
-use ed25519_dalek::{Digest as _, Sha512};
+use config::Committee;
 use crypto::{Digest, PublicKey as PublicAddress, Signature, SignatureService};
+use ed25519_dalek::{Digest as _, Sha512};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::convert::{TryInto, TryFrom};
+
+use std::convert::TryInto;
 use std::fmt;
 
 /// This trait is implemented by all messages that can be hashed.
@@ -48,7 +48,7 @@ impl Header {
         }
     }
 
-    pub fn verify(&self, committee: &Committee) -> DagResult<()> {
+    pub fn verify(&self, _committee: &Committee) -> DagResult<()> {
         // Ensure the header id is well formed.
         ensure!(self.digest() == self.id, DagError::InvalidHeaderId);
 
@@ -68,7 +68,7 @@ impl Hash for Header {
             hasher.update(vote.0.clone());
         }
         //for x in &self.parents {
-            //hasher.update(x);
+        //hasher.update(x);
         //}
         Digest(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
@@ -152,7 +152,7 @@ impl Vote {
         }
     }
 
-    pub fn verify(&self, committee: &Committee) -> DagResult<()> {
+    pub fn verify(&self, _committee: &Committee) -> DagResult<()> {
         // Ensure the header id is well formed.
         ensure!(self.digest() == self.vote_id, DagError::InvalidHeaderId);
 
@@ -191,4 +191,3 @@ impl fmt::Display for Vote {
         write!(f, "B{}({})", self.round, self.digest())
     }
 }
-

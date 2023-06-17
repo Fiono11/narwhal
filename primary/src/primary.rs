@@ -1,13 +1,13 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::election::{ElectionId, self};
+use crate::election::ElectionId;
 use crate::error::DagError;
-use crate::messages::{Header, Hash, Vote};
+use crate::messages::{Hash, Header, Vote};
 use crate::payload_receiver::PayloadReceiver;
 use crate::proposer::{Proposer, TxHash};
 use async_trait::async_trait;
 use bytes::Bytes;
-use config::{Committee, Parameters, WorkerId};
-use crypto::{Digest, PublicKey, SignatureService, SecretKey};
+use config::{Committee, Parameters};
+use crypto::{Digest, PublicKey, SecretKey, SignatureService};
 use ed25519_dalek::{Digest as _, Sha512};
 use futures::sink::SinkExt as _;
 use log::info;
@@ -18,7 +18,7 @@ use std::error::Error;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use store::Store;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{channel, Sender};
 
 /// The default channel capacity for each channel of the primary.
 pub const CHANNEL_CAPACITY: usize = 100_000;
@@ -64,8 +64,8 @@ impl Primary {
     ) {
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
-        let (tx_parents, rx_parents) = channel(CHANNEL_CAPACITY);
-        let (tx_headers, rx_headers) = channel(CHANNEL_CAPACITY);
+        let (_tx_parents, rx_parents) = channel(CHANNEL_CAPACITY);
+        let (tx_headers, _rx_headers) = channel(CHANNEL_CAPACITY);
         let (tx_primary_messages, rx_primary_messages) = channel(CHANNEL_CAPACITY);
 
         // Write the parameters to the logs.
@@ -73,7 +73,7 @@ impl Primary {
 
         // Atomic variable use to synchronizer all tasks with the latest consensus round. This is only
         // used for cleanup. The only tasks that write into this variable is `GarbageCollector`.
-        let consensus_round = Arc::new(AtomicU64::new(0));
+        let _consensus_round = Arc::new(AtomicU64::new(0));
 
         // Spawn the network receiver listening to messages from the other primaries.
         let mut address = committee
@@ -224,16 +224,14 @@ impl MessageHandler for WorkerReceiverHandler {
         match bincode::deserialize(&serialized).map_err(DagError::SerializationError)? {
             WorkerPrimaryMessage::OurBatch(digest, election_id) => {
                 //info!("Received our batch!");
-                self
-                    .tx_our_digests
+                self.tx_our_digests
                     .send((digest, election_id))
                     .await
                     .expect("Failed to send workers' digests");
-            },
+            }
             WorkerPrimaryMessage::OthersBatch(digest, election_id) => {
                 //info!("Received others batch!");
-                self
-                    .tx_others_digests
+                self.tx_others_digests
                     .send((digest, election_id))
                     .await
                     .expect("Failed to send workers' digests");
