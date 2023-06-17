@@ -27,6 +27,7 @@ async fn main() -> Result<()> {
         .args_from_usage("--size=<INT> 'The size of each transaction in bytes'")
         .args_from_usage("--rate=<INT> 'The rate (txs/s) at which to send the transactions'")
         .args_from_usage("--nodes=[ADDR]... 'Network addresses that must be reachable before starting the benchmark.'")
+        .arg_from_usage("--id=<INT> 'The id of the node")
         .setting(AppSettings::ArgRequiredElseHelp)
         .get_matches();
 
@@ -56,6 +57,11 @@ async fn main() -> Result<()> {
         .map(|x| x.parse::<SocketAddr>())
         .collect::<Result<Vec<_>, _>>()
         .context("Invalid socket address format")?;
+    let id: u64 = matches
+        .value_of("id")
+        .unwrap()
+        .parse::<u64>()
+        .context("The id of the node")?;
 
     info!("Node address: {}", target);
 
@@ -70,6 +76,7 @@ async fn main() -> Result<()> {
         size,
         rate,
         nodes,
+        id,
     };
 
     // Wait for all nodes to be online and synchronized.
@@ -84,6 +91,7 @@ struct Client {
     size: usize,
     rate: u64,
     nodes: Vec<SocketAddr>,
+    id: u64,
 }
 
 impl Client {
@@ -147,7 +155,7 @@ impl Client {
                     id.put_u32(r2);
 
                     // NOTE: This log entry is used to compute performance.
-                    info!("Sending sample transaction {}", counter); 
+                    //info!("Sending sample transaction {}", counter); 
                 } else {
                     r += 1;
                     id.put_u8(1u8); // Standard txs start with 1.
@@ -155,7 +163,10 @@ impl Client {
                 };
 
                 tx.id = id.to_vec();
-                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                if self.id != 0 {
+                    info!("Sending sample transaction {}", self.rate * (self.nodes.len() as u64) * (self.id - 1) + counter2); 
+                }
+                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());
@@ -182,7 +193,7 @@ impl Client {
             info!("Total bytes: {}", counter2 * 532);
         }
         else {
-            info!("Total bytes: {}", counter2 * 532 * (self.nodes.len() - (self.nodes.len()-1)/3));
+            info!("Total bytes: {}", counter2 * 532 * (self.nodes.len() - (self.nodes.len()-1)/3) as u64);
         }
         Ok(())
     }

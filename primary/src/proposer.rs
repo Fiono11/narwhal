@@ -402,7 +402,7 @@ impl Proposer {
                     info!("LEADER in round {}: {}", self.round, self.leader);
                     info!("PROPOSALS: {}", self.proposals.len());
 
-                    let deadline = Instant::now() + Duration::from_millis(200);
+                    let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
                     timer.as_mut().reset(deadline);
                 },
 

@@ -109,7 +109,9 @@ class LogParser:
         misses = len(findall(r'rate too high', log))
 
         tmp = findall(r'\[(.*Z) .* sample transaction (\d+)', log)
+        #print("tmp: ", tmp)
         samples = {int(s): self._to_posix(t) for t, s in tmp}
+        #print("samples: ", samples)
 
         return size, rate, start, misses, samples
 
@@ -206,8 +208,7 @@ class LogParser:
         print("bytes: ", bytes)
         #bytes = sum(self.sizes.values())
         bps = bytes / duration
-        #tps = bps / self.size[0]
-        tps = bps
+        tps = bps / self.size[0]
         print("tps: ", tps)
         print("duration: ", duration)
         return tps, bps, duration
@@ -215,10 +216,16 @@ class LogParser:
     def _end_to_end_latency(self):
         start, end = min(self.start), max(val[1] for val in self.commits.values())
         latency = []
-        #print("sent: ", self.sent_samples)
         keys = list(self.commits.keys())
+        counter = 0
+        merged_dict = {k: v for d in self.sent_samples for k, v in d.items()}
+        #print(merged_dict)
+        #print("self samples: ", self.sent_samples)
+
         for i in range(len(keys)):
-            start = self.sent_samples[0][i]
+            counter += int(self.commits[keys[i]][0])
+            #print("counter: ", counter)
+            start = merged_dict[counter-1]
             end = self.commits[keys[i]][1]
             latency += [end-start]
 

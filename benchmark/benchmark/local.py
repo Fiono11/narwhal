@@ -86,7 +86,8 @@ class LocalBench:
                             address,
                             self.tx_size,
                             rate_share,
-                            [x for y in workers_addresses for _, x in y]
+                            [x for y in workers_addresses for _, x in y],
+                            i
                         )
                         log_file = PathMaker.client_log_file(i, id)
                         self._background_run(cmd, log_file)
