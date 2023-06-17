@@ -393,7 +393,7 @@ impl Proposer {
 
                     self.leader = self.committee.leader(next_round as usize + counter);
 
-                    if self.leader == self.name && self.elections.get(&self.round).is_none() {
+                    if self.proposals.len() > 0 && self.leader == self.name && self.elections.get(&self.round).is_none() {
                         self.make_header().await;
                     }  
 
