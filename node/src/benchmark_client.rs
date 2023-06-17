@@ -155,7 +155,7 @@ impl Client {
                 };
 
                 tx.id = id.to_vec();
-                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                         //info!("TX SIZE: {:?}", message.len());
@@ -182,7 +182,7 @@ impl Client {
             info!("Total bytes: {}", counter2 * 532);
         }
         else {
-            info!("Total bytes: {}", counter2 * 532 * (self.nodes.len() - (self.nodes.len()-1)/3));
+            info!("Total bytes: {}", counter2 * 532 * (self.nodes.len()-1)/3);
         }
         Ok(())
     }

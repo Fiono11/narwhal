@@ -47,7 +47,11 @@ class LogParser:
             raise ParseError(f'Failed to parse nodes\' logs: {e}')
         proposals, commits, self.configs, primary_ips = zip(*results)
         self.proposals = self._merge_results([x.items() for x in proposals])
+        print("commits2: ", commits)
         self.commits = self._merge_results([x.items() for x in commits])
+        print("A: ", self.commits)
+        print("B: ", commits)
+        #self.commits = commits
 
         # Parse the workers logs.
         try:
@@ -80,6 +84,20 @@ class LogParser:
                 if not k in merged or merged[k] > v:
                     merged[k] = v
         return merged
+    
+    def _merge_results2(self, input):
+        # Initialize sum of keys and minimum value.
+        sum_keys = 0
+        min_value = None
+        for x in input:
+            for k, v in x:
+                # Add key to sum.
+                sum_keys += int(k)
+                # Keep the smallest value.
+                if min_value is None or v < min_value:
+                    min_value = v
+        return {sum_keys: min_value}
+
 
     def _parse_clients(self, log):
         if search(r'Error', log) is not None:
@@ -106,9 +124,12 @@ class LogParser:
         tmp = [(d, self._to_posix(t)) for t, d in tmp]
         proposals = self._merge_results([tmp])
 
-        tmp = findall(r'\[(.*Z) .* Committed B\d+\([^ ]+\) -> ([^ ]+=)', log)
+        tmp = findall(r'\[(.*Z) .* Committed (\d+) -> [^ ]+=', log)
+        print("tmp1: ", tmp)
         tmp = [(d, self._to_posix(t)) for t, d in tmp]
+        print("tmp2: ", tmp)
         commits = self._merge_results([tmp])
+        print("commits: ", commits)
 
         configs = {
             'header_size': int(
@@ -158,7 +179,7 @@ class LogParser:
         x = datetime.fromisoformat(string.replace('Z', '+00:00'))
         return datetime.timestamp(x)
 
-    def _consensus_throughput(self):
+    '''def _consensus_throughput(self):
         if not self.commits:
             return 0, 0, 0
         start, end = min(self.proposals.values()), max(self.commits.values())
@@ -170,31 +191,60 @@ class LogParser:
         print("duration: ", duration)
         bps = bytes / duration
         tps = bps / self.size[0]
-        return tps, bps, duration
+        return tps, bps, duration'''
 
     def _consensus_latency(self):
-        latency = [c - self.proposals[d] for d, c in self.commits.items()]
-        return mean(latency) if latency else 0
+        #latency = [c - self.proposals[d] for d, c in self.commits.items()]
+        #return mean(latency) if latency else 0
+        0
 
     def _end_to_end_throughput(self):
         if not self.commits:
             return 0, 0, 0
-        start, end = min(self.start), max(self.commits.values())
+        print("self commits: ", self.commits.values())
+        values = self.commits.values()
+
+        # Convert to a list
+        values_list = list(values)
+
+        # Access the second element (index 1 because Python's indexing starts from 0)
+        second_element = values_list[1]
+        start, end = min(self.start), second_element
         duration = end - start
-        bytes = sum(self.sizes.values())
+        print("commits2: ", self.commits)
+        key_str = list(self.commits.keys())[0]  # Get the key as a string
+        bytes = int(key_str) * 532  # Convert the key to an integer
+        print("bytes: ", bytes)
+        #bytes = sum(self.sizes.values())
         bps = bytes / duration
-        tps = bps / self.size[0]
+        #tps = bps / self.size[0]
+        tps = bps
+        print("tps: ", tps)
+        print("duration: ", duration)
         return tps, bps, duration
 
     def _end_to_end_latency(self):
+        values = self.commits.values()
+
+        # Convert to a list
+        values_list = list(values)
+
+        # Access the second element (index 1 because Python's indexing starts from 0)
+        second_element = values_list[1]
+        start, end = min(self.start), second_element
         latency = []
-        for sent, received in zip(self.sent_samples, self.received_samples):
-            for tx_id, batch_id in received.items():
-                if batch_id in self.commits:
-                    assert tx_id in sent  # We receive txs that we sent.
-                    start = sent[tx_id]
-                    end = self.commits[batch_id]
-                    latency += [end-start]
+        #for sent, received in zip(self.sent_samples, self.received_samples):
+        for sent in self.sent_samples:
+            start = sent[0]
+            end = second_element
+            latency += [end-start]
+            #for tx_id, batch_id in received.items():
+                #if batch_id in self.commits:
+                    #assert tx_id in sent  # We receive txs that we sent.
+                    #start = sent[tx_id]
+                    #end = self.commits[batch_id]
+                    #latency += [end-start]
+        print(mean(latency))
         return mean(latency) if latency else 0
 
     def result(self):
@@ -206,8 +256,8 @@ class LogParser:
         batch_size = self.configs[0]['batch_size']
         max_batch_delay = self.configs[0]['max_batch_delay']
 
-        consensus_latency = self._consensus_latency() * 1_000
-        consensus_tps, consensus_bps, _ = self._consensus_throughput()
+        consensus_latency = 0#self._consensus_latency() * 1_000
+        consensus_tps, consensus_bps, _ = 0, 0, 0#self._consensus_throughput()
         end_to_end_tps, end_to_end_bps, duration = self._end_to_end_throughput()
         end_to_end_latency = self._end_to_end_latency() * 1_000
 

@@ -222,16 +222,22 @@ impl MessageHandler for WorkerReceiverHandler {
     ) -> Result<(), Box<dyn Error>> {
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized).map_err(DagError::SerializationError)? {
-            WorkerPrimaryMessage::OurBatch(digest, election_id) => self
-                .tx_our_digests
-                .send((digest, election_id))
-                .await
-                .expect("Failed to send workers' digests"),
-            WorkerPrimaryMessage::OthersBatch(digest, election_id) => self
-                .tx_others_digests
-                .send((digest, election_id))
-                .await
-                .expect("Failed to send workers' digests"),
+            WorkerPrimaryMessage::OurBatch(digest, election_id) => {
+                //info!("Received our batch!");
+                self
+                    .tx_our_digests
+                    .send((digest, election_id))
+                    .await
+                    .expect("Failed to send workers' digests");
+            },
+            WorkerPrimaryMessage::OthersBatch(digest, election_id) => {
+                //info!("Received others batch!");
+                self
+                    .tx_others_digests
+                    .send((digest, election_id))
+                    .await
+                    .expect("Failed to send workers' digests");
+            }
         }
         Ok(())
     }
