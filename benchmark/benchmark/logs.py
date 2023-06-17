@@ -47,11 +47,8 @@ class LogParser:
             raise ParseError(f'Failed to parse nodes\' logs: {e}')
         proposals, commits, self.configs, primary_ips = zip(*results)
         self.proposals = self._merge_results([x.items() for x in proposals])
-        print("commits2: ", commits)
         self.commits = self._merge_results([x.items() for x in commits])
-        print("A: ", self.commits)
-        print("B: ", commits)
-        #self.commits = commits
+        #print("self commits: ", self.commits)
 
         # Parse the workers logs.
         try:
@@ -124,12 +121,12 @@ class LogParser:
         tmp = [(d, self._to_posix(t)) for t, d in tmp]
         proposals = self._merge_results([tmp])
 
-        tmp = findall(r'\[(.*Z) .* Committed (\d+) -> [^ ]+=', log)
-        print("tmp1: ", tmp)
-        tmp = [(d, self._to_posix(t)) for t, d in tmp]
-        print("tmp2: ", tmp)
+        tmp = findall(r'\[(.*Z) .* Committed (\d+) -> ([^ ]+=)', log)
+        #print("tmp1: ", tmp)
+        tmp = [(a, (d, self._to_posix(t))) for t, d, a in tmp]
+        #print("tmp2: ", tmp)
         commits = self._merge_results([tmp])
-        print("commits: ", commits)
+        #print("commits: ", commits)
 
         configs = {
             'header_size': int(
@@ -201,19 +198,11 @@ class LogParser:
     def _end_to_end_throughput(self):
         if not self.commits:
             return 0, 0, 0
-        print("self commits: ", self.commits.values())
-        values = self.commits.values()
-
-        # Convert to a list
-        values_list = list(values)
-
-        # Access the second element (index 1 because Python's indexing starts from 0)
-        second_element = values_list[1]
-        start, end = min(self.start), second_element
+        start, end = min(self.start), max(val[1] for val in self.commits.values())
         duration = end - start
-        print("commits2: ", self.commits)
-        key_str = list(self.commits.keys())[0]  # Get the key as a string
-        bytes = int(key_str) * 532  # Convert the key to an integer
+
+        sum_values = sum(int(val[0]) for val in self.commits.values())
+        bytes = sum_values * 532  # Convert the key to an integer
         print("bytes: ", bytes)
         #bytes = sum(self.sizes.values())
         bps = bytes / duration
@@ -224,27 +213,16 @@ class LogParser:
         return tps, bps, duration
 
     def _end_to_end_latency(self):
-        values = self.commits.values()
-
-        # Convert to a list
-        values_list = list(values)
-
-        # Access the second element (index 1 because Python's indexing starts from 0)
-        second_element = values_list[1]
-        start, end = min(self.start), second_element
+        start, end = min(self.start), max(val[1] for val in self.commits.values())
         latency = []
-        #for sent, received in zip(self.sent_samples, self.received_samples):
-        for sent in self.sent_samples:
-            start = sent[0]
-            end = second_element
+        #print("sent: ", self.sent_samples)
+        keys = list(self.commits.keys())
+        for i in range(len(keys)):
+            start = self.sent_samples[0][i]
+            end = self.commits[keys[i]][1]
             latency += [end-start]
-            #for tx_id, batch_id in received.items():
-                #if batch_id in self.commits:
-                    #assert tx_id in sent  # We receive txs that we sent.
-                    #start = sent[tx_id]
-                    #end = self.commits[batch_id]
-                    #latency += [end-start]
-        print(mean(latency))
+
+        print("latency: ", mean(latency))
         return mean(latency) if latency else 0
 
     def result(self):

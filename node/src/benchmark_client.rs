@@ -182,7 +182,7 @@ impl Client {
             info!("Total bytes: {}", counter2 * 532);
         }
         else {
-            info!("Total bytes: {}", counter2 * 532 * (self.nodes.len()-1)/3);
+            info!("Total bytes: {}", counter2 * 532 * (self.nodes.len() - (self.nodes.len()-1)/3));
         }
         Ok(())
     }

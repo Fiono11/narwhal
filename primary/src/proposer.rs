@@ -218,15 +218,18 @@ impl Proposer {
                                         // NOTE: This log entry is used to compute performance.
                                         info!("Committed {} -> {:?}", self.votes.get(&header_id).unwrap().len(), header_id);
                                         self.decided_elections.insert(header_id.clone(), true);
+
+
+                                        info!("Round {} is decided!", election_id);
+
+                                        self.round += 1;
+                                        self.leader = self.committee.leader(self.round as usize);
+
+                                        let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                                        timer.as_mut().reset(deadline);
+
+                                        election.decided = true;
                                     }
-
-                                    info!("Round {} is decided!", election_id);
-
-                                    self.round += 1;
-                                    self.leader = self.committee.leader(self.round as usize);
-
-                                    let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
-                                    timer.as_mut().reset(deadline);
 
                                     return Ok(());
                             }
@@ -318,16 +321,18 @@ impl Proposer {
 
             info!("PROPOSALS3: {}", self.proposals.len());
 
-            info!("Making a new header from {} in round {} with {} proposals", self.name, self.round, self.proposals.len());
+            let proposals = self.proposals.len();
 
             // Make a new header.
             let header = Header::new(
                 self.round,
                 self.name.clone(),
-                self.proposals.drain(..self.header_size).collect(), // only drain if committed
+                self.proposals.drain(..).collect(), // only drain if committed
                 &mut self.signature_service,
             )
             .await;
+
+            info!("Making a new header {} from {} in round {} with {} proposals", header.id, self.name, self.round, proposals);
 
             info!("PROPOSALS4: {}", self.proposals.len());
 
