@@ -151,11 +151,12 @@ impl Proposer {
 
                 //#[cfg(feature = "benchmark")]
                 for (tx_hash, election_id) in &header.votes {
+                    //info!("Created1 {} -> {:?}", tx_hash, election_id);
                     elections_ids.insert(election_id.clone());
-                    //if !self.active_elections.contains(&election_id) && !self.decided.contains(&election_id) {
+                    if !self.active_elections.contains(&election_id) && !self.decided.contains(&election_id) {
                         // NOTE: This log entry is used to compute performance.
-                        //self.active_elections.push(election_id.clone());
-                    //}
+                        self.active_elections.push(election_id.clone());
+                    }
                 }
             }
         }
@@ -210,7 +211,8 @@ impl Proposer {
 
                                         //#[cfg(not(feature = "benchmark"))]
                                         //info!("Committed {}", tx_hash);
-                                        //election.decided = true;        
+                                        //election.decided = true; 
+                                        //info!("Committed1 {} -> {:?}", tx_hash, election_id);       
                                     //}
                                     
                                     if self.decided_elections.get(&header_id).unwrap() == &false {
