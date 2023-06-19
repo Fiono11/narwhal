@@ -214,20 +214,20 @@ class LogParser:
         return tps, bps, duration
 
     def _end_to_end_latency(self):
-        start, end = min(self.start), max(val[1] for val in self.commits.values())
+        #start, end = min(self.start), max(val[1] for val in self.commits.values())
         latency = []
         keys = list(self.commits.keys())
-        counter = 0
+        counter = 1
         merged_dict = {k: v for d in self.sent_samples for k, v in d.items()}
         #print(merged_dict)
         #print("self samples: ", self.sent_samples)
 
         for i in range(len(keys)):
-            counter += int(self.commits[keys[i]][0])
             #print("counter: ", counter)
             start = merged_dict[counter-1]
             end = self.commits[keys[i]][1]
             latency += [end-start]
+            counter += int(self.commits[keys[i]][0])
 
         print("latency: ", mean(latency))
         return mean(latency) if latency else 0

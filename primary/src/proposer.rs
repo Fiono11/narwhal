@@ -153,10 +153,10 @@ impl Proposer {
         }
         let elections = self.elections.get_mut(&proposal.round).unwrap();
         self.votes.insert(proposal.id.clone(), proposal.votes.clone());
-            info!(
-                "Received proposal {} from {} in round {}",
-                proposal.id, proposal.author, self.round
-            );
+            //info!(
+                //"Received proposal {} from {} in round {}",
+                //proposal.id, proposal.author, self.round
+            //);
 
         let mut proposals = BTreeSet::new();
         proposals.insert(proposal.id.clone());
@@ -224,7 +224,7 @@ impl Proposer {
                     if self.pending_votes.contains_key(&proposal.round) {
                         if let Some(votes) = self.pending_votes.remove(&proposal.round) {
                             for vote in votes {
-                                info!("Inserting pending vote {}", &vote);
+                                //info!("Inserting pending vote {}", &vote);
                                 self.process_vote(&vote, timer).await;
                             }
                         }
@@ -239,7 +239,7 @@ impl Proposer {
         vote: &Vote,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
-        if !vote.commit {
+        /*if !vote.commit {
             info!(
                 "Received a vote from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
@@ -249,7 +249,7 @@ impl Proposer {
                 "Received a commit from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
             );
-        }
+        }*/
         let (tx_hash, election_id) = (vote.value.clone(), vote.election_id.clone());
         if !self.byzantine {
             match self.elections.get_mut(&vote.proposal_round) {
@@ -348,7 +348,7 @@ impl Proposer {
                                                     .network
                                                     .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                     .await;
-                                                info!("Sending commit: {:?}", &own_vote);
+                                                //info!("Sending commit: {:?}", &own_vote);
                                             }
                                         } else if election.voted_or_committed(&self.name, vote.round)
                                             && ((tally.total_votes() >= QUORUM
@@ -383,7 +383,7 @@ impl Proposer {
                                                 .network
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
-                                            info!("Changing vote: {:?}", &own_vote);
+                                            //info!("Changing vote: {:?}", &own_vote);
                                         } else if !election.voted_or_committed(&self.name, vote.round) {
                                             let mut tx_hash = tx_hash;
                                             if let Some(highest) = &election.highest {
@@ -414,7 +414,7 @@ impl Proposer {
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
             
-                                            info!("Sending vote: {:?}", &own_vote);
+                                            //info!("Sending vote: {:?}", &own_vote);
                                         }
                                     }
                                 }
@@ -426,11 +426,11 @@ impl Proposer {
                             }
                             None => match self.pending_votes.get_mut(&vote.proposal_round) {
                                 Some(btreeset) => {
-                                    info!("Inserted vote {} into pending votes", &vote);
+                                    //info!("Inserted vote {} into pending votes", &vote);
                                     btreeset.insert(vote.clone());
                                 }
                                 None => {
-                                    info!("Inserted vote {} into pending votes", &vote);
+                                    //info!("Inserted vote {} into pending votes", &vote);
                                     let mut btreeset = BTreeSet::new();
                                     btreeset.insert(vote.clone());
                                     self.pending_votes.insert(vote.proposal_round, btreeset);
@@ -438,8 +438,8 @@ impl Proposer {
                             },
                         } 
 
-                        info!("ALL PROPOSALS: {:?}", self.all_proposals);
-                        info!("DECIDED HEADERS: {:?}", self.decided_headers);
+                        //info!("ALL PROPOSALS: {:?}", self.all_proposals);
+                        //info!("DECIDED HEADERS: {:?}", self.decided_headers);
 
                         let mut header_decided = true;
                             if let Some(e) = self.proposals_per_round.get(&vote.proposal_round) {
@@ -491,7 +491,7 @@ impl Proposer {
                             if !headers.len() >= QUORUM && vote.proposal_round == self.round {
                                 self.round += 1;
 
-                                info!("ADVANCED TO ROUND {}", self.round);
+                                //info!("ADVANCED TO ROUND {}", self.round);
             
                                 let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
                                 timer.as_mut().reset(deadline);
@@ -532,10 +532,10 @@ impl Proposer {
 
             self.own_proposals.push(self.round);
 
-            info!(
-                "Making a new header {} from {} in round {} with {} proposals",
-                header.id, self.name, self.round, proposals
-            );
+            //info!(
+                //"Making a new header {} from {} in round {} with {} proposals",
+                //header.id, self.name, self.round, proposals
+            //);
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
@@ -573,7 +573,8 @@ impl Proposer {
                 },
 
                 () = &mut timer => {
-                    info!("EXPIRED!");
+                    info!("PROPOSALS: {}", self.proposals.len());
+                    //info!("EXPIRED!");
                     if self.proposals.len() > 0 && !self.own_proposals.contains(&self.round) {
                         self.make_header().await;
                     }
