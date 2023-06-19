@@ -65,7 +65,7 @@ pub struct Proposer {
     active_elections: Vec<ElectionId>,
     decided_elections: HashMap<Digest, bool>,
     own_proposals: Vec<Round>,
-    all_proposals: HashMap<Round, HashMap<PublicKey, Vec<((TxHash, ElectionId), bool)>>>,
+    all_proposals: HashMap<Digest, Vec<ElectionId>>,
 }
 
 impl Proposer {
@@ -126,15 +126,14 @@ impl Proposer {
         header: &Header,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
-        self.decided_elections.insert(header.id.clone(), false);
+        if !self.byzantine {
+            self.decided_elections.insert(header.id.clone(), false);
 
         if let None = self.elections.get(&header.round) {
             self.elections.insert(header.round, HashMap::new());
         }
         let elections = self.elections.get_mut(&header.round).unwrap();
         self.votes.insert(header.id.clone(), header.votes.clone());
-
-        if !self.byzantine {
             info!(
                 "Received header {} from {} in round {}",
                 header.id, header.author, self.round
@@ -160,8 +159,8 @@ impl Proposer {
                                 election.insert_vote(&vote);
                             }
                             None => {
-                                let election = Election::new();
-                                let mut elections = HashMap::new();
+                                let mut election = Election::new();
+                                election.insert_vote(&vote);
                                 elections.insert(election_id.clone(), election);
                                 //elections.insert(header.round, elections);
 
@@ -239,7 +238,7 @@ impl Proposer {
                                 if !election.decided {
                                     election.insert_vote(&vote);
                                     if let Some(tally) = election.tallies.get(&vote.round) {
-                                        if let Some(header_id) = election.find_quorum_of_commits() {
+                                        if let Some(election_id) = election.find_quorum_of_commits() {
                                             //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
                                             //self.proposals.retain(|(_, id)| id != election_id);
             
@@ -250,16 +249,17 @@ impl Proposer {
                                             //election.decided = true;
                                             //info!("Committed1 {} -> {:?}", tx_hash, election_id);
                                             //}
-            
-                                            if self.decided_elections.get(&header_id).unwrap() == &false {
+                                            
+        
+                                            if self.decided_elections.get(&election_id).unwrap() == &false {
                                                 #[cfg(feature = "benchmark")]
                                                 // NOTE: This log entry is used to compute performance.
-                                                info!(
-                                                    "Committed {} -> {:?}",
-                                                    self.votes.get(&header_id).unwrap().len(),
-                                                    header_id
-                                                );
-                                                self.decided_elections.insert(header_id.clone(), true);
+                                                //info!(
+                                                    //"Committed {} -> {:?}",
+                                                    //self.votes.get(&header_id).unwrap().len(),
+                                                    //header_id
+                                                //);
+                                                //self.decided_elections.insert(election_id.clone(), true);
             
                                                 info!("Round {} is decided!", election_id);
             
@@ -394,6 +394,30 @@ impl Proposer {
                                 }
                             },
                         } 
+                        let mut header_decided = true;
+                        if let Some(e) = self.all_proposals.get(&vote.header_id) {
+                            for election_id in e {
+                                match elections.get(&election_id) {
+                                    Some(election) => {
+                                        if !election.decided {
+                                            header_decided = false;
+                                            break;
+                                        }
+                                    }
+                                    None => {
+                                        header_decided = false;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if header_decided {
+                            info!(
+                                "Committed {} -> {:?}",
+                                self.votes.get(&vote.header_id).unwrap().len(),
+                                vote.header_id
+                            );
+                        }
                     }
                 None => {
                 }
