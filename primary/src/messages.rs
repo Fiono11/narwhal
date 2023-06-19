@@ -82,6 +82,7 @@ pub struct ProposalVote {
     pub author: PublicAddress,
     pub signature: Signature,
     pub id: Digest,
+    pub exceptions: BTreeSet<ElectionId>,
 }
 
 impl ProposalVote {
@@ -92,6 +93,7 @@ impl ProposalVote {
         commit: bool,
         author: PublicAddress,
         signature_service: &mut SignatureService,
+        exceptions: BTreeSet<ElectionId>,
     ) -> Self {
         let vote = Self {
             election_round,
@@ -101,6 +103,7 @@ impl ProposalVote {
             commit,
             author,
             id: Digest::default(),
+            exceptions,
         };
         let id = vote.digest();
         let signature = signature_service.request_signature(Digest::default()).await;

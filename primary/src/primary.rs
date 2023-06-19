@@ -1,7 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::election::ElectionId;
 use crate::error::DagError;
-use crate::messages::{Hash, Proposal, Vote};
+use crate::messages::{Hash, Proposal, Vote, ProposalVote};
 use crate::payload_receiver::PayloadReceiver;
 use crate::proposer::{Proposer, TxHash};
 use async_trait::async_trait;
@@ -28,8 +28,9 @@ pub type Round = u64;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PrimaryMessage {
-    Header(Proposal),
+    Proposal(Proposal),
     Vote(Vote),
+    ProposalVote(ProposalVote),
 }
 
 /// The messages sent by the primary to its workers.

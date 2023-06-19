@@ -7,6 +7,7 @@ from os.path import join
 from re import findall, search
 from statistics import mean
 import re
+
 from benchmark.utils import Print
 
 
@@ -215,6 +216,8 @@ class LogParser:
 
     def _end_to_end_latency(self):
         #start, end = min(self.start), max(val[1] for val in self.commits.values())
+        #print("sent: ", self.sent_samples)
+        #print("commits: ", self.commits)
         latency = []
         keys = list(self.commits.keys())
         counter = 1
@@ -229,7 +232,7 @@ class LogParser:
             latency += [end-start]
             counter += int(self.commits[keys[i]][0])
 
-        print("latency: ", mean(latency))
+        #print("latency mean: ", mean(latency))
         return mean(latency) if latency else 0
 
     def result(self):

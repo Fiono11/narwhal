@@ -17,9 +17,7 @@ pub struct Election {
     pub commit: Option<Digest>,
     pub highest: Option<Digest>,
     pub proof_round: Option<Round>,
-    //pub proposed_by: Vec<PublicAddress>,
     pub exceptions: BTreeSet<ElectionId>,
-    // pub decided_value: Option<TxHash>,
 }
 
 impl Election {
