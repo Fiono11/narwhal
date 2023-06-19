@@ -433,20 +433,25 @@ impl Proposer {
                             match self.decided_headers.get_mut(&vote.proposal_round) {
                                 Some(headers) => {
                                     if !headers.contains(&vote.header_id) {
+                                        info!(
+                                            "Committed {} -> {:?}",
+                                            self.votes.get(&vote.header_id).unwrap().len(),
+                                            vote.header_id
+                                        );
                                         headers.insert(vote.header_id.clone());
                                     }
                                 }
                                 None => {
+                                    info!(
+                                        "Committed {} -> {:?}",
+                                        self.votes.get(&vote.header_id).unwrap().len(),
+                                        vote.header_id
+                                    );
                                     let mut headers = BTreeSet::new();
                                     headers.insert(vote.header_id.clone());
                                     self.decided_headers.insert(vote.proposal_round, headers);
                                 }
                             }
-                            info!(
-                                "Committed {} -> {:?}",
-                                self.votes.get(&vote.header_id).unwrap().len(),
-                                vote.header_id
-                            );
                         }
 
                         if let Some(headers) = self.decided_headers.get(&vote.proposal_round) {
@@ -529,6 +534,7 @@ impl Proposer {
                 },
 
                 () = &mut timer => {
+                    info!("EXPIRED!");
                     if self.proposals.len() > 0 && !self.own_proposals.contains(&self.round) {
                         self.make_header().await;
                     }
