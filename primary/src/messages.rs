@@ -117,31 +117,37 @@ impl HeaderVote {
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Vote {
     pub round: Round,
-    pub header_id: Digest,
-    pub election_id: Round,
+    pub tx_hash: TxHash,
+    pub election_id: ElectionId,
+    pub proposal_round: Round,
     pub commit: bool,
     pub author: PublicAddress,
     pub signature: Signature,
     pub vote_id: Digest,
+    pub header_id: Digest,
 }
 
 impl Vote {
     pub async fn new(
         round: Round,
-        header_id: Digest,
-        election_id: Round,
+        tx_hash: TxHash,
+        election_id: ElectionId,
+        proposal_round: Round,
         commit: bool,
         author: PublicAddress,
+        header_id: Digest,
         signature_service: &mut SignatureService,
     ) -> Self {
         let vote = Self {
             round,
             author,
-            header_id,
+            tx_hash,
+            proposal_round,
             election_id,
             signature: Signature::default(),
             vote_id: Digest::default(),
             commit,
+            header_id,
         };
         let vote_id = vote.digest();
         let signature = signature_service.request_signature(Digest::default()).await;
@@ -167,8 +173,8 @@ impl Hash for Vote {
     fn digest(&self) -> TxHash {
         let mut hasher = Sha512::new();
         hasher.update(self.round.to_le_bytes());
-        hasher.update(&self.header_id);
-        hasher.update(self.election_id.to_le_bytes());
+        hasher.update(&self.tx_hash);
+        hasher.update(self.election_id.clone());
         Digest(hasher.finalize().as_slice()[..32].try_into().unwrap())
     }
 }
@@ -180,7 +186,7 @@ impl fmt::Debug for Vote {
             "{}: V{}({}, {})",
             self.digest(),
             self.round,
-            self.header_id,
+            self.tx_hash,
             self.election_id,
         )
     }

@@ -12,14 +12,12 @@ pub type ElectionId = Digest;
 
 #[derive(Debug, Clone)]
 pub struct Election {
-    //pub round: Round,
     pub tallies: HashMap<Round, Tally>,
     pub decided: bool,
     pub commit: Option<Digest>,
     pub highest: Option<Digest>,
     pub proof_round: Option<Round>,
-    //pub voted: bool,
-    //pub committed: bool,
+    pub proposed_by: Vec<PublicAddress>,
 }
 
 impl Election {
@@ -27,14 +25,12 @@ impl Election {
         let mut tallies = HashMap::new();
         tallies.insert(0, Tally::new());
         Self {
-            //round: 0,
             tallies,
             decided: false,
             commit: None,
             highest: None,
             proof_round: None,
-            //voted: false,
-            //committed: false,
+            proposed_by: Vec::new(),
         }
     }
 
@@ -48,7 +44,7 @@ impl Election {
     }
 
     pub fn insert_vote(&mut self, vote: &Vote) {
-        let tx_hash = vote.header_id.clone();
+        let tx_hash = vote.tx_hash.clone();
         if !vote.commit {
             if let Some(highest) = self.highest.clone() {
                 if tx_hash > highest {
