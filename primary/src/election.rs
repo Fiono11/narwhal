@@ -18,6 +18,7 @@ pub struct Election {
     pub highest: Option<Digest>,
     pub proof_round: Option<Round>,
     pub proposed_by: Vec<PublicAddress>,
+    // pub decided_value: Option<TxHash>,
 }
 
 impl Election {

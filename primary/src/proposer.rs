@@ -65,7 +65,9 @@ pub struct Proposer {
     active_elections: Vec<ElectionId>,
     decided_elections: HashMap<Digest, bool>,
     own_proposals: Vec<Round>,
-    all_proposals: HashMap<Digest, Vec<ElectionId>>,
+    all_proposals: HashMap<Digest, BTreeSet<ElectionId>>,
+    decided_headers: HashMap<Round, BTreeSet<Digest>>,
+    active_headers: BTreeSet<Digest>,
 }
 
 impl Proposer {
@@ -114,6 +116,8 @@ impl Proposer {
                 decided_elections: HashMap::new(),
                 own_proposals: Vec::new(),
                 all_proposals: HashMap::new(),
+                decided_headers: HashMap::new(),
+                active_headers: BTreeSet::new(),
             }
             .run()
             .await;
@@ -126,6 +130,8 @@ impl Proposer {
         header: &Header,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
+        self.all_proposals.insert(header.id.clone(), header.votes.iter().map(|(_, election_id)| election_id.clone()).collect());
+    
         if !self.byzantine {
             self.decided_elections.insert(header.id.clone(), false);
 
@@ -164,7 +170,10 @@ impl Proposer {
                                 elections.insert(election_id.clone(), election);
                                 //elections.insert(header.round, elections);
 
-                                info!("Created {} -> {:?}", header.votes.len(), header.id);
+                                if !self.active_headers.contains(&header.id) {
+                                    info!("Created {} -> {:?}", header.votes.len(), header.id);
+                                    self.active_headers.insert(header.id.clone());
+                                }
 
                                 let mut elections_ids = BTreeSet::new();
 
@@ -238,7 +247,8 @@ impl Proposer {
                                 if !election.decided {
                                     election.insert_vote(&vote);
                                     if let Some(tally) = election.tallies.get(&vote.round) {
-                                        if let Some(election_id) = election.find_quorum_of_commits() {
+                                        if let Some(tx_hash) = election.find_quorum_of_commits() {
+                                            election.decided = true;
                                             //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
                                             //self.proposals.retain(|(_, id)| id != election_id);
             
@@ -251,7 +261,7 @@ impl Proposer {
                                             //}
                                             
         
-                                            if self.decided_elections.get(&election_id).unwrap() == &false {
+                                            /*if self.decided_elections.get(&election_id).unwrap() == &false {
                                                 #[cfg(feature = "benchmark")]
                                                 // NOTE: This log entry is used to compute performance.
                                                 //info!(
@@ -274,7 +284,7 @@ impl Proposer {
             
                                             }
             
-                                            return Ok(());
+                                            return Ok(());*/
                                         }
                                         //if !election.committed {
                                         //own_header = header.clone();
@@ -394,29 +404,60 @@ impl Proposer {
                                 }
                             },
                         } 
+
+                        info!("ALL PROPOSALS: {:?}", self.all_proposals);
+                        info!("DECIDED HEADERS: {:?}", self.decided_headers);
+
                         let mut header_decided = true;
-                        if let Some(e) = self.all_proposals.get(&vote.header_id) {
-                            for election_id in e {
-                                match elections.get(&election_id) {
-                                    Some(election) => {
-                                        if !election.decided {
+                            if let Some(e) = self.all_proposals.get(&vote.header_id) {
+                                for election_id in e {
+                                    match elections.get(&election_id) {
+                                        Some(election) => {
+                                            if !election.decided {
+                                                header_decided = false;
+                                                break;
+                                            }
+                                        }
+                                        None => {
                                             header_decided = false;
                                             break;
                                         }
                                     }
-                                    None => {
-                                        header_decided = false;
-                                        break;
-                                    }
                                 }
                             }
-                        }
+                            else {
+                                header_decided = false;
+                            }
+
                         if header_decided {
+                            match self.decided_headers.get_mut(&vote.proposal_round) {
+                                Some(headers) => {
+                                    if !headers.contains(&vote.header_id) {
+                                        headers.insert(vote.header_id.clone());
+                                    }
+                                }
+                                None => {
+                                    let mut headers = BTreeSet::new();
+                                    headers.insert(vote.header_id.clone());
+                                    self.decided_headers.insert(vote.proposal_round, headers);
+                                }
+                            }
                             info!(
                                 "Committed {} -> {:?}",
                                 self.votes.get(&vote.header_id).unwrap().len(),
                                 vote.header_id
                             );
+                        }
+
+                        if let Some(headers) = self.decided_headers.get(&vote.proposal_round) {
+                            if !headers.len() >= QUORUM && vote.proposal_round == self.round {
+                                self.round += 1;
+
+                                info!("ADVANCED TO ROUND {}", self.round);
+            
+                                let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
+                                timer.as_mut().reset(deadline);
+                            }
                         }
                     }
                 None => {
