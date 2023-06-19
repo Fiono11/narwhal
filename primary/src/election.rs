@@ -17,7 +17,8 @@ pub struct Election {
     pub commit: Option<Digest>,
     pub highest: Option<Digest>,
     pub proof_round: Option<Round>,
-    pub proposed_by: Vec<PublicAddress>,
+    //pub proposed_by: Vec<PublicAddress>,
+    pub exceptions: BTreeSet<ElectionId>,
     // pub decided_value: Option<TxHash>,
 }
 
@@ -31,7 +32,8 @@ impl Election {
             commit: None,
             highest: None,
             proof_round: None,
-            proposed_by: Vec::new(),
+            //proposed_by: Vec::new(),
+            exceptions: BTreeSet::new(),
         }
     }
 
@@ -45,7 +47,7 @@ impl Election {
     }
 
     pub fn insert_vote(&mut self, vote: &Vote) {
-        let tx_hash = vote.tx_hash.clone();
+        let tx_hash = vote.value.clone();
         if !vote.commit {
             if let Some(highest) = self.highest.clone() {
                 if tx_hash > highest {

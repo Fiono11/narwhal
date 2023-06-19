@@ -15,5 +15,5 @@ mod proposer;
 //mod synchronizer;
 mod constants;
 
-pub use crate::messages::{Hash, Header};
+pub use crate::messages::{Hash, Proposal};
 pub use crate::primary::{Primary, PrimaryWorkerMessage, Round, Transaction, WorkerPrimaryMessage};
