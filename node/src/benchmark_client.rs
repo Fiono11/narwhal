@@ -129,7 +129,7 @@ impl Client {
             let mut counter2 = 0;
             let mut r: u64 = thread_rng().gen();
             let mut r2: u32 = thread_rng().gen();
-            let mut r: u64 = 0;
+            //let mut r: u64 = 0;
             let mut forks = false;
             if r == 0 {
                 forks = true;
@@ -151,20 +151,20 @@ impl Client {
                 let now = Instant::now();
 
                 for x in 0..burst {
-                    if x == counter % burst {
+                    //if x == counter % burst {
                         //r += 1;
-                        id.put_u8(0u8); // Sample txs start with 0.
+                        //id.put_u8(0u8); // Sample txs start with 0.
                                         //id.put_u64(r);
-                        id.put_u64(counter); // This counter identifies the tx.
+                        //id.put_u64(counter); // This counter identifies the tx.
                                              //id.put_u32(r2);
 
                     // NOTE: This log entry is used to compute performance.
                     //info!("Sending sample transaction {}", counter);
-                    } else {
+                    //} else {
                         r += 1;
                         id.put_u8(1u8); // Standard txs start with 1.
                         id.put_u64(r); // Ensures all clients send different txs.
-                    };
+                    //};
 
                     tx.id = id.to_vec();
                     if self.id != 0 {
