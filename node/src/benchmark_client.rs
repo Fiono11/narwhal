@@ -147,7 +147,7 @@ impl Client {
             );
 
             //'main: loop {
-            for _ in 0..2 {
+            for _ in 0..PRECISION * (self.nodes.len() as u64) {
                 interval.as_mut().tick().await;
                 let now = Instant::now();
 
