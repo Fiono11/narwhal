@@ -481,6 +481,8 @@ impl Proposer {
                                                 }
                                             }
 
+                                            self.all_votes.drain();
+
                                             //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
                                             //self.proposals.retain(|(_, id)| id != election_id);
             
