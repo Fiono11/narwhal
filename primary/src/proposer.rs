@@ -438,7 +438,7 @@ impl Proposer {
                         let mut next_leader = self.committee.leader(next_round as usize);
 
                         while self.committee.is_byzantine(&next_leader) {
-                            //sleep(Duration::from_millis(200)).await;
+                            //sleep(Duration::from_millis(self.max_header_delay)).await;
                             next_round += 1;
                             next_leader = self.committee.leader(next_round as usize);
                         }
@@ -460,7 +460,7 @@ impl Proposer {
                         let mut next_leader = self.committee.leader(next_round as usize);
 
                         while self.committee.is_byzantine(&next_leader) {
-                            //sleep(Duration::from_millis(200)).await;
+                            //sleep(Duration::from_millis(self.max_header_delay)).await;
                             next_round += 1;
                             next_leader = self.committee.leader(next_round as usize);
                         }
