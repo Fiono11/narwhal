@@ -64,7 +64,7 @@ pub struct Proposer {
     committee: Committee,
     //leader: PublicKey,
     decided: BTreeSet<ElectionId>,
-    active_elections: Vec<ElectionId>,
+    active_elections: BTreeSet<ElectionId>,
     decided_elections: HashMap<Digest, bool>,
     own_proposals: Vec<Round>,
     all_proposals: HashMap<ProposalId, BTreeSet<ElectionId>>,
@@ -73,6 +73,7 @@ pub struct Proposer {
     proposals_per_round: HashMap<Round, BTreeSet<ProposalId>>,
     the_proposals: HashMap<Round, HashMap<ProposalId, BTreeSet<(TxHash, ElectionId)>>>,
     proposals_sent: HashMap<Round, bool>,
+    unique_elections: HashMap<ProposalId, u64>
 }
 
 impl Proposer {
@@ -104,7 +105,7 @@ impl Proposer {
                 round: 0,
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
-                proposals: Vec::with_capacity(header_size),
+                proposals: Vec::new(),
                 elections: HashMap::new(),
                 addresses,
                 byzantine,
@@ -118,7 +119,7 @@ impl Proposer {
                 committee,
                 //leader,
                 decided: BTreeSet::new(),
-                active_elections: Vec::new(),
+                active_elections: BTreeSet::new(),
                 decided_elections: HashMap::new(),
                 own_proposals: Vec::new(),
                 all_proposals: HashMap::new(),
@@ -127,6 +128,7 @@ impl Proposer {
                 proposals_per_round: HashMap::new(),
                 the_proposals: HashMap::new(),
                 proposals_sent: HashMap::new(),
+                unique_elections: HashMap::new(),
             }
             .run()
             .await;
@@ -139,8 +141,9 @@ impl Proposer {
         proposal: &Proposal,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
+        if !self.byzantine {
 
-        info!("Received proposal from {} with {} votes in round {}", proposal.author, proposal.votes.len() ,proposal.round);
+        info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
 
         self.votes.insert(proposal.id.clone(), proposal.votes.clone());
 
@@ -152,11 +155,15 @@ impl Proposer {
                 match proposals_ids.get_mut(&proposal.id) {
                     Some(p) => {
                         for (tx_hash, election_id) in &proposal.votes {
+                            //self.active_elections.insert(election_id.clone());
                             p.insert((tx_hash.clone(), election_id.clone()));
                         }
                     }
                     None => {
                         proposals_ids.insert(proposal.id.clone(), proposal.votes.clone());
+                        //for (_, election_id) in &proposal.votes {
+                            //self.active_elections.insert(election_id.clone());
+                        //}
                     }
                 }
             }
@@ -168,21 +175,38 @@ impl Proposer {
             }
         }
 
-        // vote on proposals if received at least 2f + 1
-        let proposals = self.the_proposals.get(&proposal.round).unwrap();
+        match self.proposals_per_round.get_mut(&proposal.round) {
+            Some(proposals) => {
+                proposals.insert(proposal.id.clone());
+            }
+            None => {
+                let mut proposals_ids = BTreeSet::new();
+                proposals_ids.insert(proposal.id.clone());
+                self.proposals_per_round.insert(proposal.round, proposals_ids);
+            }
+        }
 
-        info!("PROPOSALS of round {}: {:?}", proposal.round, self.the_proposals.get(&proposal.round).unwrap());
+        // vote on proposals if received at least 2f + 1
+        let proposals = self.proposals_per_round.get(&proposal.round).unwrap();
+
+        //info!("PROPOSALS of round {}: {:?}", proposal.round, self.the_proposals.get(&proposal.round).unwrap());
         
         let sent = self.proposals_sent.get_mut(&proposal.round).unwrap();
 
         if proposals.len() >= QUORUM && !*sent {//&& timer.is_elapsed() {
-            let mut proposal_ids = BTreeSet::new();
-            for proposal_id in proposals.keys() {
-                proposal_ids.insert(proposal_id.clone());
+            let mut hasher = Sha512::new();
+
+            for id in proposals {
+                hasher.update(id);
             }
-            let proposal_vote = ProposalVote::new(0, proposal_ids.clone().into_iter().collect(), proposal.round, false, self.name, &mut self.signature_service).await;
+            let proposal_id = Digest(hasher.finalize()[..32].try_into().unwrap());
+            //let mut proposal_ids = BTreeSet::new();
+            //for proposal_id in proposals.keys() {
+                //proposal_ids.insert(proposal_id.clone());
+            //}
+            let proposal_vote = Vote::new(0, proposal_id.clone(), proposal_id.clone(), proposal.round, false, self.name, &mut self.signature_service).await;
             // broadcast the proposal vote
-            let bytes = bincode::serialize(&PrimaryMessage::ProposalVote(proposal_vote.clone()))
+            let bytes = bincode::serialize(&PrimaryMessage::Vote(proposal_vote.clone()))
                 .expect("Failed to serialize our own header");
             let _handlers = self
                 .network
@@ -190,8 +214,26 @@ impl Proposer {
                 .await;
 
             *sent = true;
-        }
 
+            let mut unique_election_ids = BTreeSet::new();
+
+            if let Some(proposals) = self.the_proposals.get(&proposal.round) {
+                for proposal_id in proposals.keys() {
+                    if let Some(set) = proposals.get(&proposal_id) {
+                        for (_, election_id) in set {
+                            if !self.active_elections.contains(&election_id) {
+                                unique_election_ids.insert(election_id.clone());
+                                self.active_elections.insert(election_id.clone());
+                            }
+                        }
+                    }
+                }
+            }
+
+            info!("Created {} -> {:?}", unique_election_ids.len(), proposal_id);
+
+            self.unique_elections.insert(proposal_id.clone(), unique_election_ids.len() as u64);
+        }
 
         /*match self.proposals_per_round.get_mut(&proposal.round) {
             Some(proposals) => {
@@ -312,6 +354,7 @@ impl Proposer {
                         }
                     }*/
                 }*/
+            }
         Ok(())
     }
 
@@ -338,9 +381,12 @@ impl Proposer {
         // Update hasher with each proposal digest bytes
         for proposal in ordered_proposals {
             if let Some(v) = self.votes.get(&proposal) {
+                info!("proposal: {:?} has {} votes", proposal, self.votes.get(&proposal).unwrap().len());
                 for (_, election_id) in v {
-                    info!("election id: {:?}", election_id.clone());
-                    votes.insert(election_id.clone());
+                    //info!("election id: {:?}", election_id.clone());
+                    if !self.active_elections.contains(election_id) {
+                        votes.insert(election_id.clone());
+                    }
                 }
             }
             hasher.update(proposal);
@@ -468,14 +514,14 @@ impl Proposer {
                                         if let Some(tx_hash) = election.find_quorum_of_commits() {
                                             election.decided = true;
 
-                                            info!("ALL VOTES: {:?}", self.all_votes);
+                                            //info!("ALL VOTES: {:?}", self.all_votes);
 
                                             match self.decided_headers.get_mut(&vote.proposal_round) {
                                                 Some(headers) => {
                                                     if !headers.contains(&vote.election_id) {
                                                             info!(
                                                                 "Committed {} -> {:?}",
-                                                                self.all_votes.get(&vote.election_id).unwrap().len(),
+                                                                self.unique_elections.get(&vote.election_id).unwrap(),
                                                                 vote.election_id
                                                             );
                             
@@ -486,18 +532,23 @@ impl Proposer {
                                                 None => {
                                                     info!(
                                                         "Committed {} -> {:?}",
-                                                        self.all_votes.get(&vote.election_id).unwrap().len(),
+                                                        self.unique_elections.get(&vote.election_id).unwrap(),
                                                         vote.election_id
                                                     );
-                                                    let mut headers = BTreeSet::new();
-                                                    headers.insert(vote.election_id.clone());
-                                                    self.decided_headers.insert(vote.proposal_round, headers);
                                                 }
                                             }
 
                                             self.all_votes.drain();
 
                                             info!("ALL VOTES2: {:?}", self.all_votes);
+
+                                            self.round += 1;
+
+                                            let deadline = Instant::now()
+                                                    + Duration::from_millis(self.max_header_delay);
+                                                timer.as_mut().reset(deadline);
+            
+                                                election.decided = true;
 
                                             //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
                                             //self.proposals.retain(|(_, id)| id != election_id);
@@ -562,7 +613,7 @@ impl Proposer {
                                                     .network
                                                     .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                     .await;
-                                                //info!("Sending commit: {:?}", &own_vote);
+                                                info!("Sending commit: {:?}", &own_vote);
                                             }
                                         } else if election.voted_or_committed(&self.name, vote.round)
                                             && ((tally.total_votes() >= QUORUM
@@ -597,7 +648,7 @@ impl Proposer {
                                                 .network
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
-                                            //info!("Changing vote: {:?}", &own_vote);
+                                            info!("Changing vote: {:?}", &own_vote);
                                         } else if !election.voted_or_committed(&self.name, vote.round) {
                                             let mut tx_hash = tx_hash;
                                             if let Some(highest) = &election.highest {
@@ -628,7 +679,7 @@ impl Proposer {
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
             
-                                            //info!("Sending vote: {:?}", &own_vote);
+                                            info!("Sending vote: {:?}", &own_vote);
                                         }
                                     }
                                 }
@@ -713,6 +764,11 @@ impl Proposer {
                         }
                     }
                 None => {
+                    let mut hp = HashMap::new();
+                    let mut election = Election::new();
+                    election.insert_vote(vote);
+                    hp.insert(vote.election_id.clone(), election);
+                    self.elections.insert(vote.proposal_round, hp);
                 }
             }
         }
@@ -735,11 +791,17 @@ impl Proposer {
 
             let proposals = self.proposals.len();
 
-            // Make a new header.
-            let header = Proposal::new(
+            for i in 0..self.proposals.len() {
+                if self.active_elections.contains(&self.proposals[i].1) {
+                    self.proposals.remove(i);
+                }
+            }
+
+            // Make a new proposal.
+            let proposal = Proposal::new(
                 self.round,
                 self.name.clone(),
-                self.proposals.drain(..self.header_size).collect(), // only drain if committed
+                self.proposals.drain(..).collect(), // only drain if committed
                 &mut self.signature_service,
             )
             .await;
@@ -748,12 +810,12 @@ impl Proposer {
 
             info!(
                 "Making a new proposal {} from {} in round {} with {} proposals",
-                header.id, self.name, self.round, proposals
+                proposal.id, self.name, self.round, proposals
             );
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
-            let bytes = bincode::serialize(&PrimaryMessage::Proposal(header.clone()))
+            let bytes = bincode::serialize(&PrimaryMessage::Proposal(proposal.clone()))
                 .expect("Failed to serialize our own header");
             let _handlers = self
                 .network
