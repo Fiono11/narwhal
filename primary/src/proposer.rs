@@ -436,6 +436,8 @@ impl Proposer {
                         self.proposals.push((tx_hash, election_id));
                     }
 
+                    info!("PROPOSALS2: {}", self.proposals.len());
+
                     if self.committee.is_byzantine(&self.leader) {
                         let mut next_round = self.round + 1;
                         let mut next_leader = self.committee.leader(next_round as usize);
