@@ -143,7 +143,7 @@ impl Proposer {
     ) -> DagResult<()> {
         if !self.byzantine {
 
-        info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
+        //info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
 
         self.votes.insert(proposal.id.clone(), proposal.votes.clone());
 
@@ -230,7 +230,7 @@ impl Proposer {
                 }
             }
 
-            info!("Created {} -> {:?}", unique_election_ids.len(), proposal_id);
+            //info!("Created {} -> {:?}", unique_election_ids.len(), proposal_id);
 
             self.unique_elections.insert(proposal_id.clone(), unique_election_ids.len() as u64);
         }
@@ -365,7 +365,7 @@ impl Proposer {
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
 
-        info!("Received proposal vote from {} in round {} with {} proposals", proposal_vote.author, proposal_vote.proposals_round, proposal_vote.proposals.len());
+        //info!("Received proposal vote from {} in round {} with {} proposals", proposal_vote.author, proposal_vote.proposals_round, proposal_vote.proposals.len());
 
         if let None = self.elections.get(&proposal_vote.proposals_round) {
             self.elections.insert(proposal_vote.proposals_round, HashMap::new());
@@ -381,7 +381,7 @@ impl Proposer {
         // Update hasher with each proposal digest bytes
         for proposal in ordered_proposals {
             if let Some(v) = self.votes.get(&proposal) {
-                info!("proposal: {:?} has {} votes", proposal, self.votes.get(&proposal).unwrap().len());
+                //info!("proposal: {:?} has {} votes", proposal, self.votes.get(&proposal).unwrap().len());
                 for (_, election_id) in v {
                     //info!("election id: {:?}", election_id.clone());
                     if !self.active_elections.contains(election_id) {
@@ -396,7 +396,7 @@ impl Proposer {
         let hash_result = hasher.finalize();
         let proposal_id = Digest(hash_result[..32].try_into().unwrap());
 
-        info!("inserted {} votes of proposal {}", votes.len(), proposal_id.clone());
+        //info!("inserted {} votes of proposal {}", votes.len(), proposal_id.clone());
 
         self.all_votes.insert(proposal_id.clone(), votes);
 
@@ -404,7 +404,7 @@ impl Proposer {
 
         if let None = elections.get_mut(&proposal_id) {
 
-            info!("Created {} -> {:?}", proposal_vote.proposals.len(), proposal_id);   
+            //info!("Created {} -> {:?}", proposal_vote.proposals.len(), proposal_id);   
 
             elections.insert(proposal_id.clone(), Election::new());
         
@@ -491,7 +491,7 @@ impl Proposer {
         vote: &Vote,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
-        if !vote.commit {
+        /*if !vote.commit {
             info!(
                 "Received a vote from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
@@ -501,7 +501,7 @@ impl Proposer {
                 "Received a commit from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
             );
-        }
+        }*/
         let (tx_hash, election_id) = (vote.value.clone(), vote.election_id.clone());
         if !self.byzantine {
             match self.elections.get_mut(&vote.proposal_round) {
@@ -540,7 +540,7 @@ impl Proposer {
 
                                             self.all_votes.drain();
 
-                                            info!("ALL VOTES2: {:?}", self.all_votes);
+                                            //info!("ALL VOTES2: {:?}", self.all_votes);
 
                                             self.round += 1;
 
@@ -613,7 +613,7 @@ impl Proposer {
                                                     .network
                                                     .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                     .await;
-                                                info!("Sending commit: {:?}", &own_vote);
+                                                //info!("Sending commit: {:?}", &own_vote);
                                             }
                                         } else if election.voted_or_committed(&self.name, vote.round)
                                             && ((tally.total_votes() >= QUORUM
@@ -648,7 +648,7 @@ impl Proposer {
                                                 .network
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
-                                            info!("Changing vote: {:?}", &own_vote);
+                                            //info!("Changing vote: {:?}", &own_vote);
                                         } else if !election.voted_or_committed(&self.name, vote.round) {
                                             let mut tx_hash = tx_hash;
                                             if let Some(highest) = &election.highest {
@@ -679,7 +679,7 @@ impl Proposer {
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
             
-                                            info!("Sending vote: {:?}", &own_vote);
+                                            //info!("Sending vote: {:?}", &own_vote);
                                         }
                                     }
                                 }
@@ -808,10 +808,10 @@ impl Proposer {
 
             self.own_proposals.push(self.round);
 
-            info!(
-                "Making a new proposal {} from {} in round {} with {} proposals",
-                proposal.id, self.name, self.round, proposals
-            );
+            //info!(
+                //"Making a new proposal {} from {} in round {} with {} proposals",
+                //proposal.id, self.name, self.round, proposals
+            //);
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
@@ -849,7 +849,7 @@ impl Proposer {
                 },
 
                 () = &mut timer => {
-                    info!("PROPOSALS: {}", self.proposals.len());
+                    //info!("PROPOSALS: {}", self.proposals.len());
                     //info!("EXPIRED!");
                     if self.proposals.len() > 0 && !self.own_proposals.contains(&self.round) {
                         self.make_proposal().await;
