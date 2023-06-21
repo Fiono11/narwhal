@@ -72,6 +72,7 @@ pub struct Proposer {
     active_headers: BTreeSet<Digest>,
     proposals_per_round: HashMap<Round, BTreeSet<ProposalId>>,
     the_proposals: HashMap<Round, HashMap<ProposalId, BTreeSet<(TxHash, ElectionId)>>>,
+    proposals_sent: HashMap<Round, bool>,
 }
 
 impl Proposer {
@@ -125,6 +126,7 @@ impl Proposer {
                 active_headers: BTreeSet::new(),
                 proposals_per_round: HashMap::new(),
                 the_proposals: HashMap::new(),
+                proposals_sent: HashMap::new(),
             }
             .run()
             .await;
@@ -142,7 +144,7 @@ impl Proposer {
 
         self.votes.insert(proposal.id.clone(), proposal.votes.clone());
 
-        info!("Inserted {:?} in {:?}", proposal.votes.clone(), proposal.id.clone());
+        //info!("Inserted {:?} in {:?}", proposal.votes.clone(), proposal.id.clone());
 
         // insert the proposal
         match self.the_proposals.get_mut(&proposal.round) {
@@ -159,6 +161,7 @@ impl Proposer {
                 }
             }
             None => {
+                self.proposals_sent.insert(proposal.round, false);
                 let mut proposals_ids = HashMap::new();
                 proposals_ids.insert(proposal.id.clone(), proposal.votes.clone());
                 self.the_proposals.insert(proposal.round, proposals_ids);
@@ -167,8 +170,12 @@ impl Proposer {
 
         // vote on proposals if received at least 2f + 1
         let proposals = self.the_proposals.get(&proposal.round).unwrap();
+
+        info!("PROPOSALS of round {}: {:?}", proposal.round, self.the_proposals.get(&proposal.round).unwrap());
         
-        if proposals.len() >= QUORUM {//&& timer.is_elapsed() {
+        let sent = self.proposals_sent.get_mut(&proposal.round).unwrap();
+
+        if proposals.len() >= QUORUM && !*sent {//&& timer.is_elapsed() {
             let mut proposal_ids = BTreeSet::new();
             for proposal_id in proposals.keys() {
                 proposal_ids.insert(proposal_id.clone());
@@ -181,6 +188,8 @@ impl Proposer {
                 .network
                 .broadcast(self.addresses.clone(), Bytes::from(bytes))
                 .await;
+
+            *sent = true;
         }
 
 
@@ -313,6 +322,8 @@ impl Proposer {
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
 
+        info!("Received proposal vote from {} in round {} with {} proposals", proposal_vote.author, proposal_vote.proposals_round, proposal_vote.proposals.len());
+
         if let None = self.elections.get(&proposal_vote.proposals_round) {
             self.elections.insert(proposal_vote.proposals_round, HashMap::new());
         }
@@ -328,6 +339,7 @@ impl Proposer {
         for proposal in ordered_proposals {
             if let Some(v) = self.votes.get(&proposal) {
                 for (_, election_id) in v {
+                    info!("election id: {:?}", election_id.clone());
                     votes.insert(election_id.clone());
                 }
             }
@@ -337,6 +349,8 @@ impl Proposer {
         // Finalize the hash and take the first 32 bytes as Digest
         let hash_result = hasher.finalize();
         let proposal_id = Digest(hash_result[..32].try_into().unwrap());
+
+        info!("inserted {} votes of proposal {}", votes.len(), proposal_id.clone());
 
         self.all_votes.insert(proposal_id.clone(), votes);
 
@@ -482,6 +496,8 @@ impl Proposer {
                                             }
 
                                             self.all_votes.drain();
+
+                                            info!("ALL VOTES2: {:?}", self.all_votes);
 
                                             //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
                                             //self.proposals.retain(|(_, id)| id != election_id);
@@ -723,7 +739,7 @@ impl Proposer {
             let header = Proposal::new(
                 self.round,
                 self.name.clone(),
-                self.proposals.drain(..).collect(), // only drain if committed
+                self.proposals.drain(..self.header_size).collect(), // only drain if committed
                 &mut self.signature_service,
             )
             .await;
