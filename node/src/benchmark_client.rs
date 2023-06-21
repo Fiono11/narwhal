@@ -187,7 +187,7 @@ impl Client {
                         array.clone_from_slice(&vec[..32]);
                     }
 
-                    info!("Sending transaction with id {:?} and digest {:?}", Digest(array), tx.digest());
+                    //info!("Sending transaction with id {:?} and digest {:?}", Digest(array), tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                     //info!("TX SIZE: {:?}", message.len());
