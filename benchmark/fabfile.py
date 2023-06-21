@@ -22,8 +22,8 @@ def local(ctx, debug=True):
         'runs': 1,
     }
     node_params = {
-        'header_size': 40,  # bytes
-        'max_header_delay': 1000,  # ms
+        'header_size': 2,  # bytes
+        'max_header_delay': 200,  # ms
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms
         'sync_retry_nodes': 3,  # number of nodes

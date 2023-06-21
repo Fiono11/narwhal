@@ -6,18 +6,18 @@ use std::{
     time::Duration,
 };
 
-use crate::{constants::QUORUM, messages::Vote, proposer::TxHash, Round};
+use crate::{constants::QUORUM, messages::{Vote, ProposalId}, proposer::TxHash, Round};
 
 pub type ElectionId = Digest;
 
 #[derive(Debug, Clone)]
 pub struct Election {
-    pub tallies: HashMap<Round, Tally>,
+    pub proposal_tallies: HashMap<Round, Tally>,
     pub decided: bool,
     pub commit: Option<Digest>,
     pub highest: Option<Digest>,
     pub proof_round: Option<Round>,
-    pub exceptions: BTreeSet<ElectionId>,
+    pub conflicts: BTreeSet<ElectionId>,
 }
 
 impl Election {
@@ -25,18 +25,17 @@ impl Election {
         let mut tallies = HashMap::new();
         tallies.insert(0, Tally::new());
         Self {
-            tallies,
+            proposal_tallies: tallies,
             decided: false,
             commit: None,
             highest: None,
             proof_round: None,
-            //proposed_by: Vec::new(),
-            exceptions: BTreeSet::new(),
+            conflicts: BTreeSet::new(),
         }
     }
 
     pub fn find_quorum_of_commits(&self) -> Option<&TxHash> {
-        for (_, tally) in &self.tallies {
+        for (_, tally) in &self.proposal_tallies {
             if let Some(digest) = tally.find_quorum_of_commits() {
                 return Some(digest);
             }
@@ -58,20 +57,20 @@ impl Election {
             self.commit = Some(tx_hash.clone());
         }
 
-        match self.tallies.get_mut(&vote.round) {
+        match self.proposal_tallies.get_mut(&vote.round) {
             Some(tally) => {
                 tally.insert_to_tally(tx_hash, vote.author, vote.commit);
             }
             None => {
                 let mut tally = Tally::new();
                 Tally::insert_to_tally(&mut tally, tx_hash.clone(), vote.author, vote.commit);
-                self.tallies.insert(vote.round, tally);
+                self.proposal_tallies.insert(vote.round, tally);
             }
         }
     }
 
     pub fn voted_or_committed(&self, pa: &PublicAddress, round: Round) -> bool {
-        match self.tallies.get(&round) {
+        match self.proposal_tallies.get(&round) {
             Some(tally) => {
                 for vote_set in tally.votes.values().chain(tally.commits.values()) {
                     if vote_set.contains(pa) {

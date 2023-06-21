@@ -20,6 +20,7 @@ config = { path = "../config" }
 store = { path = "../store" }
 primary = { path = "../primary" }
 worker = { path = "../worker" }
+crypto = { path = "../crypto" }
 
 [features]
 benchmark = ["worker/benchmark", "primary/benchmark"]

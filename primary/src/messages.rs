@@ -22,7 +22,7 @@ pub trait Hash {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Proposal {
     pub author: PublicAddress,
-    pub votes: Vec<(TxHash, ElectionId)>,
+    pub votes: BTreeSet<(TxHash, ElectionId)>,
     pub signature: Signature,
     pub id: ProposalId,
     pub round: Round,
@@ -32,7 +32,7 @@ impl Proposal {
     pub async fn new(
         round: Round,
         author: PublicAddress,
-        votes: Vec<(Digest, ElectionId)>,
+        votes: BTreeSet<(Digest, ElectionId)>,
         signature_service: &mut SignatureService,
     ) -> Self {
         let header = Self {
@@ -82,7 +82,6 @@ pub struct ProposalVote {
     pub author: PublicAddress,
     pub signature: Signature,
     pub id: Digest,
-    pub exceptions: BTreeSet<ElectionId>,
 }
 
 impl ProposalVote {
@@ -93,7 +92,7 @@ impl ProposalVote {
         commit: bool,
         author: PublicAddress,
         signature_service: &mut SignatureService,
-        exceptions: BTreeSet<ElectionId>,
+        //exceptions: BTreeSet<ElectionId>,
     ) -> Self {
         let vote = Self {
             election_round,
@@ -103,7 +102,7 @@ impl ProposalVote {
             commit,
             author,
             id: Digest::default(),
-            exceptions,
+            //exceptions,
         };
         let id = vote.digest();
         let signature = signature_service.request_signature(Digest::default()).await;
@@ -165,7 +164,6 @@ pub struct Vote {
     pub author: PublicAddress,
     pub signature: Signature,
     pub vote_id: Digest,
-    //pub header_id: Digest,
 }
 
 impl Vote {
