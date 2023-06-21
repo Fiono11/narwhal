@@ -125,10 +125,10 @@ impl Proposer {
         self.decided_elections.insert(header.id.clone(), false);
 
         if !self.byzantine {
-            info!(
-                "Received header {} from {} in round {}",
-                header.id, header.author, self.round
-            );
+            //info!(
+                //"Received header {} from {} in round {}",
+                //header.id, header.author, self.round
+            //);
 
             self.votes.insert(header.id.clone(), header.votes.clone());
             let vote = Vote::new(
@@ -181,7 +181,7 @@ impl Proposer {
                 // broadcast vote
                 let mut own_vote = vote.clone();
                 own_vote.author = self.name;
-                info!("Sending vote1: {:?}", &own_vote);
+                //info!("Sending vote1: {:?}", &own_vote);
                 election.insert_vote(&own_vote.clone());
                 let bytes = bincode::serialize(&PrimaryMessage::Vote(own_vote.clone()))
                     .expect("Failed to serialize our own header");
@@ -194,7 +194,7 @@ impl Proposer {
             if self.pending_votes.contains_key(&header.round) {
                 if let Some(votes) = self.pending_votes.remove(&header.round) {
                     for vote in votes {
-                        info!("Inserting pending vote {}", &vote);
+                        //info!("Inserting pending vote {}", &vote);
                         self.process_vote(&vote, timer).await;
                     }
                 }
@@ -209,7 +209,7 @@ impl Proposer {
         vote: &Vote,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
-        if !vote.commit {
+        /*if !vote.commit {
             info!(
                 "Received a vote from {} for header {} in round {} of election {}",
                 vote.author, vote.header_id, vote.round, vote.election_id
@@ -219,7 +219,7 @@ impl Proposer {
                 "Received a commit from {} for header {} in round {} of election {}",
                 vote.author, vote.header_id, vote.round, vote.election_id
             );
-        }
+        }*/
         let (tx_hash, election_id) = (vote.header_id.clone(), vote.election_id);
         if !self.byzantine {
             match self.elections.get_mut(&election_id) {
@@ -249,7 +249,7 @@ impl Proposer {
                                     );
                                     self.decided_elections.insert(header_id.clone(), true);
 
-                                    info!("Round {} is decided!", election_id);
+                                    //info!("Round {} is decided!", election_id);
 
                                     self.round += 1;
                                     self.leader = self.committee.leader(self.round as usize);
@@ -288,7 +288,7 @@ impl Proposer {
                                         .network
                                         .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                         .await;
-                                    info!("Sending commit: {:?}", &own_vote);
+                                    //info!("Sending commit: {:?}", &own_vote);
                                 }
                             } else if election.voted_or_committed(&self.name, vote.round)
                                 && ((tally.total_votes() >= QUORUM
@@ -322,7 +322,7 @@ impl Proposer {
                                     .network
                                     .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                     .await;
-                                info!("Changing vote: {:?}", &own_vote);
+                                //info!("Changing vote: {:?}", &own_vote);
                             } else if !election.voted_or_committed(&self.name, vote.round) {
                                 let mut tx_hash = tx_hash;
                                 if let Some(highest) = &election.highest {
@@ -352,23 +352,23 @@ impl Proposer {
                                     .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                     .await;
 
-                                info!("Sending vote: {:?}", &own_vote);
+                                //info!("Sending vote: {:?}", &own_vote);
                             }
                         }
                     }
-                    info!(
+                    /*info!(
                         "Election of {:?}: {:?}",
                         &election_id,
                         self.elections.get(&election_id).unwrap()
-                    );
+                    );*/
                 }
                 None => match self.pending_votes.get_mut(&election_id) {
                     Some(btreeset) => {
-                        info!("Inserted vote {} into pending votes", &vote);
+                        //info!("Inserted vote {} into pending votes", &vote);
                         btreeset.insert(vote.clone());
                     }
                     None => {
-                        info!("Inserted vote {} into pending votes", &vote);
+                        //info!("Inserted vote {} into pending votes", &vote);
                         let mut btreeset = BTreeSet::new();
                         btreeset.insert(vote.clone());
                         self.pending_votes.insert(election_id, btreeset);
@@ -391,7 +391,7 @@ impl Proposer {
             self.proposals
                 .retain(|(_, election_id)| !active_elections.contains(&election_id));
 
-            info!("PROPOSALS3: {}", self.proposals.len());
+            //info!("PROPOSALS3: {}", self.proposals.len());
 
             let proposals = self.proposals.len();
 
@@ -404,12 +404,12 @@ impl Proposer {
             )
             .await;
 
-            info!(
-                "Making a new header {} from {} in round {} with {} proposals",
-                header.id, self.name, self.round, proposals
-            );
+            //info!(
+                //"Making a new header {} from {} in round {} with {} proposals",
+                //header.id, self.name, self.round, proposals
+            //);
 
-            info!("PROPOSALS4: {}", self.proposals.len());
+            //info!("PROPOSALS4: {}", self.proposals.len());
 
             let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
                 .expect("Failed to serialize our own header");
@@ -424,10 +424,13 @@ impl Proposer {
     pub async fn run(&mut self) {
         let timer: tokio::time::Sleep = sleep(Duration::from_millis(self.max_header_delay));
         tokio::pin!(timer);
+        let mut counter = 1;
 
         loop {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
+                    info!("{}", counter);
+                    counter += 1;
                     if !self.byzantine {
                         //info!("Received tx hash {} and election id {}", tx_hash, election_id);
                         self.proposals.push((tx_hash, election_id));
@@ -476,7 +479,7 @@ impl Proposer {
 
                     counter += 1;
 
-                    info!("LEADER in round {}: {}", self.round, self.leader);
+                    //info!("LEADER in round {}: {}", self.round, self.leader);
                     info!("PROPOSALS: {}", self.proposals.len());
 
                     let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
