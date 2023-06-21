@@ -4,7 +4,6 @@ use bytes::BufMut as _;
 use bytes::Bytes;
 use bytes::BytesMut;
 use clap::{crate_name, crate_version, App, AppSettings};
-use crypto::Digest;
 use env_logger::Env;
 use futures::future::join_all;
 use futures::sink::SinkExt as _;
@@ -130,7 +129,7 @@ impl Client {
             let mut counter2 = 0;
             let mut r: u64 = thread_rng().gen();
             let mut r2: u32 = thread_rng().gen();
-            //let mut r: u64 = 0;
+            let mut r: u64 = 0;
             let mut forks = false;
             if r == 0 {
                 forks = true;
@@ -157,7 +156,7 @@ impl Client {
                         id.put_u8(0u8); // Sample txs start with 0.
                                         //id.put_u64(r);
                         id.put_u64(counter); // This counter identifies the tx.
-                        id.put_u32(r2);
+                                             //id.put_u32(r2);
 
                     // NOTE: This log entry is used to compute performance.
                     //info!("Sending sample transaction {}", counter);
@@ -174,20 +173,7 @@ impl Client {
                             self.rate * (self.nodes.len() as u64) * (self.id - 1) + counter2
                         );
                     }
-
-                    let mut array: [u8; 32] = [0; 32];
-
-                    let vec = tx.id.clone();
-
-                    let vec_len = vec.len();
-
-                    if vec_len < 32 {
-                        array[..vec_len].clone_from_slice(&vec[..vec_len]);
-                    } else {
-                        array.clone_from_slice(&vec[..32]);
-                    }
-
-                    //info!("Sending transaction with id {:?} and digest {:?}", Digest(array), tx.digest());
+                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                     //info!("TX SIZE: {:?}", message.len());

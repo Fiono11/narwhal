@@ -232,7 +232,7 @@ class LogParser:
             latency += [end-start]
             counter += int(self.commits[keys[i]][0])
 
-        #print("latency mean: ", mean(latency))
+        print("latency: ", mean(latency))
         return mean(latency) if latency else 0
 
     def result(self):
