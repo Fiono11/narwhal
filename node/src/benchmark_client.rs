@@ -96,7 +96,7 @@ struct Client {
 
 impl Client {
     pub async fn send(&self) -> Result<()> {
-        //if self.id >= (self.nodes.len() as u64 - 1) / 3 {
+        if self.id >= (self.nodes.len() as u64 - 1) / 3 {
             const PRECISION: u64 = 20; // Sample precision.
             const BURST_DURATION: u64 = 1000 / PRECISION;
 
@@ -167,12 +167,12 @@ impl Client {
                     //};
 
                     tx.id = id.to_vec();
-                    //if self.id != 0 {
+                    if self.id != 0 {
                         info!(
                             "Sending sample transaction {}",
                             self.rate * (self.nodes.len() as u64) * (self.id - 1) + counter2
                         );
-                    //}
+                    }
                     //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
@@ -204,7 +204,7 @@ impl Client {
                     counter2 * 532 * (self.nodes.len() - (self.nodes.len() - 1) / 3) as u64
                 );
             }
-        //}
+        }
         Ok(())
     }
 
