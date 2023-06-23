@@ -170,7 +170,7 @@ impl Client {
                     //if self.id != 0 {
                         info!(
                             "Sending sample transaction {}",
-                            self.rate * (self.nodes.len() as u64) * (self.id - 1) + counter2
+                            self.rate * self.id + counter2
                         );
                     //}
                     //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
