@@ -136,7 +136,7 @@ impl Client {
             }
             info!("Forks: {}", forks);
             let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
-            let interval = interval(Duration::from_millis(BURST_DURATION));
+            //let interval = interval(Duration::from_millis(BURST_DURATION));
             //tokio::pin!(interval);
 
             // NOTE: This log entry is used to compute performance.
