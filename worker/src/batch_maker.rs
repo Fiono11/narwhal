@@ -10,6 +10,7 @@ use crypto::{Digest, PublicKey};
 use ed25519_dalek::{Digest as _, Sha512};
 //#[cfg(feature = "benchmark")]
 
+use log::info;
 use network::ReliableSender;
 use primary::Transaction;
 #[cfg(feature = "benchmark")]
@@ -43,6 +44,7 @@ pub struct BatchMaker {
     primary_address: SocketAddr,
     /// Channel to deliver batches for which we have enough acknowledgements.
     tx_batch: Sender<(SerializedBatchMessage, Digest)>,
+    counter: u64,
 }
 
 impl BatchMaker {
@@ -67,6 +69,7 @@ impl BatchMaker {
                 network: ReliableSender::new(),
                 primary_address,
                 tx_batch,
+                counter: 0,
             }
             .run()
             .await;
@@ -82,6 +85,8 @@ impl BatchMaker {
             tokio::select! {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
+                    self.counter += 1;
+                    info!("counter: {}", self.counter);
                     self.current_batch_size += transaction.data.len() + 32;
                     //info!("tx: {:?}", transaction);
                     self.current_batch.push(transaction);

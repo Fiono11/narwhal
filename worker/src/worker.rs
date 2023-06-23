@@ -244,9 +244,7 @@ pub struct Block {
 #[async_trait]
 impl MessageHandler for TxReceiverHandler {
     async fn dispatch(&self, _writer: &mut Writer, message: Bytes) -> Result<(), Box<dyn Error>> {
-        let mut counter = 0;
-        info!("TX received: {:?}", counter);
-        counter += 1;
+        //info!("TX received: {:?}", message);
         //let txs: Vec<Transaction> = bincode::deserialize(&message).unwrap();
         let tx: Transaction = bincode::deserialize(&message).unwrap();
 
