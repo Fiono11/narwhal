@@ -137,7 +137,7 @@ impl Client {
             info!("Forks: {}", forks);
             let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
             let interval = interval(Duration::from_millis(BURST_DURATION));
-            tokio::pin!(interval);
+            //tokio::pin!(interval);
 
             // NOTE: This log entry is used to compute performance.
             info!(
@@ -145,10 +145,12 @@ impl Client {
                 PRECISION * burst * (self.nodes.len() as u64)
             );
 
+            info!("RATE: {}", self.rate);
+
             //'main: loop {
             for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
-                interval.as_mut().tick().await;
-                let now = Instant::now();
+                //interval.as_mut().tick().await;
+                //let now = Instant::now();
 
                 //for x in 0..burst {
                     //if x == counter % burst {
@@ -175,7 +177,7 @@ impl Client {
 
                         info!("counter: {}", counter2);
                     //}
-                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                     //info!("TX SIZE: {:?}", message.len());
