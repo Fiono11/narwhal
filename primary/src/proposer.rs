@@ -62,7 +62,7 @@ pub struct Proposer {
     committee: Committee,
     leader: PublicKey,
     decided: BTreeSet<ElectionId>,
-    active_elections: Vec<ElectionId>,
+    active_elections: BTreeSet<ElectionId>,
     decided_elections: HashMap<Digest, bool>,
 }
 
@@ -108,7 +108,7 @@ impl Proposer {
                 committee,
                 leader,
                 decided: BTreeSet::new(),
-                active_elections: Vec::new(),
+                active_elections: BTreeSet::new(),
                 decided_elections: HashMap::new(),
             }
             .run()
@@ -141,10 +141,10 @@ impl Proposer {
             )
             .await;
 
-            for (_, election_id) in &header.votes {
-                self.proposals
-                    .retain(|&(_, ref p_election_id)| p_election_id != election_id);
-            }
+            //for (_, election_id) in &header.votes {
+                //self.proposals
+                    //.retain(|&(_, ref p_election_id)| p_election_id != election_id);
+            //}
 
             match self.elections.get_mut(&header.round) {
                 Some(election) => {
@@ -155,7 +155,7 @@ impl Proposer {
                     let election = Election::new();
                     self.elections.insert(header.round, election);
 
-                    info!("Created {} -> {:?}", header.votes.len(), header.id);
+                    info!("Created {} -> {:?} in round {}", header.votes.len(), header.id, header.round);
 
                     let mut elections_ids = BTreeSet::new();
 
@@ -167,7 +167,7 @@ impl Proposer {
                             && !self.decided.contains(&election_id)
                         {
                             // NOTE: This log entry is used to compute performance.
-                            self.active_elections.push(election_id.clone());
+                            self.active_elections.insert(election_id.clone());
                         }
                     }
                 }
@@ -228,7 +228,12 @@ impl Proposer {
                         election.insert_vote(&vote);
                         if let Some(tally) = election.tallies.get(&vote.round) {
                             if let Some(header_id) = election.find_quorum_of_commits() {
-                                //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
+                                for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
+                                    //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
+                                        //self.proposals.remove(pos);
+                                    //}
+                                    self.decided.insert(election_id.clone());
+                                }
                                 //self.proposals.retain(|(_, id)| id != election_id);
 
                                 //self.decided.insert(election_id.clone());
@@ -249,10 +254,14 @@ impl Proposer {
                                     );
                                     self.decided_elections.insert(header_id.clone(), true);
 
-                                    //info!("Round {} is decided!", election_id);
+                            
+                                    info!("Round {} is decided with {}!", election_id, header_id.clone());
 
                                     self.round += 1;
                                     self.leader = self.committee.leader(self.round as usize);
+
+                                    info!("LEADER1 of round {} is {}", self.round, self.leader);
+
 
                                     let deadline = Instant::now()
                                         + Duration::from_millis(self.max_header_delay);
@@ -388,26 +397,29 @@ impl Proposer {
 
             self.proposals
                 .retain(|(_, election_id)| !decided.contains(&election_id));
-            self.proposals
-                .retain(|(_, election_id)| !active_elections.contains(&election_id));
+            //self.proposals
+                //.retain(|(_, election_id)| !active_elections.contains(&election_id));
 
             //info!("PROPOSALS3: {}", self.proposals.len());
 
-            let proposals = self.proposals.len();
+            let mut proposals = self.proposals.clone();
+
+            proposals
+                .retain(|(_, election_id)| !active_elections.contains(&election_id));
 
             // Make a new header.
             let header = Header::new(
                 self.round,
                 self.name.clone(),
-                self.proposals.drain(..).collect(), // only drain if committed
+                proposals.clone(), 
                 &mut self.signature_service,
             )
             .await;
 
-            //info!(
-                //"Making a new header {} from {} in round {} with {} proposals",
-                //header.id, self.name, self.round, proposals
-            //);
+            info!(
+                "Making a new header {} from {} in round {} with {} proposals",
+                header.id, self.name, self.round, proposals.len()
+            );
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
@@ -424,19 +436,20 @@ impl Proposer {
     pub async fn run(&mut self) {
         let timer: tokio::time::Sleep = sleep(Duration::from_millis(self.max_header_delay));
         tokio::pin!(timer);
-        let mut counter = 1;
+        let mut counter = 0;
+        let mut counter2 = 0;
 
         loop {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
-                    info!("{}", counter);
-                    counter += 1;
+                    //info!("{}", counter2);
+                    counter2 += 1;
                     if !self.byzantine {
                         //info!("Received tx hash {} and election id {}", tx_hash, election_id);
                         self.proposals.push((tx_hash, election_id));
                     }
 
-                    info!("PROPOSALS2: {}", self.proposals.len());
+                    //info!("PROPOSALS1: {}", self.proposals.len());
 
                     if self.committee.is_byzantine(&self.leader) {
                         let mut next_round = self.round + 1;
@@ -449,15 +462,18 @@ impl Proposer {
                         }
 
                         self.leader = next_leader;
+
+                        info!("LEADER2 of round {} is {}", self.round, self.leader);
                     }
 
                     if self.proposals.len() >= self.header_size && self.leader == self.name && self.elections.get(&self.round).is_none() {
+                        self.elections.insert(self.round, Election::new());
                         self.make_header().await;
                     }
+
                 },
 
                 () = &mut timer => {
-                    let mut counter = 0;
 
                     let mut next_round = self.round + 1;
 
@@ -471,11 +487,16 @@ impl Proposer {
                         }
 
                         self.leader = next_leader;
+
+                        info!("LEADER3 of round {} is {}", self.round, self.leader);
+
                     }
 
                     self.leader = self.committee.leader(next_round as usize + counter);
 
+
                     if self.proposals.len() > 0 && self.leader == self.name && self.elections.get(&self.round).is_none() {
+                        self.elections.insert(self.round, Election::new());
                         self.make_header().await;
                     }
 
