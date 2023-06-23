@@ -96,7 +96,7 @@ struct Client {
 
 impl Client {
     pub async fn send(&self) -> Result<()> {
-        if self.id <= (self.nodes.len() as u64) - (self.nodes.len() as u64 - 1) / 3 {
+        if self.id < (self.nodes.len() as u64) - (self.nodes.len() as u64 - 1) / 3 {
             const PRECISION: u64 = 20; // Sample precision.
             const BURST_DURATION: u64 = 1000 / PRECISION;
 
@@ -146,11 +146,11 @@ impl Client {
             );
 
             //'main: loop {
-            for _ in 0..PRECISION * (self.nodes.len() as u64) {
+            for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
                 interval.as_mut().tick().await;
                 let now = Instant::now();
 
-                for x in 0..burst {
+                //for x in 0..burst {
                     //if x == counter % burst {
                         //r += 1;
                         //id.put_u8(0u8); // Sample txs start with 0.
@@ -188,11 +188,11 @@ impl Client {
                         //break 'main;
                     }
                     counter2 += 1;
-                }
-                if now.elapsed().as_millis() > BURST_DURATION as u128 {
+                //}
+                //if now.elapsed().as_millis() > BURST_DURATION as u128 {
                     // NOTE: This log entry is used to compute performance.
-                    warn!("Transaction rate too high for this client");
-                }
+                    //warn!("Transaction rate too high for this client");
+                //}
                 counter += 1;
             }
             info!("Sent {} txs", counter2);
