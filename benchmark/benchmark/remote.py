@@ -117,7 +117,7 @@ class Bench:
             #f'(cd {self.settings.repo_name} && git checkout -f {self.settings.branch})',
             #f'(cd {self.settings.repo_name} && git pull -f)',
             #'source $HOME/.cargo/env',
-            f'(source $HOME/.cargo/env && cd {self.settings.repo_name} && {CommandMaker.compile()})'
+            f'(cd {self.settings.repo_name} && git fetch -f && cd {self.settings.repo_name} && git checkout -f {self.settings.branch} && cd {self.settings.repo_name} && git pull -f && source $HOME/.cargo/env && cd {self.settings.repo_name} && {CommandMaker.compile()})'
             #CommandMaker.alias_binaries(
                 #f'{self.settings.repo_name}/target/release/'
             #)
