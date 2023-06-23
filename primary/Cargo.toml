@@ -21,7 +21,6 @@ async-trait = "0.1.50"
 rand = { version = "0.8.4", features = ["small_rng"] }
 
 crypto = { path = "../crypto" }
-store = { path = "../store" }
 config = { path = "../config" }
 network = { path = "../network" }
 

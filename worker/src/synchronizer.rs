@@ -10,7 +10,6 @@ use network::SimpleSender;
 use primary::PrimaryWorkerMessage;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
-use store::{Store, StoreError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{sleep, Duration, Instant};
 
@@ -25,8 +24,6 @@ pub struct Synchronizer {
     id: WorkerId,
     /// The committee information.
     committee: Committee,
-    // The persistent storage.
-    store: Store,
     /// The depth of the garbage collection.
     gc_depth: Round,
     /// The delay to wait before re-trying to send sync requests.
@@ -52,7 +49,6 @@ impl Synchronizer {
         name: PublicKey,
         id: WorkerId,
         committee: Committee,
-        store: Store,
         gc_depth: Round,
         sync_retry_delay: u64,
         sync_retry_nodes: usize,
@@ -63,7 +59,6 @@ impl Synchronizer {
                 name,
                 id,
                 committee,
-                store,
                 gc_depth,
                 sync_retry_delay,
                 sync_retry_nodes,
@@ -81,7 +76,6 @@ impl Synchronizer {
     /// and then delivers its digest.
     async fn waiter(
         missing: Digest,
-        mut store: Store,
         deliver: Digest,
         mut handler: Receiver<()>,
     ) -> Result<Option<Digest>, StoreError> {

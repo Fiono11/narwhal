@@ -17,7 +17,6 @@ use std::collections::{HashMap, HashSet, BTreeSet};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use store::Store;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 #[cfg(test)]
@@ -31,8 +30,6 @@ pub struct Core {
     name: PublicAddress,
     /// The committee information.
     committee: Committee,
-    /// The persistent storage.
-    store: Store,
     /// Service to sign headers.
     signature_service: SignatureService,
     /// The current consensus round (used for cleanup).
@@ -72,7 +69,6 @@ impl Core {
     pub fn spawn(
         name: PublicAddress,
         committee: Committee,
-        store: Store,
         signature_service: SignatureService,
         consensus_round: Arc<AtomicU64>,
         gc_depth: Round,
@@ -87,7 +83,6 @@ impl Core {
             Self {
                 name,
                 committee,
-                store,
                 signature_service,
                 consensus_round,
                 gc_depth,

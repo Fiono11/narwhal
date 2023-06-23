@@ -7,7 +7,6 @@ use config::{Committee, KeyPair, Parameters, WorkerId};
 use env_logger::Env;
 
 use primary::Primary;
-use store::Store;
 use tokio::sync::mpsc::{channel, Receiver};
 use worker::Worker;
 
@@ -72,7 +71,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     let key_file = matches.value_of("keys").unwrap();
     let committee_file = matches.value_of("committee").unwrap();
     let parameters_file = matches.value_of("parameters");
-    let store_path = matches.value_of("store").unwrap();
+    //let store_path = matches.value_of("store").unwrap();
 
     // Read the committee and node's keypair from file.
     let keypair = KeyPair::import(key_file)
@@ -90,7 +89,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     };
 
     // Make the data store.
-    let store = Store::new(store_path).context("Failed to create a store")?;
+    //let store = Store::new(store_path).context("Failed to create a store")?;
 
     // Channels the sequence of certificates.
     let (_tx_output, rx_output) = channel(CHANNEL_CAPACITY);
@@ -106,7 +105,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 keypair.secret,
                 committee.clone(),
                 parameters.clone(),
-                store,
+                //store,
                 /* tx_consensus */ //tx_new_certificates,
                 /* rx_consensus */ //rx_feedback,
             );
@@ -119,7 +118,7 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
                 .unwrap()
                 .parse::<WorkerId>()
                 .context("The worker id must be a positive integer")?;
-            Worker::spawn(keypair.name, id, committee, parameters, store);
+            Worker::spawn(keypair.name, id, committee, parameters);
         }
         _ => unreachable!(),
     }
