@@ -53,8 +53,8 @@ pub struct Proposer {
     addresses: Vec<SocketAddr>,
     byzantine: bool,
     payloads: HashMap<Round, BTreeSet<Digest>>,
-    proposals: Vec<(TxHash, ElectionId)>,
-    votes: HashMap<Digest, Vec<(TxHash, ElectionId)>>,
+    proposals: BTreeSet<(TxHash, ElectionId)>,
+    votes: HashMap<Digest, BTreeSet<(TxHash, ElectionId)>>,
     network: SimpleSender,
     rx_primaries: Receiver<PrimaryMessage>,
     other_primaries: Vec<SocketAddr>,
@@ -95,7 +95,7 @@ impl Proposer {
                 round: 0,
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
-                proposals: Vec::with_capacity(header_size),
+                proposals: BTreeSet::new(),
                 elections: HashMap::new(),
                 addresses,
                 byzantine,
@@ -393,19 +393,25 @@ impl Proposer {
             let decided = &self.decided;
             let active_elections = &self.active_elections;
 
-            //info!("PROPOSALS2: {}", self.proposals.len());
+            info!("PROPOSALS2: {}", self.proposals.len());
+
+            info!("DECIDED: {:?}", decided.len());
 
             self.proposals
                 .retain(|(_, election_id)| !decided.contains(&election_id));
             //self.proposals
                 //.retain(|(_, election_id)| !active_elections.contains(&election_id));
 
-            //info!("PROPOSALS3: {}", self.proposals.len());
+            info!("PROPOSALS3: {}", self.proposals.len());
 
             let mut proposals = self.proposals.clone();
 
             proposals
                 .retain(|(_, election_id)| !active_elections.contains(&election_id));
+
+            if proposals.len() > 0 {
+
+                self.elections.insert(self.round, Election::new());
 
             // Make a new header.
             let header = Header::new(
@@ -430,6 +436,7 @@ impl Proposer {
                 .broadcast(self.addresses.clone(), Bytes::from(bytes))
                 .await;
         }
+        }
     }
 
     // Main loop listening to incoming messages.
@@ -446,7 +453,7 @@ impl Proposer {
                     counter2 += 1;
                     if !self.byzantine {
                         //info!("Received tx hash {} and election id {}", tx_hash, election_id);
-                        self.proposals.push((tx_hash, election_id));
+                        self.proposals.insert((tx_hash, election_id));
                     }
 
                     //info!("PROPOSALS1: {}", self.proposals.len());
@@ -467,7 +474,7 @@ impl Proposer {
                     }
 
                     if self.proposals.len() >= self.header_size && self.leader == self.name && self.elections.get(&self.round).is_none() {
-                        self.elections.insert(self.round, Election::new());
+                
                         self.make_header().await;
                     }
 
@@ -496,7 +503,7 @@ impl Proposer {
 
 
                     if self.proposals.len() > 0 && self.leader == self.name && self.elections.get(&self.round).is_none() {
-                        self.elections.insert(self.round, Election::new());
+                        //self.elections.insert(self.round, Election::new());
                         self.make_header().await;
                     }
 

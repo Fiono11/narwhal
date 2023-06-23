@@ -8,6 +8,7 @@ use crypto::{Digest, PublicKey as PublicAddress, Signature, SignatureService};
 use ed25519_dalek::{Digest as _, Sha512};
 use serde::{Deserialize, Serialize};
 
+use std::collections::BTreeSet;
 use std::convert::TryInto;
 use std::fmt;
 
@@ -19,7 +20,7 @@ pub trait Hash {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Header {
     pub author: PublicAddress,
-    pub votes: Vec<(TxHash, ElectionId)>,
+    pub votes: BTreeSet<(TxHash, ElectionId)>,
     pub signature: Signature,
     pub id: Digest,
     pub round: Round,
@@ -29,7 +30,7 @@ impl Header {
     pub async fn new(
         round: Round,
         author: PublicAddress,
-        votes: Vec<(Digest, ElectionId)>,
+        votes: BTreeSet<(Digest, ElectionId)>,
         signature_service: &mut SignatureService,
     ) -> Self {
         let header = Self {
