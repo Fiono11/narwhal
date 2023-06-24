@@ -165,7 +165,7 @@ impl Client {
                     //} else {
                         r += 1;
                         id.put_u8(1u8); // Standard txs start with 1.
-                        //id.put_u64(r); // Ensures all clients send different txs.
+                        id.put_u64(r); // Ensures all clients send different txs.
                     //};
 
                     tx.id = id.to_vec();

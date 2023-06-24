@@ -62,21 +62,20 @@ class Bench:
             # The following dependencies prevent the error: [error: linker `cc` not found].
             #'sudo apt-get -y install build-essential',
             #'sudo apt-get -y install cmake',
-            'sudo apt-get install tmux',
-            'sudo apt-get install git',
+            #'sudo apt-get install tmux',
+            #'sudo apt-get install git',
 
             # Install rust (non-interactive).
-            'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y',
-            'source $HOME/.cargo/env',
-            'rustup default nightly',
+            #'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y',
+            #'source $HOME/.cargo/env',
+            #'rustup default nightly',
 
             # Clone the repo.
-            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) &&'
-            f'(cd {self.settings.repo_name}/benchmark ; mkdir logs)'
+            f'(sudo apt-get -y install build-essential && sudo apt-get -y install cmake && sudo apt-get install tmux && sudo apt-get install git && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source $HOME/.cargo/env && git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) && cd {self.settings.repo_name}/benchmark && mkdir logs)'
         ]
         hosts = self.manager.hosts()
         try:
-            g = Group(*hosts[:2], user='fiono', connect_kwargs=self.connect)
+            g = Group(*hosts[:4], user='fiono', connect_kwargs=self.connect)
             g.run(' && '.join(cmd), hide=True)
             Print.heading(f'Initialized testbed of {len(hosts)} nodes')
         except (GroupException, ExecutionError) as e:
