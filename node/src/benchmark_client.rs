@@ -175,7 +175,7 @@ impl Client {
                             self.rate * self.id + counter2
                         );
 
-                        info!("counter: {}", counter2);
+                        //info!("counter: {}", counter2);
                     //}
                     //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
