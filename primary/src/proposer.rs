@@ -141,8 +141,9 @@ impl Proposer {
         proposal: &Proposal,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
-        if !self.byzantine {
 
+        if !self.byzantine {
+            proposal.verify(&self.committee).unwrap();
         //info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
 
         self.votes.insert(proposal.id.clone(), proposal.votes.clone());
@@ -491,6 +492,7 @@ impl Proposer {
         vote: &Vote,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
+        vote.verify(&self.committee).unwrap();
         /*if !vote.commit {
             info!(
                 "Received a vote from {} for value {} in round {} of election {}",
