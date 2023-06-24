@@ -129,7 +129,7 @@ impl Client {
             let mut counter2 = 0;
             let mut r: u64 = thread_rng().gen();
             let mut r2: u32 = thread_rng().gen();
-            let mut r: u64 = 0;
+            //let mut r: u64 = 0;
             let mut forks = false;
             if r == 0 {
                 forks = true;
@@ -177,7 +177,7 @@ impl Client {
 
                         info!("counter: {}", counter2);
                     //}
-                    info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
                     //if counter == 0 {
                     //info!("TX SIZE: {:?}", message.len());
