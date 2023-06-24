@@ -73,7 +73,8 @@ pub struct Proposer {
     proposals_per_round: HashMap<Round, BTreeSet<ProposalId>>,
     the_proposals: HashMap<Round, HashMap<ProposalId, BTreeSet<(TxHash, ElectionId)>>>,
     proposals_sent: HashMap<Round, bool>,
-    unique_elections: HashMap<ProposalId, u64>
+    unique_elections: HashMap<ProposalId, u64>,
+    pending_commits: BTreeSet<ProposalId>,
 }
 
 impl Proposer {
@@ -129,6 +130,7 @@ impl Proposer {
                 the_proposals: HashMap::new(),
                 proposals_sent: HashMap::new(),
                 unique_elections: HashMap::new(),
+                pending_commits: BTreeSet::new(),
             }
             .run()
             .await;
@@ -532,9 +534,28 @@ impl Proposer {
                                                     }
                                                 }
                                                 None => {
+                                                    match self.unique_elections.get(&vote.election_id) {
+                                                        Some(len) => {
+                                                            info!(
+                                                                "Committed {} -> {:?}",
+                                                                len,
+                                                                vote.election_id
+                                                            );
+                                                        }
+                                                        None => {
+                                                            info!("Proposal {} is pending!", vote.election_id);
+                                                            self.pending_commits.insert(vote.election_id.clone());
+                                                        }
+                                                    }
+                                                    
+                                                }
+                                            }
+
+                                            for commit in &self.pending_commits {
+                                                if let Some(len) = self.unique_elections.get(&commit) {
                                                     info!(
                                                         "Committed {} -> {:?}",
-                                                        self.unique_elections.get(&vote.election_id).unwrap(),
+                                                        len,
                                                         vote.election_id
                                                     );
                                                 }
