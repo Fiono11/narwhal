@@ -122,7 +122,7 @@ impl Proposer {
         header: &Header,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
-        header.verify(&self.committee).unwrap();
+        //header.verify(&self.committee).unwrap();
 
         self.decided_elections.insert(header.id.clone(), false);
 
@@ -211,7 +211,7 @@ impl Proposer {
         vote: &Vote,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
-        vote.verify(&self.committee).unwrap();
+        //vote.verify(&self.committee).unwrap();
         /*if !vote.commit {
             info!(
                 "Received a vote from {} for header {} in round {} of election {}",
