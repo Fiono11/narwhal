@@ -17,7 +17,6 @@ use std::convert::TryInto;
 use std::error::Error;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
-use store::Store;
 use tokio::sync::mpsc::{channel, Sender};
 
 /// The default channel capacity for each channel of the primary.
@@ -58,7 +57,7 @@ impl Primary {
         secret: SecretKey,
         committee: Committee,
         parameters: Parameters,
-        store: Store,
+        //store: Store,
         //tx_consensus: Sender<Certificate>,
         //rx_consensus: Receiver<Certificate>,
     ) {
@@ -144,7 +143,7 @@ impl Primary {
         );*/
 
         // Receives batch digests from other workers. They are only used to validate headers.
-        PayloadReceiver::spawn(store.clone(), /* rx_workers */ rx_others_digests);
+        PayloadReceiver::spawn( /* rx_workers */ rx_others_digests);
 
         let leader = committee.leader(0);
         let byzantine = committee.authorities.get(&name).unwrap().byzantine;
