@@ -149,8 +149,8 @@ impl Client {
 
             'main: loop {
             //for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
-                //interval.as_mut().tick().await;
-                //let now = Instant::now();
+                interval.as_mut().tick().await;
+                let now = Instant::now();
 
                 for x in 0..burst {
                     //if x == counter % burst {
