@@ -275,7 +275,7 @@ impl MessageHandler for TxReceiverHandler {
 }
 
 /// Defines how the network receiver handles incoming workers messages.
-#[derive(Clone)]
+/*#[derive(Clone)]
 struct WorkerReceiverHandler {
     tx_helper: Sender<(Vec<Digest>, PublicKey)>,
     tx_processor: Sender<(SerializedBatchMessage, Digest)>,
@@ -307,7 +307,7 @@ impl MessageHandler for WorkerReceiverHandler {
         }
         Ok(())
     }
-}
+}*/
 
 /// Defines how the network receiver handles incoming primary messages.
 #[derive(Clone)]
