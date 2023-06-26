@@ -146,7 +146,7 @@ impl Proposer {
 
         if !self.byzantine {
             proposal.verify(&self.committee).unwrap();
-        //info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
+        info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
 
         self.votes.insert(proposal.id.clone(), proposal.votes.clone());
 
@@ -495,7 +495,7 @@ impl Proposer {
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
         vote.verify(&self.committee).unwrap();
-        /*if !vote.commit {
+        if !vote.commit {
             info!(
                 "Received a vote from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
@@ -505,7 +505,7 @@ impl Proposer {
                 "Received a commit from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
             );
-        }*/
+        }
         let (tx_hash, election_id) = (vote.value.clone(), vote.election_id.clone());
         if !self.byzantine {
             match self.elections.get_mut(&vote.proposal_round) {
@@ -636,7 +636,7 @@ impl Proposer {
                                                     .network
                                                     .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                     .await;
-                                                //info!("Sending commit: {:?}", &own_vote);
+                                                info!("Sending commit: {:?}", &own_vote);
                                             }
                                         } else if election.voted_or_committed(&self.name, vote.round)
                                             && ((tally.total_votes() >= QUORUM
@@ -702,7 +702,7 @@ impl Proposer {
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
             
-                                            //info!("Sending vote: {:?}", &own_vote);
+                                            info!("Sending vote: {:?}", &own_vote);
                                         }
                                     }
                                 }
@@ -803,14 +803,14 @@ impl Proposer {
             let decided = &self.decided;
             let active_elections = &self.active_elections;
 
-            info!("PROPOSALS2: {}", self.proposals.len());
+            //info!("PROPOSALS2: {}", self.proposals.len());
 
             self.proposals
                 .retain(|(_, election_id)| !decided.contains(&election_id));
             self.proposals
                 .retain(|(_, election_id)| !active_elections.contains(&election_id));
 
-            info!("PROPOSALS3: {}", self.proposals.len());
+            //info!("PROPOSALS3: {}", self.proposals.len());
 
             let proposals = self.proposals.len();
 
@@ -864,7 +864,7 @@ impl Proposer {
                     //info!("TXS RECEIVED: {}", counter);
                     //info!("PROPOSALS: {}", self.proposals.len());
 
-                    info!("own proposals: {:?}", self.own_proposals);
+                    //info!("own proposals: {:?}", self.own_proposals);
 
                     if self.proposals.len() >= self.header_size && !self.own_proposals.contains(&self.round) {
                         self.make_proposal().await;
