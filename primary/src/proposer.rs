@@ -157,7 +157,7 @@ impl Proposer {
                     let election = Election::new();
                     self.elections.insert(header.round, election);
 
-                    info!("Created {} -> {:?} in round {}", header.votes.len(), header.id, header.round);
+                    //info!("Created {} -> {:?} in round {}", header.votes.len(), header.id, header.round);
 
                     let mut elections_ids = BTreeSet::new();
 
@@ -258,12 +258,12 @@ impl Proposer {
                                     self.decided_elections.insert(header_id.clone(), true);
 
                             
-                                    info!("Round {} is decided with {}!", election_id, header_id.clone());
+                                    //info!("Round {} is decided with {}!", election_id, header_id.clone());
 
                                     self.round += 1;
                                     self.leader = self.committee.leader(self.round as usize);
 
-                                    info!("LEADER1 of round {} is {}", self.round, self.leader);
+                                    //info!("LEADER1 of round {} is {}", self.round, self.leader);
 
 
                                     let deadline = Instant::now()
@@ -396,16 +396,16 @@ impl Proposer {
             let decided = &self.decided;
             let active_elections = &self.active_elections;
 
-            info!("PROPOSALS2: {}", self.proposals.len());
+            //info!("PROPOSALS2: {}", self.proposals.len());
 
-            info!("DECIDED: {:?}", decided.len());
+            //info!("DECIDED: {:?}", decided.len());
 
             self.proposals
                 .retain(|(_, election_id)| !decided.contains(&election_id));
             //self.proposals
                 //.retain(|(_, election_id)| !active_elections.contains(&election_id));
 
-            info!("PROPOSALS3: {}", self.proposals.len());
+            //info!("PROPOSALS3: {}", self.proposals.len());
 
             let mut proposals = self.proposals.clone();
 
@@ -425,10 +425,10 @@ impl Proposer {
             )
             .await;
 
-            info!(
-                "Making a new header {} from {} in round {} with {} proposals",
-                header.id, self.name, self.round, proposals.len()
-            );
+            //info!(
+                //"Making a new header {} from {} in round {} with {} proposals",
+                //header.id, self.name, self.round, proposals.len()
+            //);
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
@@ -452,7 +452,7 @@ impl Proposer {
         loop {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
-                    info!("{}", counter2);
+                    //info!("{}", counter2);
                     counter2 += 1;
                     if !self.byzantine {
                         //info!("Received tx hash {} and election id {}", tx_hash, election_id);
@@ -473,7 +473,7 @@ impl Proposer {
 
                         self.leader = next_leader;
 
-                        info!("LEADER2 of round {} is {}", self.round, self.leader);
+                        //info!("LEADER2 of round {} is {}", self.round, self.leader);
                     }
 
                     if self.proposals.len() >= self.header_size && self.leader == self.name && self.elections.get(&self.round).is_none() {
@@ -498,7 +498,7 @@ impl Proposer {
 
                         self.leader = next_leader;
 
-                        info!("LEADER3 of round {} is {}", self.round, self.leader);
+                        //info!("LEADER3 of round {} is {}", self.round, self.leader);
 
                     }
 
@@ -513,7 +513,7 @@ impl Proposer {
                     counter += 1;
 
                     //info!("LEADER in round {}: {}", self.round, self.leader);
-                    info!("PROPOSALS: {}", self.proposals.len());
+                    //info!("PROPOSALS: {}", self.proposals.len());
 
                     let deadline = Instant::now() + Duration::from_millis(self.max_header_delay);
                     timer.as_mut().reset(deadline);
