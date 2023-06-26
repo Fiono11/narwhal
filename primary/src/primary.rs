@@ -191,7 +191,7 @@ struct PrimaryReceiverHandler {
 impl MessageHandler for PrimaryReceiverHandler {
     async fn dispatch(&self, writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
         // Reply with an ACK.
-        let _ = writer.send(Bytes::from("Ack")).await;
+        //let _ = writer.send(Bytes::from("Ack")).await;
 
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized).map_err(DagError::SerializationError)? {
