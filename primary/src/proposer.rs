@@ -6,7 +6,7 @@ use std::pin::Pin;
 
 use std::net::SocketAddr;
 use ed25519_dalek::{Digest as _, Sha512};
-use crate::constants::{NUMBER_OF_NODES, QUORUM};
+use crate::constants::{NUMBER_OF_NODES, QUORUM, NUMBER_OF_CORRECT_NODES};
 use crate::election::{Election, ElectionId, Timer, self};
 use crate::error::DagResult;
 use crate::messages::{Proposal, Vote, ProposalVote, ProposalId};
@@ -196,7 +196,7 @@ impl Proposer {
         
         let sent = self.proposals_sent.get_mut(&proposal.round).unwrap();
 
-        if proposals.len() >= QUORUM && !*sent {//&& timer.is_elapsed() {
+        if proposals.len() == NUMBER_OF_CORRECT_NODES && !*sent {//&& timer.is_elapsed() {
             let mut hasher = Sha512::new();
 
             for id in proposals {
