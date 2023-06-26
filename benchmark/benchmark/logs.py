@@ -260,7 +260,7 @@ class LogParser:
     def _end_to_end_latency(self):
         #start, end = min(self.start), max(val[1] for val in self.commits.values())
         #print("sent: ", self.sent_samples)
-        #print("commits: ", self.commits)
+        print("commits: ", self.commits)
         latency = []
         keys = list(self.commits.keys())
         #print("self commits: ", self.commits)
