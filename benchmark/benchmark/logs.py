@@ -17,7 +17,8 @@ class ParseError(Exception):
 
 class LogParser:
     def __init__(self, clients, primaries, workers, faults, directory):
-        self.max_trans_id = -1
+        #self.max_trans_id = -1
+        #self.trans_id = 0
 
         inputs = [clients, primaries, workers]
         assert all(isinstance(x, list) for x in inputs)
@@ -108,23 +109,35 @@ class LogParser:
         return {sum_keys: min_value}
     
     def parse_logs(self, log_files):
-        for file in log_files:
+        self.trans_id = 0
+        num_clients = len(log_files)
+        client_logs = [None] * num_clients
+        for idx, file in enumerate(log_files):
             # Read the file
             with open(file, 'r') as f:
-                lines = f.readlines()
+                client_logs[idx] = f.readlines()
 
-            # Process the lines
-            for i in range(len(lines)):
-                match = re.search(r'Sending sample transaction (\d+)', lines[i])
-                if match:
-                    # Increment the global transaction ID
-                    self.max_trans_id += 1
-                    # Replace the line with the new transaction ID
-                    lines[i] = re.sub(r'Sending sample transaction \d+', f'Sending sample transaction {self.max_trans_id}', lines[i])
+        max_trans = max(len(log) for log in client_logs)
 
-            # Write the new content back into the file
+        # Initialize new_logs with a deep copy of client_logs
+        new_logs = [list(log) for log in client_logs]
+
+        for trans in range(max_trans):
+            for client in range(num_clients):
+                if trans < len(client_logs[client]):
+                    line = client_logs[client][trans]
+                    #print("line: ", line)
+                    #if "Sending sample transaction" in line:
+                    if re.search(r'Sending sample transaction', line):
+                        # Replace the line with the new transaction ID
+                        new_logs[client][trans] = re.sub(r'^Sending sample transaction \d+', f'Sending sample transaction {self.trans_id}', line)
+                        # Increment the global transaction ID
+                        self.trans_id += 1
+
+        # Write the new content back into the files
+        for idx, file in enumerate(log_files):
             with open(file, 'w') as f:
-                f.writelines(lines)
+                f.writelines(new_logs[idx])
 
     def _parse_clients(self, log):
         #print("log: ", log)
