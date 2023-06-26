@@ -803,14 +803,14 @@ impl Proposer {
             let decided = &self.decided;
             let active_elections = &self.active_elections;
 
-            //info!("PROPOSALS2: {}", self.proposals.len());
+            info!("PROPOSALS2: {}", self.proposals.len());
 
             self.proposals
                 .retain(|(_, election_id)| !decided.contains(&election_id));
             self.proposals
                 .retain(|(_, election_id)| !active_elections.contains(&election_id));
 
-            //info!("PROPOSALS3: {}", self.proposals.len());
+            info!("PROPOSALS3: {}", self.proposals.len());
 
             let proposals = self.proposals.len();
 
@@ -857,12 +857,14 @@ impl Proposer {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
                     if !self.byzantine {
-                        info!("Received tx hash {} and election id {}", tx_hash, election_id);
+                        //info!("Received tx hash {} and election id {}", tx_hash, election_id);
                         self.proposals.push((tx_hash, election_id));
                     }
 
                     //info!("TXS RECEIVED: {}", counter);
-                    info!("PROPOSALS: {}", self.proposals.len());
+                    //info!("PROPOSALS: {}", self.proposals.len());
+
+                    info!("own proposals: {:?}", self.own_proposals);
 
                     if self.proposals.len() >= self.header_size && !self.own_proposals.contains(&self.round) {
                         self.make_proposal().await;
