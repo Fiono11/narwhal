@@ -53,7 +53,7 @@ pub struct Proposer {
     addresses: Vec<SocketAddr>,
     byzantine: bool,
     payloads: HashMap<Round, BTreeSet<Digest>>,
-    proposals: BTreeSet<(TxHash, ElectionId)>,
+    proposals: Vec<(TxHash, ElectionId)>,
     votes: HashMap<Digest, BTreeSet<(TxHash, ElectionId)>>,
     network: SimpleSender,
     rx_primaries: Receiver<PrimaryMessage>,
@@ -95,7 +95,7 @@ impl Proposer {
                 round: 0,
                 digests: Vec::with_capacity(2 * header_size),
                 payload_size: 0,
-                proposals: BTreeSet::new(),
+                proposals: Vec::new(),
                 elections: HashMap::new(),
                 addresses,
                 byzantine,
@@ -420,7 +420,7 @@ impl Proposer {
             let header = Header::new(
                 self.round,
                 self.name.clone(),
-                proposals.clone(), 
+                self.proposals.drain(..).collect(), 
                 &mut self.signature_service,
             )
             .await;
@@ -456,7 +456,7 @@ impl Proposer {
                     counter2 += 1;
                     if !self.byzantine {
                         //info!("Received tx hash {} and election id {}", tx_hash, election_id);
-                        self.proposals.insert((tx_hash, election_id));
+                        self.proposals.push((tx_hash, election_id));
                     }
 
                     //info!("PROPOSALS1: {}", self.proposals.len());
