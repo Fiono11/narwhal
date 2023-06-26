@@ -290,7 +290,7 @@ impl MessageHandler for WorkerReceiverHandler {
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized) {
             Ok(WorkerMessage::Batch(block)) => {
-                info!("Received block: {:?}", block);
+                //info!("Received block: {:?}", block);
 
                 /*self
                     .tx_processor
