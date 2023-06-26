@@ -96,7 +96,7 @@ struct Client {
 
 impl Client {
     pub async fn send(&self) -> Result<()> {
-        if self.id < (self.nodes.len() as u64) - (self.nodes.len() as u64 - 1) / 3 {
+        //if self.id < (self.nodes.len() as u64) - (self.nodes.len() as u64 - 1) / 3 {
             const PRECISION: u64 = 20; // Sample precision.
             const BURST_DURATION: u64 = 1000 / PRECISION;
 
@@ -136,8 +136,8 @@ impl Client {
             }
             info!("Forks: {}", forks);
             let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
-            //let interval = interval(Duration::from_millis(BURST_DURATION));
-            //tokio::pin!(interval);
+            let interval = interval(Duration::from_millis(BURST_DURATION));
+            tokio::pin!(interval);
 
             // NOTE: This log entry is used to compute performance.
             info!(
@@ -147,12 +147,12 @@ impl Client {
 
             info!("RATE: {}", self.rate);
 
-            //'main: loop {
-            for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
-                //interval.as_mut().tick().await;
-                //let now = Instant::now();
+            'main: loop {
+            //for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
+                interval.as_mut().tick().await;
+                let now = Instant::now();
 
-                //for x in 0..burst {
+                for x in 0..burst {
                     //if x == counter % burst {
                         //r += 1;
                         //id.put_u8(0u8); // Sample txs start with 0.
@@ -172,10 +172,11 @@ impl Client {
                     //if self.id != 0 {
                         info!(
                             "Sending sample transaction {}",
-                            self.rate * self.id + counter2
+                            //self.rate * self.id + counter2
+                            counter2,
                         );
 
-                        info!("counter: {}", counter2);
+                        //info!("counter: {}", counter2);
                     //}
                     //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
                     let message = bincode::serialize(&tx.clone()).unwrap();
@@ -189,14 +190,14 @@ impl Client {
 
                     if let Err(e) = transport.send(bytes.clone()).await {
                         warn!("Failed to send transaction: {}", e);
-                        //break 'main;
+                        break 'main;
                     }
                     counter2 += 1;
-                //}
-                //if now.elapsed().as_millis() > BURST_DURATION as u128 {
+                }
+                if now.elapsed().as_millis() > BURST_DURATION as u128 {
                     // NOTE: This log entry is used to compute performance.
-                    //warn!("Transaction rate too high for this client");
-                //}
+                    warn!("Transaction rate too high for this client");
+                }
                 counter += 1;
             }
             info!("Sent {} txs", counter2);
@@ -208,7 +209,7 @@ impl Client {
                     counter2 * 532 * (self.nodes.len() - (self.nodes.len() - 1) / 3) as u64
                 );
             }
-        }
+        //}
         Ok(())
     }
 
