@@ -231,12 +231,12 @@ impl Proposer {
                         election.insert_vote(&vote);
                         if let Some(tally) = election.tallies.get(&vote.round) {
                             if let Some(header_id) = election.find_quorum_of_commits() {
-                                for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
+                                //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
                                     //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
                                         //self.proposals.remove(pos);
                                     //}
                                     //self.decided.insert(election_id.clone());
-                                }
+                                //}
                                 //self.proposals.retain(|(_, id)| id != election_id);
 
                                 //self.decided.insert(election_id.clone());
