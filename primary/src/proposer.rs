@@ -166,7 +166,7 @@ impl Proposer {
                         //info!("Created1 {} -> {:?}", tx_hash, election_id);
                         elections_ids.insert(election_id.clone());
                         if !self.active_elections.contains(&election_id)
-                            && !self.decided.contains(&election_id)
+                            //&& !self.decided.contains(&election_id)
                         {
                             // NOTE: This log entry is used to compute performance.
                             self.active_elections.insert(election_id.clone());
@@ -235,7 +235,7 @@ impl Proposer {
                                     //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
                                         //self.proposals.remove(pos);
                                     //}
-                                    self.decided.insert(election_id.clone());
+                                    //self.decided.insert(election_id.clone());
                                 }
                                 //self.proposals.retain(|(_, id)| id != election_id);
 
