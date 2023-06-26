@@ -158,7 +158,7 @@ class Bench:
             addresses = OrderedDict(
                 (x, y) for x, y in zip(names, hosts)
             )
-        committee = Committee(addresses, self.settings.base_port, (bench_parameters.nodes[0]-1)/3)
+        committee = Committee(addresses, self.settings.base_port)
         committee.print(PathMaker.committee_file())
 
         node_parameters.print(PathMaker.parameters_file())
@@ -238,7 +238,7 @@ class Bench:
             sleep(ceil(duration / 20))
         self.kill(hosts=hosts, delete_logs=False)
 
-    def _logs(self, committee, faults, correct):
+    def _logs(self, committee, faults):
         # Delete local logs (if any).
         cmd = CommandMaker.clean_logs()
         subprocess.run([cmd], shell=True, stderr=subprocess.DEVNULL)
@@ -273,7 +273,7 @@ class Bench:
 
         # Parse logs and return the parser.
         Print.info('Parsing logs and computing performance...')
-        return LogParser.process(PathMaker.logs_path(), faults, correct)
+        return LogParser.process(PathMaker.logs_path(), faults)
 
     def run(self, bench_parameters_dict, node_parameters_dict, debug=False):
         assert isinstance(debug, bool)
@@ -324,9 +324,10 @@ class Bench:
                             r, committee_copy, bench_parameters, debug
                         )
 
-                        correct = bench_parameters.nodes[0] - (bench_parameters.nodes[0]-1)/3
-                        faults = (bench_parameters.nodes[0]-1)/3
-                        logger = self._logs(committee_copy, int(faults), int(correct))
+                        #correct = bench_parameters.nodes[0] - (bench_parameters.nodes[0]-1)/3
+                        #faults = (bench_parameters.nodes[0]-1)/3
+                        faults = bench_parameters.faults
+                        logger = self._logs(committee_copy, faults)
                         logger.print(PathMaker.result_file(
                             faults,
                             n, 

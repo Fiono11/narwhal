@@ -1,5 +1,5 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
-use crate::batch_maker::BatchMaker;
+use crate::{batch_maker::BatchMaker, processor::SerializedBatchMessage};
 
 use crate::primary_connector::PrimaryConnector;
 use crate::processor::Processor;
@@ -9,7 +9,7 @@ use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
 use crypto::{Digest, PublicKey};
 use futures::sink::SinkExt as _;
-use log::{error, info};
+use log::{error, info, warn};
 use network::{MessageHandler, Receiver, Writer};
 use primary::{PrimaryWorkerMessage, Transaction};
 use serde::{Deserialize, Serialize};
@@ -184,7 +184,7 @@ impl Worker {
 
     /// Spawn all tasks responsible to handle messages from other workers.
     fn handle_workers_messages(&self, _tx_primary: Sender<SerializedBatchDigestMessage>) {
-        /*let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
+        let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from other workers.
@@ -204,7 +204,7 @@ impl Worker {
         );
 
         // The `Helper` is dedicated to reply to batch requests from other workers.
-        Helper::spawn(
+        /*Helper::spawn(
             self.id,
             self.committee.clone(),
             self.store.clone(),
@@ -219,12 +219,12 @@ impl Worker {
             /* rx_batch */ rx_processor,
             /* tx_digest */ tx_primary,
             /* own_batch */ false,
-        );
+        );*/
 
         info!(
             "Worker {} listening to worker messages on {}",
             self.id, address
-        );*/
+        );
     }
 }
 
@@ -275,7 +275,7 @@ impl MessageHandler for TxReceiverHandler {
 }
 
 /// Defines how the network receiver handles incoming workers messages.
-/*#[derive(Clone)]
+#[derive(Clone)]
 struct WorkerReceiverHandler {
     tx_helper: Sender<(Vec<Digest>, PublicKey)>,
     tx_processor: Sender<(SerializedBatchMessage, Digest)>,
@@ -290,13 +290,13 @@ impl MessageHandler for WorkerReceiverHandler {
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized) {
             Ok(WorkerMessage::Batch(block)) => {
-                info!("Received block: {:?}", block);
+                //info!("Received block: {:?}", block);
 
-                self
+                /*self
                     .tx_processor
                     .send(serialized.to_vec())
                     .await
-                    .expect("Failed to send batch")
+                    .expect("Failed to send batch")*/
             }
             Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
                 .tx_helper
@@ -307,7 +307,7 @@ impl MessageHandler for WorkerReceiverHandler {
         }
         Ok(())
     }
-}*/
+}
 
 /// Defines how the network receiver handles incoming primary messages.
 #[derive(Clone)]
