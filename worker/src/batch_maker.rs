@@ -86,7 +86,7 @@ impl BatchMaker {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
                     self.counter += 1;
-                    info!("counter: {}", self.counter);
+                    //info!("counter: {}", self.counter);
                     self.current_batch_size += transaction.data.len() + 32;
                     //info!("tx: {:?}", transaction);
                     self.current_batch.push(transaction);
