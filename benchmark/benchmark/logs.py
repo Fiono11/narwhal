@@ -16,7 +16,7 @@ class ParseError(Exception):
 
 
 class LogParser:
-    def __init__(self, clients, primaries, workers, faults=0):
+    def __init__(self, clients, primaries, workers, faults, directory):
         inputs = [clients, primaries, workers]
         assert all(isinstance(x, list) for x in inputs)
         assert all(isinstance(x, str) for y in inputs for x in y)
@@ -29,6 +29,15 @@ class LogParser:
         else:
             self.committee_size = '?'
             self.workers = '?'
+
+        log_files = ['logs/client-0-0.log', 'logs/client-1-0.log', 'logs/client-2-0.log', "logs/client-3-0.log"]  # replace these with your actual log file paths
+        self.parse_logs(log_files)
+
+        clients = []
+        for filename in sorted(glob(join(directory, 'client-*-*'))):
+            #if num < correct:
+            with open(filename, 'r') as f:
+                clients += [f.read()]
 
         # Parse the clients logs.
         try:
@@ -95,7 +104,35 @@ class LogParser:
                 if min_value is None or v < min_value:
                     min_value = v
         return {sum_keys: min_value}
+    
+    def parse_logs(self, log_files):
+        self.trans_id = 0
+        num_clients = len(log_files)
+        client_logs = [None] * num_clients
+        for idx, file in enumerate(log_files):
+            # Read the file
+            with open(file, 'r') as f:
+                client_logs[idx] = f.readlines()
 
+        max_trans = max(len(log) for log in client_logs)
+
+        # Initialize new_logs with deep copy of client_logs
+        new_logs = [list(log) for log in client_logs]
+
+        for trans in range(max_trans):
+            for client in range(num_clients):
+                if trans < len(client_logs[client]) and trans > 6:
+                    #if trans < 50:
+                        #print("replacing ", client_logs[client][trans], " by ", self.trans_id)
+                    # Replace the line with the new transaction ID
+                    new_logs[client][trans] = re.sub(r'Sending sample transaction \d+', f'Sending sample transaction {self.trans_id}', client_logs[client][trans])
+                    # Increment the global transaction ID
+                    self.trans_id += 1
+
+        # Write the new content back into the files
+        for idx, file in enumerate(log_files):
+            with open(file, 'w') as f:
+                f.writelines(new_logs[idx])
 
     def _parse_clients(self, log):
         if search(r'Error', log) is not None:
@@ -217,7 +254,7 @@ class LogParser:
     def _end_to_end_latency(self):
         #start, end = min(self.start), max(val[1] for val in self.commits.values())
         #print("sent: ", self.sent_samples)
-        print("commits: ", self.commits)
+        #print("commits: ", self.commits)
         latency = []
         keys = list(self.commits.keys())
         counter = 0
@@ -314,4 +351,4 @@ class LogParser:
             with open(filename, 'r') as f:
                 workers += [f.read()]
 
-        return cls(clients, primaries, workers, faults=faults)
+        return cls(clients, primaries, workers, faults, directory)
