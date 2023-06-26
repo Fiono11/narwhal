@@ -184,7 +184,7 @@ impl Worker {
 
     /// Spawn all tasks responsible to handle messages from other workers.
     fn handle_workers_messages(&self, _tx_primary: Sender<SerializedBatchDigestMessage>) {
-        /*let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
+        let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from other workers.
@@ -204,7 +204,7 @@ impl Worker {
         );
 
         // The `Helper` is dedicated to reply to batch requests from other workers.
-        Helper::spawn(
+        /*Helper::spawn(
             self.id,
             self.committee.clone(),
             self.store.clone(),
@@ -219,12 +219,12 @@ impl Worker {
             /* rx_batch */ rx_processor,
             /* tx_digest */ tx_primary,
             /* own_batch */ false,
-        );
+        );*/
 
         info!(
             "Worker {} listening to worker messages on {}",
             self.id, address
-        );*/
+        );
     }
 }
 

@@ -495,7 +495,7 @@ impl Proposer {
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
         vote.verify(&self.committee).unwrap();
-        if !vote.commit {
+        /*if !vote.commit {
             info!(
                 "Received a vote from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
@@ -505,7 +505,7 @@ impl Proposer {
                 "Received a commit from {} for value {} in round {} of election {}",
                 vote.author, vote.value, vote.round, vote.election_id
             );
-        }
+        }*/
         let (tx_hash, election_id) = (vote.value.clone(), vote.election_id.clone());
         if !self.byzantine {
             match self.elections.get_mut(&vote.proposal_round) {
@@ -636,7 +636,7 @@ impl Proposer {
                                                     .network
                                                     .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                     .await;
-                                                info!("Sending commit: {:?}", &own_vote);
+                                                //info!("Sending commit: {:?}", &own_vote);
                                             }
                                         } else if election.voted_or_committed(&self.name, vote.round)
                                             && ((tally.total_votes() >= QUORUM
@@ -702,7 +702,7 @@ impl Proposer {
                                                 .broadcast(self.other_primaries.clone(), Bytes::from(bytes))
                                                 .await;
             
-                                            info!("Sending vote: {:?}", &own_vote);
+                                            //info!("Sending vote: {:?}", &own_vote);
                                         }
                                     }
                                 }
@@ -831,10 +831,10 @@ impl Proposer {
 
             self.own_proposals.push(self.round);
 
-            info!(
-                "Making a new proposal {} from {} in round {} with {} proposals",
-                proposal.id, self.name, self.round, proposals
-            );
+            //info!(
+                //"Making a new proposal {} from {} in round {} with {} proposals",
+                //proposal.id, self.name, self.round, proposals
+            //);
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
