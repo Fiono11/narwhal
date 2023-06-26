@@ -146,7 +146,7 @@ impl Proposer {
 
         if !self.byzantine {
             proposal.verify(&self.committee).unwrap();
-        info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
+        //info!("Received proposal from {} with {} votes in round {} with id {}", proposal.author, proposal.votes.len() ,proposal.round, proposal.id);
 
         self.votes.insert(proposal.id.clone(), proposal.votes.clone());
 
