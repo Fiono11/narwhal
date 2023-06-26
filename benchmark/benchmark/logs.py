@@ -119,20 +119,18 @@ class LogParser:
 
         max_trans = max(len(log) for log in client_logs)
 
-        # Initialize new_logs with a deep copy of client_logs
+        # Initialize new_logs with deep copy of client_logs
         new_logs = [list(log) for log in client_logs]
 
         for trans in range(max_trans):
             for client in range(num_clients):
-                if trans < len(client_logs[client]):
-                    line = client_logs[client][trans]
-                    #print("line: ", line)
-                    #if "Sending sample transaction" in line:
-                    if re.search(r'Sending sample transaction', line):
-                        # Replace the line with the new transaction ID
-                        new_logs[client][trans] = re.sub(r'^Sending sample transaction \d+', f'Sending sample transaction {self.trans_id}', line)
-                        # Increment the global transaction ID
-                        self.trans_id += 1
+                if trans < len(client_logs[client]) and trans > 6:
+                    #if trans < 50:
+                        #print("replacing ", client_logs[client][trans], " by ", self.trans_id)
+                    # Replace the line with the new transaction ID
+                    new_logs[client][trans] = re.sub(r'Sending sample transaction \d+', f'Sending sample transaction {self.trans_id}', client_logs[client][trans])
+                    # Increment the global transaction ID
+                    self.trans_id += 1
 
         # Write the new content back into the files
         for idx, file in enumerate(log_files):
