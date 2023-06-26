@@ -857,12 +857,12 @@ impl Proposer {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
                     if !self.byzantine {
-                        //info!("Received tx hash {} and election id {}", tx_hash, election_id);
+                        info!("Received tx hash {} and election id {}", tx_hash, election_id);
                         self.proposals.push((tx_hash, election_id));
                     }
 
                     //info!("TXS RECEIVED: {}", counter);
-                    //info!("PROPOSALS: {}", self.proposals.len());
+                    info!("PROPOSALS: {}", self.proposals.len());
 
                     if self.proposals.len() >= self.header_size && !self.own_proposals.contains(&self.round) {
                         self.make_proposal().await;
