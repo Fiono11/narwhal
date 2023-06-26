@@ -826,7 +826,7 @@ impl Proposer {
             let proposal = Proposal::new(
                 self.round,
                 self.name.clone(),
-                self.proposals.drain(..500000).collect(), // only drain if committed
+                self.proposals.drain(..).collect(), // only drain if committed
                 &mut self.signature_service,
             )
             .await;
