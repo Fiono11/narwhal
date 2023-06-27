@@ -129,10 +129,9 @@ impl Client {
             let mut counter2 = 0;
             let mut r: u64 = thread_rng().gen();
             let mut r2: u32 = thread_rng().gen();
-            //let mut r: u64 = 0;
-            let mut forks = false;
-            if r == 0 {
-                forks = true;
+            let forks: bool = true;
+            if forks {
+                r = 0;
             }
             info!("Forks: {}", forks);
             let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
