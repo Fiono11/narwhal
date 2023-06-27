@@ -132,6 +132,30 @@ impl Proposer {
                 //info!("Added {} to decided", election_id.clone());
                 self.decided.insert(election_id.clone());
             }
+
+            if self.decided_elections.get(&header_id).unwrap() == &false {
+                #[cfg(feature = "benchmark")]
+                // NOTE: This log entry is used to compute performance.
+                info!(
+                    "Committed {} -> {:?}",
+                    self.votes.get(&header_id).unwrap().len(),
+                    header_id
+                );
+
+        
+                //info!("Round {} is decided with {}!", election_id, header_id.clone());
+
+                self.round += 1;
+                self.leader = self.committee.leader(self.round as usize);
+
+                //info!("LEADER1 of round {} is {}", self.round, self.leader);
+
+
+                let deadline = Instant::now()
+                    + Duration::from_millis(self.max_header_delay);
+                timer.as_mut().reset(deadline);
+
+            }
         }
 
         header.verify(&self.committee).unwrap();
