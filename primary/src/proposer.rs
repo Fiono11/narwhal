@@ -64,6 +64,7 @@ pub struct Proposer {
     decided: BTreeSet<ElectionId>,
     active_elections: BTreeSet<ElectionId>,
     decided_elections: HashMap<Digest, bool>,
+    pending_commits: BTreeSet<Digest>,
 }
 
 impl Proposer {
@@ -110,6 +111,7 @@ impl Proposer {
                 decided: BTreeSet::new(),
                 active_elections: BTreeSet::new(),
                 decided_elections: HashMap::new(),
+                pending_commits: BTreeSet::new(),
             }
             .run()
             .await;
@@ -122,6 +124,16 @@ impl Proposer {
         header: &Header,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
+        if let Some(_) = self.pending_commits.get(&header.id) {
+            for (tx_hash, election_id) in &header.votes {
+                //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
+                    //self.proposals.remove(pos);
+                //}
+                //info!("Added {} to decided", election_id.clone());
+                self.decided.insert(election_id.clone());
+            }
+        }
+
         header.verify(&self.committee).unwrap();
 
         self.decided_elections.insert(header.id.clone(), false);
@@ -159,17 +171,18 @@ impl Proposer {
 
                     //info!("Created {} -> {:?} in round {}", header.votes.len(), header.id, header.round);
 
-                    let mut elections_ids = BTreeSet::new();
+                    //let mut elections_ids = BTreeSet::new();
 
                     //#[cfg(feature = "benchmark")]
                     for (_tx_hash, election_id) in &header.votes {
                         //info!("Created1 {} -> {:?}", tx_hash, election_id);
-                        elections_ids.insert(election_id.clone());
+                        //elections_ids.insert(election_id.clone());
                         //if !self.active_elections.contains(&election_id)
                             //&& !self.decided.contains(&election_id)
                         //{
                             // NOTE: This log entry is used to compute performance.
                             self.active_elections.insert(election_id.clone());
+                            //info!("Added {} to active elections2", election_id.clone());
                         //}
                     }
                 }
@@ -231,12 +244,23 @@ impl Proposer {
                         election.insert_vote(&vote);
                         if let Some(tally) = election.tallies.get(&vote.round) {
                             if let Some(header_id) = election.find_quorum_of_commits() {
-                                for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
-                                    //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
-                                        //self.proposals.remove(pos);
-                                    //}
-                                    self.decided.insert(election_id.clone());
+                                let votes = self.votes.get(&header_id);
+                                match votes {
+                                    Some(_) => {
+                                        for (tx_hash, election_id) in votes.unwrap().iter() {
+                                            //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
+                                                //self.proposals.remove(pos);
+                                            //}
+                                            //info!("Added {} to decided", election_id.clone());
+                                            self.decided.insert(election_id.clone());
+                                            self.active_elections.remove(&election_id);
+                                        }
+                                    }
+                                    None => {
+                                        self.pending_commits.insert(header_id.clone());
+                                    }
                                 }
+                                
                                 //self.proposals.retain(|(_, id)| id != election_id);
 
                                 //self.decided.insert(election_id.clone());
@@ -415,6 +439,8 @@ impl Proposer {
             if self.proposals.len() > 0 {
 
                 self.elections.insert(self.round, Election::new());
+                
+                let len = self.proposals.len();
 
             // Make a new header.
             let header = Header::new(
@@ -425,10 +451,15 @@ impl Proposer {
             )
             .await;
 
-            //info!(
-                //"Making a new header {} from {} in round {} with {} proposals",
-                //header.id, self.name, self.round, proposals.len()
-            //);
+            /*info!(
+                "Making a new header {} from {} in round {} with {} proposals",
+                header.id, self.name, self.round, len
+            );*/
+
+            for (_tx_hash, election_id) in &header.votes {
+                self.active_elections.insert(election_id.clone());
+                //info!("Added {} to active elections", election_id.clone());
+            }
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
