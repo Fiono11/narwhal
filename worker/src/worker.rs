@@ -1,10 +1,10 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::batch_maker::{Batch, BatchMaker};
-//use crate::helper::Helper;
+use crate::helper::Helper;
 use crate::primary_connector::PrimaryConnector;
 use crate::processor::{Processor, SerializedBatchMessage};
 use crate::quorum_waiter::QuorumWaiter;
-//use crate::synchronizer::Synchronizer;
+use crate::synchronizer::Synchronizer;
 use async_trait::async_trait;
 use bytes::Bytes;
 use config::{Committee, Parameters, WorkerId};
@@ -37,7 +37,7 @@ pub type SerializedBatchDigestMessage = Vec<u8>;
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WorkerMessage {
     Batch(Batch),
-    //BatchRequest(Vec<Digest>, /* origin */ PublicKey),
+    BatchRequest(Vec<Digest>, /* origin */ PublicKey),
 }
 
 pub struct Worker {
@@ -118,7 +118,7 @@ impl Worker {
 
         // The `Synchronizer` is responsible to keep the worker in sync with the others. It handles the commands
         // it receives from the primary (which are mainly notifications that we are out of sync).
-        /*Synchronizer::spawn(
+        Synchronizer::spawn(
             self.name,
             self.id,
             self.committee.clone(),
@@ -127,7 +127,7 @@ impl Worker {
             self.parameters.sync_retry_delay,
             self.parameters.sync_retry_nodes,
             /* rx_message */ rx_synchronizer,
-        );*/
+        );
 
         info!(
             "Worker {} listening to primary messages on {}",
@@ -196,7 +196,7 @@ impl Worker {
 
     /// Spawn all tasks responsible to handle messages from other workers.
     fn handle_workers_messages(&self, tx_primary: Sender<SerializedBatchDigestMessage>) {
-        //let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
+        let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from other workers.
@@ -210,18 +210,18 @@ impl Worker {
             address,
             /* handler */
             WorkerReceiverHandler {
-                //tx_helper,
+                tx_helper,
                 tx_processor,
             },
         );
 
         // The `Helper` is dedicated to reply to batch requests from other workers.
-        /*Helper::spawn(
+        Helper::spawn(
             self.id,
             self.committee.clone(),
             self.store.clone(),
             /* rx_request */ rx_helper,
-        );*/
+        );
 
         // This `Processor` hashes and stores the batches we receive from the other workers. It then forwards the
         // batch's digest to the `PrimaryConnector` that will send it to our primary.
@@ -265,7 +265,7 @@ impl MessageHandler for TxReceiverHandler {
 /// Defines how the network receiver handles incoming workers messages.
 #[derive(Clone)]
 struct WorkerReceiverHandler {
-    //tx_helper: Sender<(Vec<Digest>, PublicKey)>,
+    tx_helper: Sender<(Vec<Digest>, PublicKey)>,
     tx_processor: Sender<SerializedBatchMessage>,
 }
 
@@ -282,11 +282,11 @@ impl MessageHandler for WorkerReceiverHandler {
                 .send(serialized.to_vec())
                 .await
                 .expect("Failed to send batch"),
-            /*Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
+            Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
                 .tx_helper
                 .send((missing, requestor))
                 .await
-                .expect("Failed to send batch request"),*/
+                .expect("Failed to send batch request"),
             Err(e) => warn!("Serialization error: {}", e),
         }
         Ok(())
@@ -307,14 +307,14 @@ impl MessageHandler for PrimaryReceiverHandler {
         serialized: Bytes,
     ) -> Result<(), Box<dyn Error>> {
         // Deserialize the message and send it to the synchronizer.
-        /*match bincode::deserialize(&serialized) {
+        match bincode::deserialize(&serialized) {
             Err(e) => error!("Failed to deserialize primary message: {}", e),
             Ok(message) => self
                 .tx_synchronizer
                 .send(message)
                 .await
                 .expect("Failed to send transaction"),
-        }*/
+        }
         Ok(())
     }
 }
