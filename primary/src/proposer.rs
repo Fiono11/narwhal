@@ -580,7 +580,7 @@ impl Proposer {
                     let _ = match message {
                         PrimaryMessage::Header(header) => self.process_header(&header, &mut timer).await,
                         PrimaryMessage::Vote(vote) => self.process_vote(&vote, &mut timer).await,
-                        _ => Ok(())
+                        //_ => Ok(())
                     };
                 },
             };
