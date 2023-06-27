@@ -1,16 +1,18 @@
 {
     "key": {
-        "name": "aws",
-        "path": "/Users/asonnino/.ssh/aws.pem"
+        "name": "fiono",
+        "path": "/Users/ruimorais/.ssh/key"
     },
     "port": 5000,
     "repo": {
-        "name": "narwhal",
-        "url": "https://github.com/asonnino/narwhal",
-        "branch": "master"
+        "name": "/home/fiono/DelegatedRingCT",
+        "url": "https://github.com/Fiono11/narwhal",
+        "branch": "main"
     },
-    "instances": {
-        "type": "m5d.8xlarge",
-        "regions": ["us-east-1", "eu-north-1", "ap-southeast-2", "us-west-1", "ap-northeast-1"]
-    }
+    "hosts": [
+        "34.88.1.199",
+        "34.175.125.204",
+        "34.77.246.28",
+        "34.17.44.248"
+    ]
 }
