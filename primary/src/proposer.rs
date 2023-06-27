@@ -438,7 +438,9 @@ impl Proposer {
 
             if self.proposals.len() > 0 {
 
-                self.elections.insert(self.round, Election::new());
+                if let None = self.elections.get(&self.round) {
+                    self.elections.insert(self.round, Election::new());
+                }
                 
                 let len = self.proposals.len();
 
