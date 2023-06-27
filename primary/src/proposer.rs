@@ -64,6 +64,7 @@ pub struct Proposer {
     decided: BTreeSet<ElectionId>,
     active_elections: BTreeSet<ElectionId>,
     decided_elections: HashMap<Digest, bool>,
+    pending_commits: BTreeSet<Digest>,
 }
 
 impl Proposer {
@@ -110,6 +111,7 @@ impl Proposer {
                 decided: BTreeSet::new(),
                 active_elections: BTreeSet::new(),
                 decided_elections: HashMap::new(),
+                pending_commits: BTreeSet::new(),
             }
             .run()
             .await;
@@ -122,6 +124,16 @@ impl Proposer {
         header: &Header,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
+        if let Some(_) = self.pending_commits.get(&header.id) {
+            for (tx_hash, election_id) in &header.votes {
+                //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
+                    //self.proposals.remove(pos);
+                //}
+                //info!("Added {} to decided", election_id.clone());
+                self.decided.insert(election_id.clone());
+            }
+        }
+
         header.verify(&self.committee).unwrap();
 
         self.decided_elections.insert(header.id.clone(), false);
@@ -232,13 +244,22 @@ impl Proposer {
                         election.insert_vote(&vote);
                         if let Some(tally) = election.tallies.get(&vote.round) {
                             if let Some(header_id) = election.find_quorum_of_commits() {
-                                for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
-                                    //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
-                                        //self.proposals.remove(pos);
-                                    //}
-                                    //info!("Added {} to decided", election_id.clone());
-                                    self.decided.insert(election_id.clone());
+                                let votes = self.votes.get(&header_id);
+                                match votes {
+                                    Some(_) => {
+                                        for (tx_hash, election_id) in votes.unwrap().iter() {
+                                            //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
+                                                //self.proposals.remove(pos);
+                                            //}
+                                            //info!("Added {} to decided", election_id.clone());
+                                            self.decided.insert(election_id.clone());
+                                        }
+                                    }
+                                    None => {
+                                        self.pending_commits.insert(header_id.clone());
+                                    }
                                 }
+                                
                                 //self.proposals.retain(|(_, id)| id != election_id);
 
                                 //self.decided.insert(election_id.clone());
