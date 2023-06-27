@@ -4,7 +4,7 @@ use crate::primary::Round;
 use config::{Committee, WorkerId};
 use crypto::Hash as _;
 use crypto::{Digest, PublicKey, SignatureService};
-use log::debug;
+use log::{debug, info};
 #[cfg(feature = "benchmark")]
 use log::info;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -95,6 +95,8 @@ impl Proposer {
             // NOTE: This log entry is used to compute performance.
             info!("Created {} -> {:?}", header, digest);
         }
+
+        info!("11111111111111");
 
         // Send the new header to the `Core` that will broadcast and process it.
         self.tx_core
