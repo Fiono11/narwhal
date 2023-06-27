@@ -427,15 +427,15 @@ impl Proposer {
 
             self.proposals
                 .retain(|(_, election_id)| !decided.contains(&election_id));
-            self.proposals
-                .retain(|(_, election_id)| !active_elections.contains(&election_id));
+            //self.proposals
+                //.retain(|(_, election_id)| !active_elections.contains(&election_id));
 
             //info!("PROPOSALS3: {}", self.proposals.len());
 
-            //let mut proposals = self.proposals.clone();
+            let mut proposals = self.proposals.clone();
 
-            //proposals
-                //.retain(|(_, election_id)| !active_elections.contains(&election_id));
+            proposals
+                .retain(|(_, election_id)| !active_elections.contains(&election_id));
 
             if self.proposals.len() > 0 {
 
@@ -449,7 +449,7 @@ impl Proposer {
             let header = Header::new(
                 self.round,
                 self.name.clone(),
-                self.proposals.drain(..).collect(), 
+                proposals.drain(..).collect(), 
                 &mut self.signature_service,
             )
             .await;
