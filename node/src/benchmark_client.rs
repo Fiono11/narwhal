@@ -129,7 +129,7 @@ impl Client {
             let mut counter2 = 0;
             let mut r: u64 = thread_rng().gen();
             let mut r2: u32 = thread_rng().gen();
-            //let mut r: u64 = 0;
+            let mut r: u64 = 0;
             let mut forks = false;
             if r == 0 {
                 forks = true;
@@ -147,8 +147,8 @@ impl Client {
 
             info!("RATE: {}", self.rate);
 
-            'main: loop {
-            //for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
+            //'main: loop {
+            for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
                 interval.as_mut().tick().await;
                 let now = Instant::now();
 
@@ -189,7 +189,7 @@ impl Client {
 
                     if let Err(e) = transport.send(bytes.clone()).await {
                         warn!("Failed to send transaction: {}", e);
-                        break 'main;
+                        //break 'main;
                     }
                     counter2 += 1;
                 }
