@@ -124,6 +124,10 @@ impl Proposer {
         header: &Header,
         timer: &mut Pin<&mut tokio::time::Sleep>,
     ) -> DagResult<()> {
+        header.verify(&self.committee).unwrap();
+
+        self.decided_elections.insert(header.id.clone(), false);
+
         if let Some(_) = self.pending_commits.get(&header.id) {
             for (tx_hash, election_id) in &header.votes {
                 //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
@@ -133,7 +137,7 @@ impl Proposer {
                 self.decided.insert(election_id.clone());
             }
 
-            if self.decided_elections.get(&header_id).unwrap() == &false {
+            if self.decided_elections.get(&header.id).unwrap() == &false {
                 #[cfg(feature = "benchmark")]
                 // NOTE: This log entry is used to compute performance.
                 info!(
@@ -142,7 +146,8 @@ impl Proposer {
                     header_id
                 );
 
-        
+                self.decided_elections.insert(header.id.clone(), true);
+
                 //info!("Round {} is decided with {}!", election_id, header_id.clone());
 
                 self.round += 1;
@@ -157,10 +162,6 @@ impl Proposer {
 
             }
         }
-
-        header.verify(&self.committee).unwrap();
-
-        self.decided_elections.insert(header.id.clone(), false);
 
         if !self.byzantine {
             //info!(
