@@ -162,17 +162,17 @@ impl Proposer {
                     let mut elections_ids = BTreeSet::new();
 
                     //#[cfg(feature = "benchmark")]
-                    for (_tx_hash, election_id) in &header.votes {
+                    //for (_tx_hash, election_id) in &header.votes {
                         //info!("Created1 {} -> {:?}", tx_hash, election_id);
-                        elections_ids.insert(election_id.clone());
+                        //elections_ids.insert(election_id.clone());
                         //if !self.active_elections.contains(&election_id)
                             //&& !self.decided.contains(&election_id)
                         //{
                             // NOTE: This log entry is used to compute performance.
-                            self.active_elections.insert(election_id.clone());
-                            info!("Added {} to active elections", election_id.clone());
+                            //self.active_elections.insert(election_id.clone());
+                            //info!("Added {} to active elections", election_id.clone());
                         //}
-                    }
+                    //}
                 }
             }
 
@@ -426,6 +426,11 @@ impl Proposer {
                 &mut self.signature_service,
             )
             .await;
+
+            for (_tx_hash, election_id) in &header.votes {
+                self.active_elections.insert(election_id.clone());
+                info!("Added {} to active elections", election_id.clone());
+            }
 
             //info!(
                 //"Making a new header {} from {} in round {} with {} proposals",

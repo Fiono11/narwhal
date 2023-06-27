@@ -106,13 +106,13 @@ def remote(ctx, debug=False):
         'nodes': [4],
         'workers': 1,
         'collocate': True,
-        'rate': [1],
+        'rate': [100],
         'tx_size': 532,
         'duration': 30,
         'runs': 1,
     }
     node_params = {
-        'header_size': 1,  # bytes
+        'header_size': 2,  # bytes
         'max_header_delay': 200,  # ms
         'gc_depth': 50,  # rounds
         'sync_retry_delay': 10_000,  # ms
