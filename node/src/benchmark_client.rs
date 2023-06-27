@@ -157,7 +157,7 @@ impl Client {
                         r += 1;
                         id.put_u8(1u8); // Standard txs start with 1.
                         id.put_u64(r); // Ensures all clients send different txs.
-                    //};
+                    };
 
                     tx.id = id.to_vec();
                     //if self.id != 0 {
@@ -191,7 +191,7 @@ impl Client {
                 }
                 counter += 1;
             }
-            info!("Sent {} txs", counter2);
+            /*info!("Sent {} txs", counter2);
             if forks {
                 info!("Total bytes: {}", counter2 * 532);
             } else {
@@ -200,7 +200,7 @@ impl Client {
                     counter2 * 532 * (self.nodes.len() - (self.nodes.len() - 1) / 3) as u64
                 );
             }
-        }
+        }*/
         Ok(())
     }
 
