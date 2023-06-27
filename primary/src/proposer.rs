@@ -170,7 +170,7 @@ impl Proposer {
                         //{
                             // NOTE: This log entry is used to compute performance.
                             self.active_elections.insert(election_id.clone());
-                            info!("Added {} to active elections2", election_id.clone());
+                            //info!("Added {} to active elections2", election_id.clone());
                         //}
                     }
                 }
@@ -236,7 +236,7 @@ impl Proposer {
                                     //if let Some(pos) = self.proposals.iter().position(|x| *x == (tx_hash.clone(), election_id.clone())) {
                                         //self.proposals.remove(pos);
                                     //}
-                                    info!("Added {} to decided", election_id.clone());
+                                    //info!("Added {} to decided", election_id.clone());
                                     self.decided.insert(election_id.clone());
                                 }
                                 //self.proposals.retain(|(_, id)| id != election_id);
@@ -429,7 +429,7 @@ impl Proposer {
 
             for (_tx_hash, election_id) in &header.votes {
                 self.active_elections.insert(election_id.clone());
-                info!("Added {} to active elections", election_id.clone());
+                //info!("Added {} to active elections", election_id.clone());
             }
 
             //info!(
