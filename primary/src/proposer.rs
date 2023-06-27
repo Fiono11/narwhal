@@ -142,8 +142,8 @@ impl Proposer {
                 // NOTE: This log entry is used to compute performance.
                 info!(
                     "Committed {} -> {:?}",
-                    self.votes.get(&header_id).unwrap().len(),
-                    header_id
+                    self.votes.get(&header.id).unwrap().len(),
+                    header.id
                 );
 
                 self.decided_elections.insert(header.id.clone(), true);
