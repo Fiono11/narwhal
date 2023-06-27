@@ -130,7 +130,7 @@ impl Client {
             let mut r: u64 = thread_rng().gen();
             let mut r2: u32 = thread_rng().gen();
             //let mut r: u64 = 0;
-            let forks: bool = false;
+            let forks: bool = true;
             if forks {
                 r = 0;
             }
@@ -172,7 +172,8 @@ impl Client {
                     //if self.id != 0 {
                         info!(
                             "Sending sample transaction {}",
-                            self.rate * self.id + counter2
+                            //self.rate * self.id + counter2
+                            counter2
                         );
 
                         //info!("counter: {}", counter2);
