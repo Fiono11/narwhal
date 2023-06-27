@@ -438,6 +438,8 @@ impl Proposer {
             if self.proposals.len() > 0 {
 
                 self.elections.insert(self.round, Election::new());
+                
+                let len = self.proposals.len();
 
             // Make a new header.
             let header = Header::new(
@@ -448,15 +450,15 @@ impl Proposer {
             )
             .await;
 
+            info!(
+                "Making a new header {} from {} in round {} with {} proposals",
+                header.id, self.name, self.round, len
+            );
+
             for (_tx_hash, election_id) in &header.votes {
                 self.active_elections.insert(election_id.clone());
                 //info!("Added {} to active elections", election_id.clone());
             }
-
-            info!(
-                "Making a new header {} from {} in round {} with {} proposals",
-                header.id, self.name, self.round, self.proposals.len()
-            );
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
