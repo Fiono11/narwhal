@@ -159,7 +159,7 @@ impl Proposer {
 
                     //info!("Created {} -> {:?} in round {}", header.votes.len(), header.id, header.round);
 
-                    let mut elections_ids = BTreeSet::new();
+                    //let mut elections_ids = BTreeSet::new();
 
                     //#[cfg(feature = "benchmark")]
                     //for (_tx_hash, election_id) in &header.votes {
