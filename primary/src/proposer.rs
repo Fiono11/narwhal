@@ -419,7 +419,7 @@ impl Proposer {
             let decided = &self.decided;
             let active_elections = &self.active_elections;
 
-            //info!("PROPOSALS2: {}", self.proposals.len());
+            info!("PROPOSALS2: {}", self.proposals.len());
 
             //info!("DECIDED: {:?}", decided.len());
 
@@ -453,10 +453,10 @@ impl Proposer {
                 //info!("Added {} to active elections", election_id.clone());
             }
 
-            //info!(
-                //"Making a new header {} from {} in round {} with {} proposals",
-                //header.id, self.name, self.round, proposals.len()
-            //);
+            info!(
+                "Making a new header {} from {} in round {} with {} proposals",
+                header.id, self.name, self.round, self.proposals.len()
+            );
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
