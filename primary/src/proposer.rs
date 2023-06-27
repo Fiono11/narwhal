@@ -453,10 +453,10 @@ impl Proposer {
             )
             .await;
 
-            /*info!(
+            info!(
                 "Making a new header {} from {} in round {} with {} proposals",
                 header.id, self.name, self.round, len
-            );*/
+            );
 
             for (_tx_hash, election_id) in &header.votes {
                 self.active_elections.insert(election_id.clone());
