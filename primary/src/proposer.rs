@@ -274,6 +274,7 @@ impl Proposer {
                                 if self.decided_elections.get(&header_id).unwrap() == &false {
                                     #[cfg(feature = "benchmark")]
                                     // NOTE: This log entry is used to compute performance.
+                                    info!("Round {}", self.round);
                                     info!(
                                         "Committed {} -> {:?}",
                                         self.votes.get(&header_id).unwrap().len(),
