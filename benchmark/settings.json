@@ -5,7 +5,7 @@
     },
     "port": 5000,
     "repo": {
-        "name": "/home/fiono/DelegatedRingCT",
+        "name": "/home/fiono/narwhal",
         "url": "https://github.com/Fiono11/narwhal",
         "branch": "main"
     },

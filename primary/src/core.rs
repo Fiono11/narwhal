@@ -9,8 +9,8 @@ use bytes::Bytes;
 use config::Committee;
 use crypto::Hash as _;
 use crypto::{Digest, PublicKey, SignatureService};
-use log::{debug, error, warn, info};
-use network::{CancelHandler, ReliableSender, SimpleSender};
+use log::{debug, error, warn};
+use network::{CancelHandler, ReliableSender};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -63,7 +63,7 @@ pub struct Core {
     /// Aggregates certificates to use as parents for new headers.
     certificates_aggregators: HashMap<Round, Box<CertificatesAggregator>>,
     /// A network sender to send the batches to the other workers.
-    network: SimpleSender,
+    network: ReliableSender,
     /// Keeps the cancel handlers of the messages we sent.
     cancel_handlers: HashMap<Round, Vec<CancelHandler>>,
 }
@@ -106,7 +106,7 @@ impl Core {
                 current_header: Header::default(),
                 votes_aggregator: VotesAggregator::new(),
                 certificates_aggregators: HashMap::with_capacity(2 * gc_depth as usize),
-                network: SimpleSender::new(),
+                network: ReliableSender::new(),
                 cancel_handlers: HashMap::with_capacity(2 * gc_depth as usize),
             }
             .run()
@@ -119,8 +119,6 @@ impl Core {
         self.current_header = header.clone();
         self.votes_aggregator = VotesAggregator::new();
 
-        info!("????????????");
-
         // Broadcast the new header in a reliable manner.
         let addresses = self
             .committee
@@ -131,12 +129,10 @@ impl Core {
         let bytes = bincode::serialize(&PrimaryMessage::Header(header.clone()))
             .expect("Failed to serialize our own header");
         let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
-        /*self.cancel_handlers
+        self.cancel_handlers
             .entry(header.round)
             .or_insert_with(Vec::new)
-            .extend(handlers);*/
-
-        info!("!!!!!!!!!!!!!!");
+            .extend(handlers);
 
         // Process the header.
         self.process_header(&header).await
@@ -208,10 +204,10 @@ impl Core {
                 let bytes = bincode::serialize(&PrimaryMessage::Vote(vote))
                     .expect("Failed to serialize our own vote");
                 let handler = self.network.send(address, Bytes::from(bytes)).await;
-                /*self.cancel_handlers
+                self.cancel_handlers
                     .entry(header.round)
                     .or_insert_with(Vec::new)
-                    .push(handler);*/
+                    .push(handler);
             }
         }
         Ok(())
@@ -238,10 +234,10 @@ impl Core {
             let bytes = bincode::serialize(&PrimaryMessage::Certificate(certificate.clone()))
                 .expect("Failed to serialize our own certificate");
             let handlers = self.network.broadcast(addresses, Bytes::from(bytes)).await;
-            /*self.cancel_handlers
+            self.cancel_handlers
                 .entry(certificate.round())
                 .or_insert_with(Vec::new)
-                .extend(handlers);*/
+                .extend(handlers);
 
             // Process the new certificate.
             self.process_certificate(certificate)
