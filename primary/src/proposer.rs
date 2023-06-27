@@ -253,6 +253,7 @@ impl Proposer {
                                             //}
                                             //info!("Added {} to decided", election_id.clone());
                                             self.decided.insert(election_id.clone());
+                                            self.active_elections.remove(&election_id);
                                         }
                                     }
                                     None => {
@@ -419,7 +420,7 @@ impl Proposer {
             let decided = &self.decided;
             let active_elections = &self.active_elections;
 
-            info!("PROPOSALS2: {}", self.proposals.len());
+            //info!("PROPOSALS2: {}", self.proposals.len());
 
             //info!("DECIDED: {:?}", decided.len());
 
@@ -450,10 +451,10 @@ impl Proposer {
             )
             .await;
 
-            info!(
+            /*info!(
                 "Making a new header {} from {} in round {} with {} proposals",
                 header.id, self.name, self.round, len
-            );
+            );*/
 
             for (_tx_hash, election_id) in &header.votes {
                 self.active_elections.insert(election_id.clone());
@@ -482,7 +483,7 @@ impl Proposer {
         loop {
             tokio::select! {
                 Some((tx_hash, election_id)) = self.rx_workers.recv() => {
-                    info!("{}", counter2);
+                    //info!("{}", counter2);
                     counter2 += 1;
                     if !self.byzantine {
                         //info!("Received tx hash {} and election id {}", tx_hash, election_id);
