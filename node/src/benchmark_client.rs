@@ -200,7 +200,7 @@ impl Client {
                     counter2 * 532 * (self.nodes.len() - (self.nodes.len() - 1) / 3) as u64
                 );
             }
-        //}
+        }
         Ok(())
     }
 
