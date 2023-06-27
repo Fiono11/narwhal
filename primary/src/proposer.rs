@@ -458,10 +458,10 @@ impl Proposer {
                 header.id, self.name, self.round, len
             );
 
-            for (_tx_hash, election_id) in &header.votes {
-                self.active_elections.insert(election_id.clone());
+            //for (_tx_hash, election_id) in &header.votes {
+                //self.active_elections.insert(election_id.clone());
                 //info!("Added {} to active elections", election_id.clone());
-            }
+            //}
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
