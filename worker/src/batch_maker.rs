@@ -4,12 +4,13 @@ use crate::worker::WorkerMessage;
 use bytes::Bytes;
 #[cfg(feature = "benchmark")]
 use crypto::Digest;
-use crypto::PublicKey;
+use crypto::{PublicKey, Digest, Hash};
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
 #[cfg(feature = "benchmark")]
 use log::info;
 use network::ReliableSender;
+use std::collections::BTreeSet;
 #[cfg(feature = "benchmark")]
 use std::convert::TryInto as _;
 use std::net::SocketAddr;
@@ -42,6 +43,7 @@ pub struct BatchMaker {
     current_batch_size: usize,
     /// A network sender to broadcast the batches to the other workers.
     network: ReliableSender,
+    all_txs: Vec<Digest>,
 }
 
 impl BatchMaker {
@@ -62,6 +64,7 @@ impl BatchMaker {
                 current_batch: Batch::with_capacity(batch_size * 2),
                 current_batch_size: 0,
                 network: ReliableSender::new(),
+                all_txs: Vec::new(),
             }
             .run()
             .await;
@@ -78,10 +81,13 @@ impl BatchMaker {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
                     self.current_batch_size += transaction.data.len();
-                    self.current_batch.push(transaction);
-                    if self.current_batch_size >= self.batch_size {
-                        self.seal().await;
-                        timer.as_mut().reset(Instant::now() + Duration::from_millis(self.max_batch_delay));
+                    if self.all_txs.contains(&transaction.digest()) {
+                        self.all_txs.push(transaction.digest().clone());
+                        self.current_batch.push(transaction);
+                        if self.current_batch_size >= self.batch_size {
+                            self.seal().await;
+                            timer.as_mut().reset(Instant::now() + Duration::from_millis(self.max_batch_delay));
+                        }
                     }
                 },
 
