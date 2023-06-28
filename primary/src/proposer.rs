@@ -522,6 +522,12 @@ impl Proposer {
 
                                             match self.decided_headers.get_mut(&vote.proposal_round) {
                                                 Some(headers) => {
+                                                    for commit in &self.pending_commits {
+                                                        if let Some(len) = self.unique_elections.get(&commit) {
+                                                            headers.insert(commit.clone());
+                                                            //self.pending_commits.remove(&commit);
+                                                        }
+                                                    }
                                                     if headers.len() == NUMBER_OF_NODES {
                                                         let mut len = 0;
                                                         for header in headers.iter() {
@@ -556,13 +562,14 @@ impl Proposer {
                                                 None => {
                                                     match self.unique_elections.get(&vote.election_id) {
                                                         Some(len) => {
-                                                 
+                                                            
                                                             match self.decided_headers.get_mut(&vote.proposal_round) {
                                                                 Some(headers) => {
                                                                     headers.insert(vote.election_id.clone());
                                                                     for commit in &self.pending_commits {
                                                                         if let Some(len) = self.unique_elections.get(&commit) {
                                                                             headers.insert(commit.clone());
+                                                                            //self.pending_commits.remove(&commit);
                                                                         }
                                                                     }
                                                                 }   
@@ -580,7 +587,7 @@ impl Proposer {
 
                                                         }
                                                         None => {
-                                                            info!("Proposal {} is pending!", vote.election_id);
+                                                            info!("Proposal {:?} is pending!", vote.election_id);
                                                             self.pending_commits.insert(vote.election_id.clone());
                                                         }
                                                     }
