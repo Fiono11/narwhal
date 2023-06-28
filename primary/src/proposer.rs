@@ -516,11 +516,30 @@ impl Proposer {
                                     election.insert_vote(&vote);
                                     if let Some(tally) = election.proposal_tallies.get(&vote.round) {
                                         if let Some(tx_hash) = election.find_quorum_of_commits() {
-                                            election.decided = true;
+
+                                            if let Some(len) = self.unique_elections.get(&vote.election_id) {
+                                                //if !self.decided.contains(&vote.election_id) {
+                                                    info!(
+                                                        "Committed {} -> {:?}",
+                                                        len,
+                                                        vote.election_id
+                                                    );
+                                                //}
+                                                //self.decided.insert(vote.election_id.clone());
+
+                                                self.round += 1;
+
+                                                let deadline = Instant::now()
+                                                    + Duration::from_millis(self.max_header_delay);
+                                                timer.as_mut().reset(deadline);
+                        
+                                                election.decided = true;
+
+                                            }
 
                                             //info!("ALL VOTES: {:?}", self.all_votes);
 
-                                            match self.decided_headers.get_mut(&vote.proposal_round) {
+                                            /*match self.decided_headers.get_mut(&vote.proposal_round) {
                                                 Some(headers) => {
                                                     for commit in &self.pending_commits {
                                                         if let Some(len) = self.unique_elections.get(&commit) {
@@ -546,7 +565,7 @@ impl Proposer {
                                                             timer.as_mut().reset(deadline);
                         
                                                             election.decided = true;
-                                                    }
+                                                    }*/
                                                     /*if !headers.contains(&vote.election_id) {
                                                             info!(
                                                                 "Committed {} -> {:?}",
@@ -558,8 +577,8 @@ impl Proposer {
                                                         headers.insert(vote.election_id.clone());
                                                     }*/
 
-                                                }
-                                                None => {
+                                                //}
+                                                /*None => {
                                                     match self.unique_elections.get(&vote.election_id) {
                                                         Some(len) => {
                                                             
@@ -587,13 +606,13 @@ impl Proposer {
 
                                                         }
                                                         None => {
-                                                            info!("Proposal {} from {} in round {} is pending!", vote.proposal_id, vote.author, vote.proposal_round);
+                                                            info!("Vote from {} in round {} on proposal {} is pending!", vote.author, vote.proposal_round, vote.proposal_id);
                                                             self.pending_commits.insert(vote.proposal_id.clone());
                                                         }
                                                     }
                                                     
-                                                }
-                                            }
+                                                }*/
+                                            //}
 
                                             /*for commit in &self.pending_commits {
                                                 if let Some(len) = self.unique_elections.get(&commit) {
