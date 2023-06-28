@@ -401,7 +401,7 @@ impl Proposer {
 
         //info!("inserted {} votes of proposal {}", votes.len(), proposal_id.clone());
 
-        self.all_votes.insert(proposal_id.clone(), votes);
+        //self.all_votes.insert(proposal_id.clone(), votes);
 
         let elections = self.elections.get_mut(&proposal_vote.proposals_round).unwrap();
 
@@ -533,6 +533,13 @@ impl Proposer {
                                                             vote.election_id
                                                         );
                                                         self.decided_headers.remove(&vote.proposal_round);
+                                                        self.round += 1;
+
+                                                        let deadline = Instant::now()
+                                                                + Duration::from_millis(self.max_header_delay);
+                                                            timer.as_mut().reset(deadline);
+                        
+                                                            election.decided = true;
                                                     }
                                                     /*if !headers.contains(&vote.election_id) {
                                                             info!(
@@ -549,20 +556,24 @@ impl Proposer {
                                                 None => {
                                                     match self.unique_elections.get(&vote.election_id) {
                                                         Some(len) => {
-                                                            //info!(
-                                                                //"Committed {} -> {:?}",
-                                                                //self.unique_elections.get(&vote.election_id).unwrap(),
-                                                                //vote.election_id
-                                                            //);
-                            
-
+                                                 
                                                             match self.decided_headers.get_mut(&vote.proposal_round) {
                                                                 Some(headers) => {
                                                                     headers.insert(vote.election_id.clone());
+                                                                    for commit in &self.pending_commits {
+                                                                        if let Some(len) = self.unique_elections.get(&commit) {
+                                                                            headers.insert(commit.clone());
+                                                                        }
+                                                                    }
                                                                 }   
                                                                 None => {
                                                                     let mut btreeset = BTreeSet::new();
                                                                     btreeset.insert(vote.election_id.clone());
+                                                                    for commit in &self.pending_commits {
+                                                                        if let Some(len) = self.unique_elections.get(&commit) {
+                                                                            btreeset.insert(commit.clone());
+                                                                        }
+                                                                    }
                                                                     self.decided_headers.insert(vote.proposal_round, btreeset);
                                                                 }
                                                             }
@@ -577,7 +588,7 @@ impl Proposer {
                                                 }
                                             }
 
-                                            for commit in &self.pending_commits {
+                                            /*for commit in &self.pending_commits {
                                                 if let Some(len) = self.unique_elections.get(&commit) {
                                                     info!(
                                                         "Committed {} -> {:?}",
@@ -585,19 +596,13 @@ impl Proposer {
                                                         vote.election_id
                                                     );
                                                 }
-                                            }
+                                            }*/
 
-                                            self.all_votes.drain();
+                                            //self.all_votes.drain();
 
                                             //info!("ALL VOTES2: {:?}", self.all_votes);
 
-                                            self.round += 1;
-
-                                            let deadline = Instant::now()
-                                                    + Duration::from_millis(self.max_header_delay);
-                                                timer.as_mut().reset(deadline);
-            
-                                                election.decided = true;
+                                            
 
                                             //for (tx_hash, election_id) in self.votes.get(&header_id).unwrap().iter() {
                                             //self.proposals.retain(|(_, id)| id != election_id);
