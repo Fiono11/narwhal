@@ -102,7 +102,8 @@ impl Client {
         let burst = self.rate / PRECISION;
         let mut tx = BytesMut::with_capacity(self.size);
         let mut counter = 0;
-        let mut r = rand::thread_rng().gen();
+        //let mut r = rand::thread_rng().gen();
+        let mut r = 0;
         let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
         let interval = interval(Duration::from_millis(BURST_DURATION));
         tokio::pin!(interval);
@@ -126,6 +127,8 @@ impl Client {
                     tx.put_u8(1u8); // Standard txs start with 1.
                     tx.put_u64(r); // Ensures all clients send different txs.
                 };
+
+                info!("Sending transaction with id {:?}", &tx);
 
                 tx.resize(self.size, 0u8);
                 let bytes = tx.split().freeze();

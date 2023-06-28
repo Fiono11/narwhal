@@ -1,22 +1,21 @@
 {
     "key": {
-        "name": "aws",
-        "path": "/Users/asonnino/.ssh/aws"
+        "name": "fiono",
+        "path": "/Users/ruimorais/.ssh/key"
     },
     "port": 5000,
     "repo": {
-        "name": "narwhal",
-        "url": "https://github.com/asonnino/narwhal",
+        "name": "/home/fiono/narwhal",
+        "url": "https://github.com/Fiono11/narwhal",
         "branch": "bullshark"
     },
-    "instances": {
-        "type": "m5d.8xlarge",
-        "regions": [
-            "us-east-1",
-            "eu-north-1",
-            "ap-southeast-2",
-            "us-west-1",
-            "ap-northeast-1"
-        ]
-    }
+    "hosts": [
+        "34.88.5.18",
+        "34.175.221.14",
+        "35.187.97.186",
+        "34.17.25.89",
+        "34.147.137.194",
+        "35.242.255.53",
+        "34.147.56.19"
+    ]
 }

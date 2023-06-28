@@ -1,6 +1,4 @@
 # Copyright(C) Facebook, Inc. and its affiliates.
-import boto3
-from botocore.exceptions import ClientError
 from collections import defaultdict, OrderedDict
 from time import sleep
 
@@ -23,9 +21,9 @@ class InstanceManager:
     def __init__(self, settings):
         assert isinstance(settings, Settings)
         self.settings = settings
-        self.clients = OrderedDict()
-        for region in settings.aws_regions:
-            self.clients[region] = boto3.client('ec2', region_name=region)
+        #self.clients = OrderedDict()
+        #for region in settings.aws_regions:
+            #self.clients[region] = boto3.client('ec2', region_name=region)
 
     @classmethod
     def make(cls, settings_file='settings.json'):
@@ -216,12 +214,11 @@ class InstanceManager:
         except ClientError as e:
             raise BenchError(AWSError(e))
 
-    def hosts(self, flat=False):
-        try:
-            _, ips = self._get(['pending', 'running'])
-            return [x for y in ips.values() for x in y] if flat else ips
-        except ClientError as e:
-            raise BenchError('Failed to gather instances IPs', AWSError(e))
+    def hosts(self):
+        return self.settings.hosts[:7]
+    
+    def ips(self):
+        return self.settings.ips
 
     def print_info(self):
         hosts = self.hosts()
