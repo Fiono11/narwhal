@@ -271,16 +271,17 @@ impl Proposer {
                                 //info!("Committed1 {} -> {:?}", tx_hash, election_id);
                                 //}
 
-                                if self.decided_elections.get(&header_id).unwrap() == &false {
+                                //if self.decided_elections.get(&header_id).unwrap() == &false {
+                                if let Some(votes) = self.votes.get(&header_id) {
                                     #[cfg(feature = "benchmark")]
                                     // NOTE: This log entry is used to compute performance.
-                                    info!("Round {}", self.round);
+                                    //info!("Round {}", self.round);
                                     info!(
                                         "Committed {} -> {:?}",
-                                        self.votes.get(&header_id).unwrap().len(),
+                                        votes.len(),
                                         header_id
                                     );
-                                    self.decided_elections.insert(header_id.clone(), true);
+                                    //self.decided_elections.insert(header_id.clone(), true);
 
                             
                                     //info!("Round {} is decided with {}!", election_id, header_id.clone());
