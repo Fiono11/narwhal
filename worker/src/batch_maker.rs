@@ -80,7 +80,7 @@ impl BatchMaker {
                 // Assemble client transactions into batches of preset size.
                 Some(transaction) = self.rx_transaction.recv() => {
                     self.current_batch_size += transaction.data.len();
-                    if self.all_txs.contains(&transaction.digest()) {
+                    if !self.all_txs.contains(&transaction.digest()) {
                         self.all_txs.push(transaction.digest().clone());
                         self.current_batch.push(transaction);
                         if self.current_batch_size >= self.batch_size {

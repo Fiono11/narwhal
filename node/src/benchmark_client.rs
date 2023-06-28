@@ -111,8 +111,8 @@ impl Client {
             //let burst = 20;
             let mut data: Vec<u8> = Vec::new();
             for _ in 0..(self.size - 32) {
-                data.push(rand::thread_rng().gen());
-                //data.push(0);
+                //data.push(rand::thread_rng().gen());
+                data.push(1);
             }
             let mut id: BytesMut = BytesMut::with_capacity(size);
             let mut tx = Transaction::new();
