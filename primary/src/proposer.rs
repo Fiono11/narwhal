@@ -197,7 +197,6 @@ impl Proposer {
         let sent = self.proposals_sent.get_mut(&proposal.round).unwrap();
 
         if proposals.len() >= NUMBER_OF_CORRECT_NODES && !*sent {//&& timer.is_elapsed() {
-            sleep(Duration::from_millis(self.max_header_delay)).await;
             let mut hasher = Sha512::new();
 
             for id in proposals {
