@@ -29,7 +29,7 @@ pub type Round = u64;
 pub enum PrimaryMessage {
     Proposal(Proposal),
     Vote(Vote),
-    ProposalVote(ProposalVote),
+    //ProposalVote(ProposalVote),
 }
 
 /// The messages sent by the primary to its workers.

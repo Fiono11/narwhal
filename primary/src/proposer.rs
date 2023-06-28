@@ -207,7 +207,7 @@ impl Proposer {
             //for proposal_id in proposals.keys() {
                 //proposal_ids.insert(proposal_id.clone());
             //}
-            let proposal_vote = Vote::new(0, proposal_id.clone(), proposal_id.clone(), proposal.round, false, self.name, &mut self.signature_service).await;
+            let proposal_vote = Vote::new(0, proposal_id.clone(), proposal_id.clone(), proposal.round, false, self.name, proposal.id.clone(), &mut self.signature_service).await;
             // broadcast the proposal vote
             let bytes = bincode::serialize(&PrimaryMessage::Vote(proposal_vote.clone()))
                 .expect("Failed to serialize our own header");
@@ -361,7 +361,7 @@ impl Proposer {
         Ok(())
     }
 
-    #[async_recursion]
+    /*#[async_recursion]
     async fn process_proposal_vote(
         &mut self,
         proposal_vote: &ProposalVote,
@@ -421,7 +421,7 @@ impl Proposer {
         }
 
         Ok(())
-    }
+    }*/
 
         /*for proposal in &proposal_vote.proposals {
             let vote = Vote::new(proposal_vote.election_round, proposal.clone(), proposal.clone(), proposal_vote.proposals_round, proposal_vote.commit, proposal_vote.author, &mut self.signature_service).await;
@@ -587,8 +587,8 @@ impl Proposer {
 
                                                         }
                                                         None => {
-                                                            info!("Proposal {} from {} in round {} is pending!", vote.election_id, vote.author, vote.proposal_round);
-                                                            self.pending_commits.insert(vote.election_id.clone());
+                                                            info!("Proposal {} from {} in round {} is pending!", vote.proposal_id, vote.author, vote.proposal_round);
+                                                            self.pending_commits.insert(vote.proposal_id.clone());
                                                         }
                                                     }
                                                     
@@ -661,6 +661,7 @@ impl Proposer {
                                                     vote.proposal_round,
                                                     true,
                                                     self.name,
+                                                    vote.proposal_id.clone(),
                                                     &mut self.signature_service,
                                                 )
                                                 .await;
@@ -696,6 +697,7 @@ impl Proposer {
                                                 vote.proposal_round,
                                                 committed,
                                                 self.name,
+                                                vote.proposal_id.clone(),
                                                 &mut self.signature_service,
                                             )
                                             .await;
@@ -726,6 +728,7 @@ impl Proposer {
                                                 vote.proposal_round,
                                                 vote.commit,
                                                 self.name,
+                                                vote.proposal_id.clone(),
                                                 &mut self.signature_service,
                                             )
                                             .await;
@@ -929,7 +932,7 @@ impl Proposer {
                     let _ = match message {
                         PrimaryMessage::Proposal(header) => self.process_proposal(&header, &mut timer).await,
                         PrimaryMessage::Vote(vote) => self.process_vote(&vote, &mut timer).await,
-                        PrimaryMessage::ProposalVote(proposal_vote) => self.process_proposal_vote(&proposal_vote, &mut timer).await,
+                        //PrimaryMessage::ProposalVote(proposal_vote) => self.process_proposal_vote(&proposal_vote, &mut timer).await,
                         _ => Ok(())
                     };
                 },

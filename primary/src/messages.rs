@@ -164,6 +164,7 @@ pub struct Vote {
     pub author: PublicAddress,
     pub signature: Signature,
     pub vote_id: Digest,
+    pub proposal_id: ProposalId,
 }
 
 impl Vote {
@@ -174,7 +175,7 @@ impl Vote {
         proposal_round: Round,
         commit: bool,
         author: PublicAddress,
-        //header_id: Digest,
+        proposal_id: ProposalId,
         signature_service: &mut SignatureService,
     ) -> Self {
         let vote = Self {
@@ -186,7 +187,7 @@ impl Vote {
             signature: Signature::default(),
             vote_id: Digest::default(),
             commit,
-            //header_id,
+            proposal_id,
         };
         let vote_id = vote.digest();
         let signature = signature_service.request_signature(Digest::default()).await;
