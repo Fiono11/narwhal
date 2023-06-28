@@ -2,8 +2,7 @@
 use crate::quorum_waiter::QuorumWaiterMessage;
 use crate::worker::WorkerMessage;
 use bytes::Bytes;
-#[cfg(feature = "benchmark")]
-use crypto::Digest;
+//#[cfg(feature = "benchmark")]
 use crypto::{PublicKey, Digest, Hash};
 #[cfg(feature = "benchmark")]
 use ed25519_dalek::{Digest as _, Sha512};
