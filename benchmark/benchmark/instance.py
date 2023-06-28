@@ -215,7 +215,7 @@ class InstanceManager:
             raise BenchError(AWSError(e))
 
     def hosts(self):
-        return self.settings.hosts
+        return self.settings.hosts[:4]
     
     #def ips(self):
         #return self.settings.ips
