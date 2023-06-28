@@ -528,6 +528,7 @@ impl Proposer {
                                                             self.unique_elections.get(&vote.election_id).unwrap(),
                                                             vote.election_id
                                                         );
+                                                        self.decided_headers.remove(&vote.proposal_round);
                                                     }
                                                     /*if !headers.contains(&vote.election_id) {
                                                             info!(
