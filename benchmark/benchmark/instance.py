@@ -214,8 +214,8 @@ class InstanceManager:
         except ClientError as e:
             raise BenchError(AWSError(e))
 
-    def hosts(self, faults):
-        return self.settings.hosts
+    def hosts(self):
+        return self.settings.hosts[:7]
     
     def ips(self):
         return self.settings.ips

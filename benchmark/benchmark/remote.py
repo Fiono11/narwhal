@@ -317,7 +317,7 @@ class Bench:
 
         # Select which hosts to use.
         #selected_hosts = self._select_hosts(bench_parameters)
-        selected_hosts = self.manager.hosts(bench_parameters.faults)
+        selected_hosts = self.manager.hosts()
         if not selected_hosts:
             Print.warn('There are not enough instances available')
             return
