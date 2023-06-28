@@ -523,9 +523,13 @@ impl Proposer {
                                             match self.decided_headers.get_mut(&vote.proposal_round) {
                                                 Some(headers) => {
                                                     if headers.len() == NUMBER_OF_NODES {
+                                                        let mut len = 0;
+                                                        for header in &headers {
+                                                            len += self.unique_elections.get(&header).unwrap();
+                                                        }
                                                         info!(
                                                             "Committed {} -> {:?}",
-                                                            self.unique_elections.get(&vote.election_id).unwrap(),
+                                                            len,
                                                             vote.election_id
                                                         );
                                                         self.decided_headers.remove(&vote.proposal_round);
