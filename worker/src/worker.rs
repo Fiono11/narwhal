@@ -31,7 +31,7 @@ pub type SerializedBatchDigestMessage = Vec<u8>;
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WorkerMessage {
     Batch(Block),
-    BatchRequest(Vec<Digest>, /* origin */ PublicKey),
+    //BatchRequest(Vec<Digest>, /* origin */ PublicKey),
 }
 
 pub struct Worker {
@@ -66,11 +66,13 @@ impl Worker {
             .expect("Our public key is not in the committee")
             .worker_to_primary;
 
+        //let (tx_batch_maker, rx_batch_maker) = channel(CHANNEL_CAPACITY);
+
         // Spawn all worker tasks.
         let (tx_primary, rx_primary) = channel(CHANNEL_CAPACITY);
         worker.handle_primary_messages();
-        worker.handle_clients_transactions(tx_primary.clone(), primary_address);
-        worker.handle_workers_messages(tx_primary);
+        let tx_batch_maker = worker.handle_clients_transactions(tx_primary.clone(), primary_address);
+        worker.handle_workers_messages(tx_primary, tx_batch_maker.clone());
 
         // The `PrimaryConnector` allows the worker to send messages to its primary.
         PrimaryConnector::spawn(
@@ -123,7 +125,9 @@ impl Worker {
         &self,
         tx_primary: Sender<SerializedBatchDigestMessage>,
         primary_address: SocketAddr,
-    ) {
+        //tx_batch_maker: Sender<Transaction>,
+        //rx_batch_maker: Receiver<Transaction>,
+    ) -> Sender<Transaction> {
         let (tx_batch_maker, rx_batch_maker) = channel(CHANNEL_CAPACITY);
         let (tx_quorum_waiter, _rx_quorum_waiter) = channel(CHANNEL_CAPACITY);
         let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
@@ -137,7 +141,7 @@ impl Worker {
         address.set_ip("0.0.0.0".parse().unwrap());
         Receiver::spawn(
             address,
-            /* handler */ TxReceiverHandler { tx_batch_maker },
+            /* handler */ TxReceiverHandler { tx_batch_maker: tx_batch_maker.clone() },
         );
 
         // The transactions are sent to the `BatchMaker` that assembles them into batches. It then broadcasts
@@ -180,12 +184,14 @@ impl Worker {
             "Worker {} listening to client transactions on {}",
             self.id, address
         );
+
+        return tx_batch_maker;
     }
 
     /// Spawn all tasks responsible to handle messages from other workers.
-    fn handle_workers_messages(&self, _tx_primary: Sender<SerializedBatchDigestMessage>) {
-        let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
-        let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
+    fn handle_workers_messages(&self, _tx_primary: Sender<SerializedBatchDigestMessage>, tx_batch_maker: Sender<Transaction>,) {
+        //let (tx_helper, rx_helper) = channel(CHANNEL_CAPACITY);
+        //let (tx_processor, rx_processor) = channel(CHANNEL_CAPACITY);
 
         // Receive incoming messages from other workers.
         let mut address = self
@@ -198,8 +204,9 @@ impl Worker {
             address,
             /* handler */
             WorkerReceiverHandler {
-                tx_helper,
-                tx_processor,
+                tx_batch_maker
+                //tx_helper,
+                //tx_processor,
             },
         );
 
@@ -277,15 +284,16 @@ impl MessageHandler for TxReceiverHandler {
 /// Defines how the network receiver handles incoming workers messages.
 #[derive(Clone)]
 struct WorkerReceiverHandler {
-    tx_helper: Sender<(Vec<Digest>, PublicKey)>,
-    tx_processor: Sender<(SerializedBatchMessage, Digest)>,
+    tx_batch_maker: Sender<Transaction>,
+    //tx_helper: Sender<(Vec<Digest>, PublicKey)>,
+    //tx_processor: Sender<(SerializedBatchMessage, Digest)>,
 }
 
 #[async_trait]
 impl MessageHandler for WorkerReceiverHandler {
     async fn dispatch(&self, writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
         // Reply with an ACK.
-        let _ = writer.send(Bytes::from("Ack")).await;
+        //let _ = writer.send(Bytes::from("Ack")).await;
 
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized) {
@@ -297,12 +305,18 @@ impl MessageHandler for WorkerReceiverHandler {
                     .send(serialized.to_vec())
                     .await
                     .expect("Failed to send batch")*/
+                for tx in block.txs {
+                    self.tx_batch_maker
+                    .send(tx)
+                    .await
+                    .expect("Failed to send transaction");
+                }
             }
-            Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
+            /*Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
                 .tx_helper
                 .send((missing, requestor))
                 .await
-                .expect("Failed to send batch request"),
+                .expect("Failed to send batch request"),*/
             Err(e) => warn!("Serialization error: {}", e),
         }
         Ok(())
