@@ -524,7 +524,7 @@ impl Proposer {
                                                 Some(headers) => {
                                                     if headers.len() == NUMBER_OF_NODES {
                                                         let mut len = 0;
-                                                        for header in &headers {
+                                                        for header in headers.iter() {
                                                             len += self.unique_elections.get(&header).unwrap();
                                                         }
                                                         info!(
