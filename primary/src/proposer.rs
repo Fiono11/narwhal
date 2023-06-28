@@ -893,10 +893,10 @@ impl Proposer {
 
             self.own_proposals.push(self.round);
 
-            //info!(
-                //"Making a new proposal {} from {} in round {} with {} proposals",
-                //proposal.id, self.name, self.round, proposals
-            //);
+            info!(
+                "Making a new proposal {} from {} in round {} with {} proposals",
+                proposal.id, self.name, self.round, proposals
+            );
 
             //info!("PROPOSALS4: {}", self.proposals.len());
 
