@@ -196,7 +196,11 @@ impl Proposer {
         
         let sent = self.proposals_sent.get_mut(&proposal.round).unwrap();
 
-        if proposals.len() == NUMBER_OF_CORRECT_NODES && !*sent {//&& timer.is_elapsed() {
+        if proposals.len() >= NUMBER_OF_CORRECT_NODES && !*sent && timer.is_elapsed() {
+            let deadline = Instant::now()
+                + Duration::from_millis(self.max_header_delay);
+            timer.as_mut().reset(deadline);
+
             let mut hasher = Sha512::new();
 
             for id in proposals {
