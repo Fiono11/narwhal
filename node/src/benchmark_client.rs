@@ -154,7 +154,7 @@ impl Client {
                     // NOTE: This log entry is used to compute performance.
                         info!("Sending sample transaction {}", counter);
                     } else {
-                        //r += 1;
+                        r += 1;
                         id.put_u8(1u8); // Standard txs start with 1.
                         id.put_u64(r); // Ensures all clients send different txs.
                     };
