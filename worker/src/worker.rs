@@ -307,12 +307,12 @@ impl MessageHandler for WorkerReceiverHandler {
                     .send(serialized.to_vec())
                     .await
                     .expect("Failed to send batch")*/
-                for tx in block.txs {
+                /*for tx in block.txs {
                     self.tx_batch_maker
                     .send(tx)
                     .await
                     .expect("Failed to send transaction");
-                }
+                }*/
             }
             /*Ok(WorkerMessage::BatchRequest(missing, requestor)) => self
                 .tx_helper
