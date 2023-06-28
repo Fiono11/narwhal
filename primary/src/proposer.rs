@@ -522,7 +522,14 @@ impl Proposer {
 
                                             match self.decided_headers.get_mut(&vote.proposal_round) {
                                                 Some(headers) => {
-                                                    if !headers.contains(&vote.election_id) {
+                                                    if headers.len() == NUMBER_OF_NODES {
+                                                        info!(
+                                                            "Committed {} -> {:?}",
+                                                            self.unique_elections.get(&vote.election_id).unwrap(),
+                                                            vote.election_id
+                                                        );
+                                                    }
+                                                    /*if !headers.contains(&vote.election_id) {
                                                             info!(
                                                                 "Committed {} -> {:?}",
                                                                 self.unique_elections.get(&vote.election_id).unwrap(),
@@ -531,16 +538,17 @@ impl Proposer {
                             
 
                                                         headers.insert(vote.election_id.clone());
-                                                    }
+                                                    }*/
+
                                                 }
                                                 None => {
                                                     match self.unique_elections.get(&vote.election_id) {
                                                         Some(len) => {
-                                                            info!(
-                                                                "Committed {} -> {:?}",
-                                                                self.unique_elections.get(&vote.election_id).unwrap(),
-                                                                vote.election_id
-                                                            );
+                                                            //info!(
+                                                                //"Committed {} -> {:?}",
+                                                                //self.unique_elections.get(&vote.election_id).unwrap(),
+                                                                //vote.election_id
+                                                            //);
                             
 
                                                             match self.decided_headers.get_mut(&vote.proposal_round) {
