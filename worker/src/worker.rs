@@ -295,6 +295,8 @@ impl MessageHandler for WorkerReceiverHandler {
         // Reply with an ACK.
         //let _ = writer.send(Bytes::from("Ack")).await;
 
+        info!("Received tx from worker!");
+
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized) {
             Ok(WorkerMessage::Batch(block)) => {
