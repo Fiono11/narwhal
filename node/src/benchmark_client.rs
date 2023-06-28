@@ -128,7 +128,7 @@ impl Client {
                     tx.put_u64(r); // Ensures all clients send different txs.
                 };
 
-                info!("Sending transaction with id {:?}", &tx);
+                info!("Sending transaction {:?}", &tx);
 
                 tx.resize(self.size, 0u8);
                 let bytes = tx.split().freeze();
