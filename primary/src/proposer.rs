@@ -587,7 +587,7 @@ impl Proposer {
 
                                                         }
                                                         None => {
-                                                            info!("Proposal {:?} is pending!", vote.election_id);
+                                                            info!("Proposal {} from {} in round {} is pending!", vote.election_id, vote.author, vote.proposal_round);
                                                             self.pending_commits.insert(vote.election_id.clone());
                                                         }
                                                     }
