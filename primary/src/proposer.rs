@@ -455,10 +455,10 @@ impl Proposer {
             )
             .await;
 
-            info!(
-                "Making a new header {} from {} in round {} with {} proposals",
-                header.id, self.name, self.round, len
-            );
+            //info!(
+                //"Making a new header {} from {} in round {} with {} proposals",
+                //header.id, self.name, self.round, len
+            //);
 
             //for (_tx_hash, election_id) in &header.votes {
                 //self.active_elections.insert(election_id.clone());
@@ -501,7 +501,7 @@ impl Proposer {
                         let mut next_leader = self.committee.leader(next_round as usize);
 
                         while self.committee.is_byzantine(&next_leader) {
-                            //sleep(Duration::from_millis(self.max_header_delay)).await;
+                            sleep(Duration::from_millis(self.max_header_delay)).await;
                             next_round += 1;
                             next_leader = self.committee.leader(next_round as usize);
                         }
@@ -526,7 +526,7 @@ impl Proposer {
                         let mut next_leader = self.committee.leader(next_round as usize);
 
                         while self.committee.is_byzantine(&next_leader) {
-                            //sleep(Duration::from_millis(self.max_header_delay)).await;
+                            sleep(Duration::from_millis(self.max_header_delay)).await;
                             next_round += 1;
                             next_leader = self.committee.leader(next_round as usize);
                         }
