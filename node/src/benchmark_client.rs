@@ -129,7 +129,7 @@ impl Client {
             let mut counter2 = 0;
             let mut r: u64 = thread_rng().gen();
             let mut r2: u32 = thread_rng().gen();
-            let forks: bool = true;
+            let forks: bool = false;
             if forks {
                 r = 0;
             }
