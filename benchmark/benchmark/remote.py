@@ -71,7 +71,8 @@ class Bench:
             #'rustup default nightly',
 
             # Clone the repo.
-            f'(sudo apt-get -y install build-essential && sudo apt-get -y install cmake && sudo apt-get install tmux && sudo apt-get install git && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source $HOME/.cargo/env && git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) && cd {self.settings.repo_name}/benchmark && mkdir logs)'
+            f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull))'
+            #f'(sudo apt-get -y install build-essential && sudo apt-get -y install cmake && sudo apt-get install tmux && sudo apt-get install git && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source $HOME/.cargo/env && git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) && cd {self.settings.repo_name}/benchmark && mkdir logs)'
         ]
         hosts = self.manager.hosts()
         try:
