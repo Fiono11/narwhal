@@ -20,6 +20,9 @@ from itertools import cycle
 
 # --- PARSE DATA ---
 
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 class Setup:
     def __init__(self, faults, nodes, workers, collocate, rate, tx_size):
@@ -220,7 +223,7 @@ class PlotError(Exception):
 
 
 class Ploter:
-    def __init__(self, width=6.4, height=4.8):
+    def __init__(self, width=12.8, height=4.8):
         plt.figure(figsize=(width, height))
         self.reset_markers()
         self.reset_linestyles()
@@ -320,7 +323,7 @@ class Ploter:
 
     @staticmethod
     def legend_name(system):
-        return system.replace('batched-hs', 'hotstuff').capitalize()
+        return system.replace('adamastor', 'adamastor').capitalize()
 
     def plot_latency(self, system, faults, nodes, workers, tx_size):
         assert isinstance(system, str)
@@ -420,8 +423,8 @@ class Ploter:
 
 
 if __name__ == '__main__':
-    max_latencies = [2_500, 5_000]  # For TPS graphs.
-    all_systems = ['batched-hs', 'tusk', 'bullshark']
+    max_latencies = [2000]  # For TPS graphs.
+    all_systems = ['adamastor', 'tendermint', 'bullshark']
 
     # Parse the results.
     for system in all_systems:
@@ -432,19 +435,19 @@ if __name__ == '__main__':
     # Plot 'Happy path' graph.
     ploter = Ploter(width=12.8)
     for system in all_systems:
-        ploter.plot_latency(system, [0], [10, 20, 50], [1], 512)
+        ploter.plot_latency(system, [0], [4, 7, 10], [1], 512)
     ploter.finalize(
         'committee-latency',
         legend_cols=3,
-        top_lim=8_000,
+        top_lim=25_000,
         legend_loc='upper center',
         legend_anchor=(0.5, 1)
     )
 
     # Plot 'Happy path' TPS graph.
     ploter = Ploter()
-    for system in ['batched-hs', 'tusk', 'bullshark']:
-        ploter.plot_tps(system, [0], [10, 20, 50], [1], 512, max_latencies)
+    for system in ['adamastor', 'tendermint', 'bullshark']:
+        ploter.plot_tps(system, [0], [4, 7, 10], [1], 512, max_latencies)
     ploter.finalize(
         'common-tps', 
         legend_cols=1,
@@ -455,13 +458,13 @@ if __name__ == '__main__':
     # Plot 'Dead nodes' graph.
     ploter = Ploter()
     for system in all_systems:
-        ploter.plot_latency(system, [1, 3], [10], [1], 512)
+        ploter.plot_latency(system, [1, 2, 3], [4, 7, 10], [1], 512)
     ploter.finalize(
         'committee-latency-faults',
-        legend_cols=1,
-        top_lim=40_000,
-        legend_loc='upper right',
-        legend_anchor=(1, 1)
+        legend_cols=3,
+        top_lim=15_000,
+        legend_loc='upper center',
+        legend_anchor=(0.5, 1)
     )
 
     # Plot 'Scalability latency' graph.
