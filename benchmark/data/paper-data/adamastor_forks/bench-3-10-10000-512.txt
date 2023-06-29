@@ -2,13 +2,13 @@
  SUMMARY:
 -----------------------------------------
  + CONFIG:
- Faults: 0 node(s)
+ Faults: 3 node(s)
  Committee size: 10 node(s)
  Worker(s) per node: 1 worker(s)
  Collocate primary and workers: True
- Input rate: 5,000 tx/s
+ Input rate: 7,000 tx/s
  Transaction size: 512 B
- Execution time: 61 s
+ Execution time: 60 s
 
  Header size: 1,000 B
  Max header delay: 200 ms
@@ -23,7 +23,7 @@
  Consensus BPS: 0 B/s
  Consensus latency: 0 ms
 
- End-to-end TPS: 4,962 tx/s
- End-to-end BPS: 2,639,694 B/s
- End-to-end latency: 885 ms
+ End-to-end TPS: 6,986 tx/s
+ End-to-end BPS: 3,716,727 B/s
+ End-to-end latency: 640 ms
 -----------------------------------------

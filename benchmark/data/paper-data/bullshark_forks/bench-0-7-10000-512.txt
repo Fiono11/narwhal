@@ -3,10 +3,10 @@
 -----------------------------------------
  + CONFIG:
  Faults: 0 node(s)
- Committee size: 10 node(s)
+ Committee size: 7 node(s)
  Worker(s) per node: 1 worker(s)
  Collocate primary and workers: True
- Input rate: 5,000 tx/s
+ Input rate: 10,003 tx/s
  Transaction size: 512 B
  Execution time: 61 s
 
@@ -15,15 +15,15 @@
  GC depth: 50 round(s)
  Sync retry delay: 10,000 ms
  Sync retry nodes: 3 node(s)
- batch size: 500 B
- Max batch delay: 1,000 ms
+ batch size: 500,000 B
+ Max batch delay: 200 ms
 
  + RESULTS:
- Consensus TPS: 0 tx/s
- Consensus BPS: 0 B/s
- Consensus latency: 0 ms
+ Consensus TPS: 6,058 tx/s
+ Consensus BPS: 3,222,766 B/s
+ Consensus latency: 506 ms
 
- End-to-end TPS: 4,962 tx/s
- End-to-end BPS: 2,639,694 B/s
- End-to-end latency: 885 ms
+ End-to-end TPS: 6,029 tx/s
+ End-to-end BPS: 3,207,451 B/s
+ End-to-end latency: 712 ms
 -----------------------------------------

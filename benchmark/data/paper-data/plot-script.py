@@ -424,7 +424,7 @@ class Ploter:
 
 if __name__ == '__main__':
     max_latencies = [2000]  # For TPS graphs.
-    all_systems = ['adamastor', 'tendermint', 'bullshark']
+    all_systems = ['adamastor_forks', 'tendermint_forks', 'bullshark_forks']
 
     # Parse the results.
     for system in all_systems:
@@ -446,7 +446,7 @@ if __name__ == '__main__':
 
     # Plot 'Happy path' TPS graph.
     ploter = Ploter()
-    for system in ['adamastor', 'tendermint', 'bullshark']:
+    for system in ['adamastor_forks', 'tendermint_forks', 'bullshark_forks']:
         ploter.plot_tps(system, [0], [4, 7, 10], [1], 512, max_latencies)
     ploter.finalize(
         'common-tps', 
