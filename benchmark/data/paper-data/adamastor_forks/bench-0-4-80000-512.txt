@@ -8,7 +8,7 @@
  Collocate primary and workers: True
  Input rate: 80,000 tx/s
  Transaction size: 512 B
- Execution time: 61 s
+ Execution time: 60 s
 
  Header size: 1,000 B
  Max header delay: 200 ms
@@ -23,7 +23,7 @@
  Consensus BPS: 0 B/s
  Consensus latency: 0 ms
 
- End-to-end TPS: 60,810 tx/s
- End-to-end BPS: 32,351,047 B/s
- End-to-end latency: 7,326 ms 
+ End-to-end TPS: 19,953 tx/s
+ End-to-end BPS: 10,615,012 B/s
+ End-to-end latency: 449 ms
 -----------------------------------------
