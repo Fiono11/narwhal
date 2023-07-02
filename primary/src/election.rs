@@ -6,7 +6,12 @@ use std::{
     time::Duration,
 };
 
-use crate::{constants::QUORUM, messages::{Vote, ProposalId}, proposer::TxHash, Round};
+use crate::{
+    constants::QUORUM,
+    messages::Vote,
+    proposer::TxHash,
+    Round,
+};
 
 pub type ElectionId = Digest;
 

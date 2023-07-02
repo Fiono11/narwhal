@@ -79,8 +79,6 @@ class Committee:
                 }
                 port += 3
 
-            #is_byzantine = i >= len(addresses) - byzantine
-
             self.json['authorities'][name] = {
                 'stake': 1,
                 'primary': primary_addr,

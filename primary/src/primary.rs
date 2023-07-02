@@ -1,7 +1,7 @@
 // Copyright(C) Facebook, Inc. and its affiliates.
 use crate::election::ElectionId;
 use crate::error::DagError;
-use crate::messages::{Hash, Proposal, Vote, ProposalVote};
+use crate::messages::{Hash, Proposal, Vote};
 use crate::payload_receiver::PayloadReceiver;
 use crate::proposer::{Proposer, TxHash};
 use async_trait::async_trait;
@@ -9,7 +9,6 @@ use bytes::Bytes;
 use config::{Committee, Parameters};
 use crypto::{Digest, PublicKey, SecretKey, SignatureService};
 use ed25519_dalek::{Digest as _, Sha512};
-use futures::sink::SinkExt as _;
 use log::info;
 use network::{MessageHandler, Receiver as NetworkReceiver, Writer};
 use serde::{Deserialize, Serialize};
@@ -58,13 +57,9 @@ impl Primary {
         secret: SecretKey,
         committee: Committee,
         parameters: Parameters,
-        //tx_consensus: Sender<Certificate>,
-        //rx_consensus: Receiver<Certificate>,
     ) {
         let (tx_others_digests, rx_others_digests) = channel(CHANNEL_CAPACITY);
         let (tx_our_digests, rx_our_digests) = channel(CHANNEL_CAPACITY);
-        let (_tx_parents, rx_parents) = channel(CHANNEL_CAPACITY);
-        let (tx_headers, _rx_headers) = channel(CHANNEL_CAPACITY);
         let (tx_primary_messages, rx_primary_messages) = channel(CHANNEL_CAPACITY);
 
         // Write the parameters to the logs.
@@ -126,26 +121,9 @@ impl Primary {
             .map(|(_, x)| x.primary_to_primary)
             .collect();
 
-        // The `Core` receives and handles headers, votes, and certificates from the other primaries.
-        /*Core::spawn(
-            name.clone(),
-            committee.clone(),
-            store.clone(),
-            signature_service.clone(),
-            consensus_round.clone(),
-            parameters.gc_depth,
-            /* rx_primaries */ rx_primary_messages,
-            /* rx_proposer */ rx_headers,
-            /* tx_proposer */ tx_parents,
-            addresses,
-            committee.authorities.get(&name).unwrap().byzantine,
-            parameters.header_size,
-        );*/
-
         // Receives batch digests from other workers. They are only used to validate headers.
-        PayloadReceiver::spawn( /* rx_workers */ rx_others_digests);
+        PayloadReceiver::spawn(/* rx_workers */ rx_others_digests);
 
-        let leader = committee.leader(0);
         let byzantine = committee.authorities.get(&name).unwrap().byzantine;
         info!("Byzantine: {}", byzantine);
         let primary = committee
@@ -162,14 +140,11 @@ impl Primary {
             signature_service,
             parameters.header_size,
             parameters.max_header_delay,
-            /* rx_core */ rx_parents,
             /* rx_workers */ rx_our_digests,
-            /* tx_core */ tx_headers,
             addresses,
             byzantine,
             rx_primary_messages,
             other_primaries,
-            leader,
         );
 
         // NOTE: This log entry is used to compute performance.
@@ -189,10 +164,7 @@ struct PrimaryReceiverHandler {
 
 #[async_trait]
 impl MessageHandler for PrimaryReceiverHandler {
-    async fn dispatch(&self, writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
-        // Reply with an ACK.
-        //let _ = writer.send(Bytes::from("Ack")).await;
-
+    async fn dispatch(&self, _writer: &mut Writer, serialized: Bytes) -> Result<(), Box<dyn Error>> {
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized).map_err(DagError::SerializationError)? {
             request => self
@@ -222,14 +194,12 @@ impl MessageHandler for WorkerReceiverHandler {
         // Deserialize and parse the message.
         match bincode::deserialize(&serialized).map_err(DagError::SerializationError)? {
             WorkerPrimaryMessage::OurBatch(digest, election_id) => {
-                //info!("Received our batch!");
                 self.tx_our_digests
                     .send((digest, election_id))
                     .await
                     .expect("Failed to send workers' digests");
             }
             WorkerPrimaryMessage::OthersBatch(digest, election_id) => {
-                //info!("Received others batch!");
                 self.tx_others_digests
                     .send((digest, election_id))
                     .await
@@ -239,8 +209,6 @@ impl MessageHandler for WorkerReceiverHandler {
         Ok(())
     }
 }
-
-//pub type Transaction = Vec<u8>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Transaction {
@@ -265,5 +233,3 @@ impl Hash for Transaction {
         hasher.finalize().as_slice()[..32].try_into().unwrap()
     }
 }
-
-pub type Batch = Vec<Transaction>;

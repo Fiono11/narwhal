@@ -97,117 +97,116 @@ struct Client {
 impl Client {
     pub async fn send(&self) -> Result<()> {
         //if self.id < (self.nodes.len() as u64) - (self.nodes.len() as u64 - 1) / 3 {
-            const PRECISION: u64 = 20; // Sample precision.
-            const BURST_DURATION: u64 = 1000 / PRECISION;
+        const PRECISION: u64 = 20; // Sample precision.
+        const BURST_DURATION: u64 = 1000 / PRECISION;
 
-            // The transaction size must be at least 16 bytes to ensure all txs are different.
-            if self.size < 9 {
-                return Err(anyhow::Error::msg(
-                    "Transaction size must be at least 9 bytes",
-                ));
-            }
+        // The transaction size must be at least 16 bytes to ensure all txs are different.
+        if self.size < 9 {
+            return Err(anyhow::Error::msg(
+                "Transaction size must be at least 9 bytes",
+            ));
+        }
 
-            let size = 13;
+        let size = 13;
 
-            // Connect to the mempool.
-            let stream = TcpStream::connect(self.target)
-                .await
-                .context(format!("failed to connect to {}", self.target))?;
+        // Connect to the mempool.
+        let stream = TcpStream::connect(self.target)
+            .await
+            .context(format!("failed to connect to {}", self.target))?;
 
-            // Submit all transactions.
-            let burst = self.rate / PRECISION;
-            //let burst = 20;
-            let mut data: Vec<u8> = Vec::new();
-            for _ in 0..(self.size - 32) {
-                data.push(rand::thread_rng().gen());
-                //data.push(0);
-            }
-            let mut id: BytesMut = BytesMut::with_capacity(size);
-            let mut tx = Transaction::new();
-            tx.data = data;
-            let mut counter = 0;
-            let mut counter2 = 0;
-            let mut r: u64 = thread_rng().gen();
-            let mut r2: u32 = thread_rng().gen();
-            let forks: bool = false;
-            if forks {
-                r = 0;
-            }
-            info!("Forks: {}", forks);
-            let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
-            let interval = interval(Duration::from_millis(BURST_DURATION));
-            tokio::pin!(interval);
+        // Submit all transactions.
+        let burst = self.rate / PRECISION;
+        //let burst = 20;
+        let mut data: Vec<u8> = Vec::new();
+        for _ in 0..(self.size - 32) {
+            data.push(rand::thread_rng().gen());
+            //data.push(0);
+        }
+        let mut id: BytesMut = BytesMut::with_capacity(size);
+        let mut tx = Transaction::new();
+        tx.data = data;
+        let mut counter = 0;
+        let mut counter2 = 0;
+        let mut r: u64 = thread_rng().gen();
+        let mut r2: u32 = thread_rng().gen();
+        let forks: bool = false;
+        if forks {
+            r = 0;
+        }
+        let mut transport = Framed::new(stream, LengthDelimitedCodec::new());
+        let interval = interval(Duration::from_millis(BURST_DURATION));
+        tokio::pin!(interval);
 
-            // NOTE: This log entry is used to compute performance.
-            info!(
-                "Start sending {} transactions",
-                PRECISION * burst * (self.nodes.len() as u64)
-            );
+        // NOTE: This log entry is used to compute performance.
+        info!(
+            "Start sending {} transactions",
+            PRECISION * burst * (self.nodes.len() as u64)
+        );
 
-            info!("RATE: {}", self.rate);
+        info!("RATE: {}", self.rate);
 
-            'main: loop {
+        'main: loop {
             //for _ in 0..self.rate {//PRECISION * (self.nodes.len() as u64) {
-                interval.as_mut().tick().await;
-                let now = Instant::now();
+            interval.as_mut().tick().await;
+            let now = Instant::now();
 
-                for x in 0..burst {
-                    //if x == counter % burst {
-                        //r += 1;
-                        //id.put_u8(0u8); // Sample txs start with 0.
-                                        //id.put_u64(r);
-                        //id.put_u64(counter); // This counter identifies the tx.
-                                             //id.put_u32(r2);
+            for x in 0..burst {
+                //if x == counter % burst {
+                //r += 1;
+                //id.put_u8(0u8); // Sample txs start with 0.
+                //id.put_u64(r);
+                //id.put_u64(counter); // This counter identifies the tx.
+                //id.put_u32(r2);
 
-                    // NOTE: This log entry is used to compute performance.
-                    //info!("Sending sample transaction {}", counter);
-                    //} else {
-                        r += 1;
-                        id.put_u8(1u8); // Standard txs start with 1.
-                        id.put_u64(r); // Ensures all clients send different txs.
-                    //};
+                // NOTE: This log entry is used to compute performance.
+                //info!("Sending sample transaction {}", counter);
+                //} else {
+                r += 1;
+                id.put_u8(1u8); // Standard txs start with 1.
+                id.put_u64(r); // Ensures all clients send different txs.
+                               //};
 
-                    tx.id = id.to_vec();
-                    //if self.id != 0 {
-                        info!(
-                            "Sending sample transaction {}",
-                            //self.rate * self.id + counter2
-                            counter2,
-                        );
-
-                        //info!("counter: {}", counter2);
-                    //}
-                    //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
-                    let message = bincode::serialize(&tx.clone()).unwrap();
-                    //if counter == 0 {
-                    //info!("TX SIZE: {:?}", message.len());
-                    //}
-                    id.resize(size, 0u8);
-                    id.split();
-
-                    let bytes = Bytes::from(message);
-
-                    if let Err(e) = transport.send(bytes.clone()).await {
-                        warn!("Failed to send transaction: {}", e);
-                        break 'main;
-                    }
-                    counter2 += 1;
-                }
-                if now.elapsed().as_millis() > BURST_DURATION as u128 {
-                    // NOTE: This log entry is used to compute performance.
-                    warn!("Transaction rate too high for this client");
-                }
-                counter += 1;
-            }
-            info!("Sent {} txs", counter2);
-            if forks {
-                info!("Total bytes: {}", counter2 * 532);
-            } else {
+                tx.id = id.to_vec();
+                //if self.id != 0 {
                 info!(
-                    "Total bytes: {}",
-                    counter2 * 532 * (self.nodes.len() - (self.nodes.len() - 1) / 3) as u64
+                    "Sending sample transaction {}",
+                    //self.rate * self.id + counter2
+                    counter2,
                 );
+
+                //info!("counter: {}", counter2);
+                //}
+                //info!("Sending transaction with id {:?} and digest {:?}", tx.id, tx.digest());
+                let message = bincode::serialize(&tx.clone()).unwrap();
+                //if counter == 0 {
+                //info!("TX SIZE: {:?}", message.len());
+                //}
+                id.resize(size, 0u8);
+                id.split();
+
+                let bytes = Bytes::from(message);
+
+                if let Err(e) = transport.send(bytes.clone()).await {
+                    warn!("Failed to send transaction: {}", e);
+                    break 'main;
+                }
+                counter2 += 1;
             }
+            if now.elapsed().as_millis() > BURST_DURATION as u128 {
+                // NOTE: This log entry is used to compute performance.
+                warn!("Transaction rate too high for this client");
+            }
+            counter += 1;
+        }
+        info!("Sent {} txs", counter2);
+        if forks {
+            info!("Total bytes: {}", counter2 * 532);
+        } else {
+            info!(
+                "Total bytes: {}",
+                counter2 * 532 * (self.nodes.len() - (self.nodes.len() - 1) / 3) as u64
+            );
+        }
         //}
         Ok(())
     }

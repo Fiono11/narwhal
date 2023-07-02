@@ -12,14 +12,10 @@ class Settings:
         inputs_str = [
             key_name, key_path, repo_name, repo_url, branch
         ]
-        #if isinstance(aws_regions, list):
-            #regions = aws_regions
-        #else:
-            #regions = [aws_regions]
-        #inputs_str += regions
+
         ok = all(isinstance(x, str) for x in inputs_str)
         ok &= isinstance(base_port, int)
-        #ok &= len(regions) > 0
+
         if not ok:
             raise SettingsError('Invalid settings types')
 
@@ -32,9 +28,6 @@ class Settings:
         self.repo_url = repo_url
         self.branch = branch
         self.hosts = hosts
-
-        #self.instance_type = instance_type
-        #self.aws_regions = regions
 
     @classmethod
     def load(cls, filename):

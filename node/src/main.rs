@@ -66,12 +66,10 @@ async fn main() -> Result<()> {
 
 // Runs either a worker or a primary.
 async fn run(matches: &ArgMatches<'_>) -> Result<()> {
-    //sleep(std::time::Duration::from_millis(1500));
 
     let key_file = matches.value_of("keys").unwrap();
     let committee_file = matches.value_of("committee").unwrap();
     let parameters_file = matches.value_of("parameters");
-    let store_path = matches.value_of("store").unwrap();
 
     // Read the committee and node's keypair from file.
     let keypair = KeyPair::import(key_file)
@@ -95,15 +93,11 @@ async fn run(matches: &ArgMatches<'_>) -> Result<()> {
     match matches.subcommand() {
         // Spawn the primary and consensus core.
         ("primary", _) => {
-            //let (tx_new_certificates, rx_new_certificates) = channel(CHANNEL_CAPACITY);
-            //let (tx_feedback, rx_feedback) = channel(CHANNEL_CAPACITY);
             Primary::spawn(
                 keypair.name,
                 keypair.secret,
                 committee.clone(),
                 parameters.clone(),
-                /* tx_consensus */ //tx_new_certificates,
-                /* rx_consensus */ //rx_feedback,
             );
         }
 

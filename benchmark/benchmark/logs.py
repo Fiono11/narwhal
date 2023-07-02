@@ -35,7 +35,6 @@ class LogParser:
 
         clients = []
         for filename in sorted(glob(join(directory, 'client-*-*'))):
-            #if num < correct:
             with open(filename, 'r') as f:
                 clients += [f.read()]
 
@@ -58,7 +57,6 @@ class LogParser:
         proposals, commits, self.configs, primary_ips = zip(*results)
         self.proposals = self._merge_results([x.items() for x in proposals])
         self.commits = self._merge_results([x.items() for x in commits])
-        #print("self commits: ", self.commits)
 
         # Parse the workers logs.
         try:
@@ -67,12 +65,9 @@ class LogParser:
         except (ValueError, IndexError, AttributeError) as e:
             raise ParseError(f'Failed to parse workers\' logs: {e}')
         sizes, self.received_samples, workers_ips = zip(*results)
-        #print("comits: ", self.commits)
         self.sizes = {
             k: v for x in sizes for k, v in x.items() if k in self.commits
         }
-
-        #print("sizes: ", self.sizes)
 
         # Determine whether the primary and the workers are collocated.
         self.collocate = set(primary_ips) == set(workers_ips)
@@ -147,9 +142,7 @@ class LogParser:
         misses = len(findall(r'rate too high', log))
 
         tmp = findall(r'\[(.*Z) .* sample transaction (\d+)', log)
-        #print("tmp: ", tmp)
         samples = {int(s): self._to_posix(t) for t, s in tmp}
-        #print("samples: ", samples)
 
         return size, rate, start, misses, samples
 
@@ -162,11 +155,8 @@ class LogParser:
         proposals = self._merge_results([tmp])
 
         tmp = findall(r'\[(.*Z) .* Committed (\d+) -> ([^ ]+=)', log)
-        #print("tmp1: ", tmp)
         tmp = [(a, (d, self._to_posix(t))) for t, d, a in tmp]
-        #print("tmp2: ", tmp)
         commits = self._merge_results([tmp])
-        #print("commits: ", commits)
 
         configs = {
             'header_size': int(
@@ -216,25 +206,6 @@ class LogParser:
         x = datetime.fromisoformat(string.replace('Z', '+00:00'))
         return datetime.timestamp(x)
 
-    '''def _consensus_throughput(self):
-        if not self.commits:
-            return 0, 0, 0
-        start, end = min(self.proposals.values()), max(self.commits.values())
-        duration = end - start
-        bytes = sum(self.sizes.values())
-        #print("proposals: ", self.proposals)
-        #print("commits: ", self.commits)
-        print("bytes: ", bytes)
-        print("duration: ", duration)
-        bps = bytes / duration
-        tps = bps / self.size[0]
-        return tps, bps, duration'''
-
-    def _consensus_latency(self):
-        #latency = [c - self.proposals[d] for d, c in self.commits.items()]
-        #return mean(latency) if latency else 0
-        0
-
     def _end_to_end_throughput(self):
         if not self.commits:
             return 0, 0, 0
@@ -243,33 +214,22 @@ class LogParser:
 
         sum_values = sum(int(val[0]) for val in self.commits.values())
         bytes = sum_values * 532  # Convert the key to an integer
-        print("bytes: ", bytes)
-        #bytes = sum(self.sizes.values())
         bps = bytes / duration
         tps = bps / self.size[0]
-        print("tps: ", tps)
-        print("duration: ", duration)
         return tps, bps, duration
 
     def _end_to_end_latency(self):
-        #start, end = min(self.start), max(val[1] for val in self.commits.values())
-        #print("sent: ", self.sent_samples)
-        #print("commits: ", self.commits)
         latency = []
         keys = list(self.commits.keys())
         counter = 0
         merged_dict = {k: v for d in self.sent_samples for k, v in d.items()}
-        #print(len(merged_dict))
-        #print("self samples: ", self.sent_samples)
 
         for i in range(len(keys)):
-            #print("counter: ", counter)
             start = merged_dict[counter]
             end = self.commits[keys[i]][1]
             latency += [end-start]
             counter += int(self.commits[keys[i]][0])-1
 
-        print("latency: ", mean(latency))
         return mean(latency) if latency else 0
 
     def result(self):
@@ -281,8 +241,8 @@ class LogParser:
         batch_size = self.configs[0]['batch_size']
         max_batch_delay = self.configs[0]['max_batch_delay']
 
-        consensus_latency = 0#self._consensus_latency() * 1_000
-        consensus_tps, consensus_bps, _ = 0, 0, 0#self._consensus_throughput()
+        consensus_latency = 0
+        consensus_tps, consensus_bps, _ = 0, 0, 0
         end_to_end_tps, end_to_end_bps, duration = self._end_to_end_throughput()
         end_to_end_latency = self._end_to_end_latency() * 1_000
 
@@ -334,20 +294,14 @@ class LogParser:
 
         clients = []
         for filename in sorted(glob(join(directory, 'client-*-*'))):
-            num = int(re.search(r'client-(\d+)-\d+.log', filename).group(1))
-            #if num < correct:
             with open(filename, 'r') as f:
                 clients += [f.read()]
         primaries = []
         for filename in sorted(glob(join(directory, 'primary-*.log'))):
-            num = int(re.search(r'primary-(\d+).log', filename).group(1))
-            #if num < correct:
             with open(filename, 'r') as f:
                 primaries += [f.read()]
         workers = []
         for filename in sorted(glob(join(directory, 'worker-*-*'))):
-            num = int(re.search(r'worker-(\d+)-\d+.log', filename).group(1))
-            #if num < correct:
             with open(filename, 'r') as f:
                 workers += [f.read()]
 

@@ -55,28 +55,27 @@ class Bench:
     def install(self):
         Print.info('Installing rust and cloning the repo...')
         cmd = [
-            #'sudo apt-get update',
-            #'sudo apt-get -y upgrade',
-            #'sudo apt-get -y autoremove',
+            'sudo apt-get update',
+            'sudo apt-get -y upgrade',
+            'sudo apt-get -y autoremove',
 
             # The following dependencies prevent the error: [error: linker `cc` not found].
-            #'sudo apt-get -y install build-essential',
-            #'sudo apt-get -y install cmake',
-            #'sudo apt-get install tmux',
-            #'sudo apt-get install git',
+            'sudo apt-get -y install build-essential',
+            'sudo apt-get -y install cmake',
+            'sudo apt-get install tmux',
+            'sudo apt-get install git',
 
             # Install rust (non-interactive).
-            #'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y',
-            #'source $HOME/.cargo/env',
-            #'rustup default nightly',
+            'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y',
+            'source $HOME/.cargo/env',
+            'rustup default nightly',
 
             # Clone the repo.
             f'(git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull))'
-            #f'(sudo apt-get -y install build-essential && sudo apt-get -y install cmake && sudo apt-get install tmux && sudo apt-get install git && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source $HOME/.cargo/env && git clone {self.settings.repo_url} || (cd {self.settings.repo_name} ; git pull ; chmod a+w .)) && cd {self.settings.repo_name}/benchmark && mkdir logs)'
         ]
         hosts = self.manager.hosts()
         try:
-            g = Group(*hosts[:4], user='fiono', connect_kwargs=self.connect)
+            g = Group(*hosts, user='fiono', connect_kwargs=self.connect)
             g.run(' && '.join(cmd), hide=True)
             Print.heading(f'Initialized testbed of {len(hosts)} nodes')
         except (GroupException, ExecutionError) as e:
@@ -113,10 +112,10 @@ class Bench:
             f'Updating {len(ips)} machines (branch "{self.settings.branch}")...'
         )
         cmd = [
-            #f'(cd {self.settings.repo_name} && git fetch -f)',
-            #f'(cd {self.settings.repo_name} && git checkout -f {self.settings.branch})',
-            #f'(cd {self.settings.repo_name} && git pull -f)',
-            #'source $HOME/.cargo/env',
+            f'(cd {self.settings.repo_name} && git fetch -f)',
+            f'(cd {self.settings.repo_name} && git checkout -f {self.settings.branch})',
+            f'(cd {self.settings.repo_name} && git pull -f)',
+            'source $HOME/.cargo/env',
             f'(cd {self.settings.repo_name} && git fetch -f && cd {self.settings.repo_name} && git checkout -f {self.settings.branch} && cd {self.settings.repo_name} && git pull -f && source $HOME/.cargo/env && cd {self.settings.repo_name} && {CommandMaker.compile()})'
             #CommandMaker.alias_binaries(
                 #f'{self.settings.repo_name}/target/release/'
@@ -206,7 +205,6 @@ class Bench:
         # Run the primaries (except the faulty ones).
         Print.info('Booting primaries...')
         for i, address in enumerate(committee.primary_addresses(faults)):
-            #host = Committee.ip(address)
             cmd = CommandMaker.run_primary(
                 PathMaker.key_file(i),
                 PathMaker.committee_file(),
@@ -221,7 +219,6 @@ class Bench:
         Print.info('Booting workers...')
         for i, addresses in enumerate(workers_addresses):
             for (id, address) in addresses:
-                #host = Committee.ip(address)
                 cmd = CommandMaker.run_worker(
                     PathMaker.key_file(i),
                     PathMaker.committee_file(),
@@ -251,7 +248,6 @@ class Bench:
         progress = progress_bar(workers_addresses, prefix='Downloading workers logs:')
         for i, addresses in enumerate(progress):
             for id, address in addresses:
-                #host = Committee.ip(address)
                 c = Connection(hosts[i], user='fiono', connect_kwargs=self.connect)
                 c.get( 
                     f'/home/fiono/DelegatedRingCT/benchmark/logs/client-{i}-{id}.log',
@@ -265,7 +261,6 @@ class Bench:
         primary_addresses = committee.primary_addresses(faults)
         progress = progress_bar(primary_addresses, prefix='Downloading primaries logs:')
         for i, address in enumerate(progress):
-            #host = Committee.ip(address)
             c = Connection(hosts[i], user='fiono', connect_kwargs=self.connect)
             c.get(
                 f'/home/fiono/DelegatedRingCT/benchmark/logs/primary-{i}.log',
@@ -298,8 +293,6 @@ class Bench:
             e = FabricError(e) if isinstance(e, GroupException) else e
             raise BenchError('Failed to update nodes', e)
         
-        #ips = self.manager.ips()
-
         # Upload all configuration files.
         try:
             committee = self._config(
@@ -324,9 +317,7 @@ class Bench:
                         self._run_single(
                             r, committee_copy, bench_parameters, debug
                         )
-
-                        #correct = bench_parameters.nodes[0] - (bench_parameters.nodes[0]-1)/3
-                        #faults = (bench_parameters.nodes[0]-1)/3
+                        
                         faults = bench_parameters.faults
                         logger = self._logs(committee_copy, faults)
                         logger.print(PathMaker.result_file(

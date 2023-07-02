@@ -5,13 +5,12 @@ use futures::sink::SinkExt as _;
 use futures::stream::StreamExt as _;
 use log::{info, warn};
 use rand::prelude::SliceRandom as _;
-use rand::rngs::{OsRng, SmallRng};
-use rand::{Rng, SeedableRng as _};
+use rand::rngs::SmallRng;
+use rand::SeedableRng as _;
 use std::cmp::min;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::net::SocketAddr;
-use std::thread;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::oneshot;
@@ -79,17 +78,6 @@ impl ReliableSender {
         addresses: Vec<SocketAddr>,
         data: Bytes,
     ) -> Vec<CancelHandler> {
-        let mut rng = OsRng;
-
-        // Generate a random duration between 0 and 1000 milliseconds
-        let duration_ms = rng.gen_range(0..=1000);
-
-        // Convert the duration to the appropriate type
-        let duration = Duration::from_millis(duration_ms);
-
-        // Sleep for the random duration
-        thread::sleep(duration);
-
         let mut handlers = Vec::new();
         for address in addresses {
             let handler = self.send(address, data.clone()).await;
